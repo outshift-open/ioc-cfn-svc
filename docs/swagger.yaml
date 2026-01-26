@@ -1,0 +1,10 @@
+basePath: /
+info:
+  contact: {}
+  license:
+    name: Apache 2.0
+  termsOfService: http://swagger.io/terms/
+  title: Template API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

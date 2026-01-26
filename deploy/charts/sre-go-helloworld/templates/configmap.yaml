@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  S3_BUCKET: {{ .Values.s3_bucket }}
+  AWS_REGION_OVERRIDE: {{ .Values.awsRegionOverride }}
+  PORT: {{ .Values.servicePort }}
+  METRICS_PORT: {{ .Values.metricsPort }}
+  {{- range $key, $value := $.Values.configmap }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

@@ -1,0 +1,26 @@
+{{- $files := .Files.Glob "dashboards/cluster*.json" }}
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboardList
+items:
+{{- range $path, $fileContents := $files }}
+{{- $dashboardName := regexReplaceAll "(^.*/)(.*)\\.json$" $path "${2}" }}
+- apiVersion: integreatly.org/v1alpha1
+  kind: GrafanaDashboard
+  metadata:
+    name:  {{ $dashboardName | trunc 63 | trimSuffix "-" }}
+    namespace: {{ $.Values.namespace }}
+    labels:
+      app.kubernetes.io/instance: {{ $.Values.grafana.appInstance }}
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: {{ $.Values.grafana.appName }}
+      helm.sh/chart: {{ $.Values.grafana.appName }}-0.3.10
+  spec:
+    customFolderName: {{ $.Values.grafana.folderName }}
+    json: >
+      {{ $.Files.Get $path  | nindent  6 }}
+
+    datasources:
+      - inputName: "DS_PROMETHEUS"
+        datasourceName: "Prometheus"
+  {{ printf "\n" }}
+{{- end }}

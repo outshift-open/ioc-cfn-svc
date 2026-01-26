@@ -1,0 +1,38 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+gotemplate
+
+coverage.out
+coverage.html
+staticanalysis.txt
+
+*.DS_Store
+*._DS_Store
+
+# common IDE generated files
+.idea/
+*~
+db.json
+vendor
+*.swp
+
+# sonarqube
+.scannerwork
+
+/var/
+
+*.log
+.jfrog
+*.tgz
+
+helloworld.bin

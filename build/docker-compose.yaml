@@ -1,0 +1,21 @@
+
+services:
+  helloworld-db:
+    image: postgres:15
+    container_name: helloworld-db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: "helloworld"
+      POSTGRES_USER: "helloworld"
+      POSTGRES_PASSWORD: "helloworld"
+    volumes:
+      - helloworld-postgres-volume:/var/lib/postgresql/data/
+
+volumes:
+  helloworld-postgres-volume:
+
+networks:
+  default:
+    name: helloworld

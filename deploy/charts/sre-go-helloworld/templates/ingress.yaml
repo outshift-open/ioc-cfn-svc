@@ -1,0 +1,36 @@
+apiVersion: {{ .Values.ingress.apiVersion }}
+kind: Ingress
+metadata:
+    name: '{{ .Release.Name }}'
+    namespace: '{{ .Values.namespace }}'
+    {{- if .Values.ingress.annotations }}
+    annotations:
+      {{- range $key, $value := .Values.ingress.annotations }}
+      {{ $key }}: {{ tpl $value $ | quote }}
+      {{- end }}
+    {{- end }}
+spec:
+    ingressClassName: {{ .Values.ingress.ingressClassName }}
+    tls:
+    - hosts:
+      - {{ .Values.domainPrefix }}.{{ .Values.domainName }}
+      - {{ .Values.domainPrefix }}-{{ .Values.deploymentEnv }}.{{ .Values.domainName }}
+      secretName: "{{ .Release.Name }}-tls"
+    rules:
+    - host: {{ .Values.domainPrefix }}-{{ .Values.deploymentEnv }}.{{ .Values.domainName }}
+      http:
+        paths:
+        {{ if eq .Values.ingress.apiVersion "networking.k8s.io/v1" }}
+        - backend:
+            service:
+              name: {{ .Release.Name }}
+              port:
+                number: {{ .Values.servicePort }}
+          pathType: Prefix
+          path: /
+        {{ else }}
+        - backend:
+            serviceName: {{ .Release.Name }}
+            servicePort: {{ .Values.servicePort }}
+          path: /
+        {{ end }}

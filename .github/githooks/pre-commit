@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Run all checks before this line
+find . -iname "*.go" | xargs gofmt -w -s
+exit 0

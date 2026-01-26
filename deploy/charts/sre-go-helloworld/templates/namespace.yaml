@@ -1,0 +1,15 @@
+{{- if  .Values.namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+{{- if  .Values.namespace }}
+  name: {{ .Values.namespace }}
+{{- else }}
+  name: sre-go-helloworld
+{{- end }}
+{{- if  .Values.imageSignatureVerification }}
+  labels:
+    policy.sigstore.dev/include: "true"
+    pod-security.kubernetes.io/enforce: "restricted"
+{{- end }}
+{{- end }}

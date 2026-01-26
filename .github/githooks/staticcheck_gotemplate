@@ -1,0 +1,10 @@
+#!/bin/sh
+
+sclocation="$(which staticcheck)"
+
+if [ ! $sclocation ]
+then
+    exit 1
+else
+    staticcheck -checks="inherit,-U1000,-U1001" *.go
+fi
