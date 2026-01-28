@@ -1,5 +1,5 @@
 SHELL:=/bin/bash
-PROJECT_NAME=helloworld
+PROJECT_NAME=cfn-svc
 GO_FILES=$(shell go list ./... | grep -v /vendor/)
 
 GO_BUILD_ENV ?= CGO_ENABLED=0
@@ -14,7 +14,7 @@ all: fmt lint vet docs test build
 .PHONY: build
 build:
 	$(GO_BUILD_ENV) go mod verify
-	$(GO_BUILD_ENV) go build -ldflags "-X main.buildVersion=${BUILD_VERSION}" -o ./$(PROJECT_NAME).bin ./cmd/helloworld/.
+	$(GO_BUILD_ENV) go build -ldflags "-X main.buildVersion=${BUILD_VERSION}" -o ./$(PROJECT_NAME).bin .
 
 vendor:
 	go mod vendor
@@ -54,16 +54,16 @@ lint:
 
 .PHONY: docs
 docs:
-	swag init --parseDependency --parseInternal --dir ./cmd/helloworld
+	swag init --parseDependency --parseInternal --dir .
 
 .PHONY: run
 run:
 	PORT="9010" \
-		DB_HOST="localhost" \
-		DB_PORT="5432" \
-		DB_NAME="helloworld" \
-		DB_USER="helloworld" \
-		DB_PASSWORD="helloworld" \
+		DB_HOST=$${DB_HOST:-localhost} \
+		DB_PORT=$${DB_PORT:-5432} \
+		DB_NAME=$${DB_NAME:-cfn-svc} \
+		DB_USER=$${DB_USER:-cfn-svc} \
+		DB_PASSWORD=$${DB_PASSWORD} \
 		./$(PROJECT_NAME).bin
 
 ####################################################
@@ -96,4 +96,4 @@ dc-down:
 
 .PHONY: exec-db
 exec-db:
-	docker compose exec helloworld-db psql -U helloworld -d helloworld
+	docker compose exec cfn-svc-db psql -U cfn-svc -d cfn-svc
