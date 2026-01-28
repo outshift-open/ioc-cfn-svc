@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/easyhttp"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 const (
