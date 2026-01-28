@@ -59,11 +59,11 @@ docs:
 .PHONY: run
 run:
 	PORT="9010" \
-		DB_HOST="localhost" \
-		DB_PORT="5432" \
-		DB_NAME="cfn-svc" \
-		DB_USER="cfn-svc" \
-		DB_PASSWORD="cfn-svc" \
+		DB_HOST=$${DB_HOST:-localhost} \
+		DB_PORT=$${DB_PORT:-5432} \
+		DB_NAME=$${DB_NAME:-cfn-svc} \
+		DB_USER=$${DB_USER:-cfn-svc} \
+		DB_PASSWORD=$${DB_PASSWORD} \
 		./$(PROJECT_NAME).bin
 
 ####################################################
