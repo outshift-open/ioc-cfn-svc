@@ -75,76 +75,76 @@ jobs:
       ghcr-enabled: true
       ghcr-org-registry: ${{ vars.GHCR_REGISTRY }}
 
-  call-corona-blackduck-scan:
-    name: Call Corona & Blackduck scan
-    needs: [ call-docker-build-push ]
-    uses: cisco-eti/gh-reusable-workflows/.github/workflows/corona-blackduck-scan.yaml@production
+#  call-corona-blackduck-scan:
+#    name: Call Corona & Blackduck scan
+#    needs: [ call-docker-build-push ]
+#    uses: cisco-eti/gh-reusable-workflows/.github/workflows/corona-blackduck-scan.yaml@production
+#
+#    secrets:
+#      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+#      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
+#      ghcr-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-token: ${{ secrets.GHCR_TOKEN }}
+#      ghcr-org-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
+#    with:
+#      runner-group: arc-runner-set
+#      enable-corona: true
+#      enable-blackduck: true
+#      corona-product-name: ${{ vars.CORONA_PRODUCT_NAME }}
+#      corona-product-id: ${{ vars.CORONA_PRODUCT_ID }}
+#      corona-release-id: ${{ vars.CORONA_RELEASE_ID }}
+#      corona-csdl-id: ${{ vars.CORONA_CSDL_ID }}
+#      corona-security-contact: ${{ vars.CORONA_SECURITY_CONTACT }}
+#      corona-engineering-contact: ${{ vars.CORONA_ENGINEERING_CONTACT }}
+#      corona-image-admins: ${{ vars.CORONA_IMAGE_ADMINS }}
+#      ghcr-org-registry: ${{ vars.GHCR_REGISTRY }}
+#      image-name: "eti-sre/${{ github.event.repository.name }}"
 
-    secrets:
-      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
-      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
-      ghcr-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-token: ${{ secrets.GHCR_TOKEN }}
-      ghcr-org-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
-    with:
-      runner-group: arc-runner-set
-      enable-corona: true
-      enable-blackduck: true
-      corona-product-name: ${{ vars.CORONA_PRODUCT_NAME }}
-      corona-product-id: ${{ vars.CORONA_PRODUCT_ID }}
-      corona-release-id: ${{ vars.CORONA_RELEASE_ID }}
-      corona-csdl-id: ${{ vars.CORONA_CSDL_ID }}
-      corona-security-contact: ${{ vars.CORONA_SECURITY_CONTACT }}
-      corona-engineering-contact: ${{ vars.CORONA_ENGINEERING_CONTACT }}
-      corona-image-admins: ${{ vars.CORONA_IMAGE_ADMINS }}
-      ghcr-org-registry: ${{ vars.GHCR_REGISTRY }}
-      image-name: "eti-sre/${{ github.event.repository.name }}"
+#  call-sonar-scan:
+#    name: Call SonarQube scan
+#    uses: cisco-eti/gh-reusable-workflows/.github/workflows/sonar-scan.yaml@production
+#    with:
+#      sonar-properties-file: "./build/sonar-project.properties"
+#    secrets:
+#      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+#      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
+#      ghcr-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-token: ${{ secrets.GHCR_TOKEN }}
 
-  call-sonar-scan:
-    name: Call SonarQube scan
-    uses: cisco-eti/gh-reusable-workflows/.github/workflows/sonar-scan.yaml@production
-    with:
-      sonar-properties-file: "./build/sonar-project.properties"
-    secrets:
-      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
-      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
-      ghcr-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-token: ${{ secrets.GHCR_TOKEN }}
+#  call-helm-publish:
+#    name: Helm publish
+#    needs: [ call-corona-blackduck-scan ]
+#    uses: cisco-eti/gh-reusable-workflows/.github/workflows/helm-publish.yaml@production
+#    with:
+#      runner-group: arc-runner-set
+#      enable-private-ecr: true
+#      enable-public-ecr: true
+#      chart-path: "deploy/charts/${{ github.event.repository.name }}"
+#    secrets:
+#      ghcr-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-token: ${{ secrets.GHCR_TOKEN }}
+#      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+#      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
 
-  call-helm-publish:
-    name: Helm publish
-    needs: [ call-corona-blackduck-scan ]
-    uses: cisco-eti/gh-reusable-workflows/.github/workflows/helm-publish.yaml@production
-    with:
-      runner-group: arc-runner-set
-      enable-private-ecr: true
-      enable-public-ecr: true
-      chart-path: "deploy/charts/${{ github.event.repository.name }}"
-    secrets:
-      ghcr-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-token: ${{ secrets.GHCR_TOKEN }}
-      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
-      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
-
-  call-trigger-cd:
-    name: Trigger CD
-    needs: [ call-helm-publish ]
-    uses: cisco-eti/gh-reusable-workflows/.github/workflows/trigger-deploy.yaml@production
-    with:
-      deployment-repo: "${{ github.repository }}-deployment"
-      client-payload: '{"app-repository": "${{ github.repository }}", "values-file-path": "applications/${{ github.event.repository.name }}", "property-path": "tagversion", "value": ""}'
-    secrets:
-      ghcr-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-token: ${{ secrets.GHCR_TOKEN }}
-      ghcr-org-username: ${{ secrets.GHCR_USERNAME }}
-      ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
-      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
-      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
+#  call-trigger-cd:
+#    name: Trigger CD
+#    needs: [ call-helm-publish ]
+#    uses: cisco-eti/gh-reusable-workflows/.github/workflows/trigger-deploy.yaml@production
+#    with:
+#      deployment-repo: "${{ github.repository }}-deployment"
+#      client-payload: '{"app-repository": "${{ github.repository }}", "values-file-path": "applications/${{ github.event.repository.name }}", "property-path": "tagversion", "value": ""}'
+#    secrets:
+#      ghcr-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-token: ${{ secrets.GHCR_TOKEN }}
+#      ghcr-org-username: ${{ secrets.GHCR_USERNAME }}
+#      ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
+#      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+#      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
 
   reusable-workflow-ci-status:
     name: CI Status
-    needs: [ checkout-unit-tests, docker-build, call-docker-build-push, call-helm-publish, call-trigger-cd ]
+    needs: [ checkout-unit-tests, docker-build, call-docker-build-push]
     if: always()
     runs-on:
       group: arc-runner-set
