@@ -51,7 +51,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t cfn-svc:${{ github.sha }} -f build/Dockerfile .
+          docker build -t ghcr.io/cisco-eti/ioc-cfn-svc:latest -f build/Dockerfile .
 
   call-docker-build-push:
     name: Docker Build & Push (Main)
@@ -68,7 +68,7 @@ jobs:
 
     with:
       runner-group: arc-runner-set
-      image-name: "eti-sre/${{ github.event.repository.name }}"
+      image-name: "ioc-cfn-svc"
       dockerfile: build/Dockerfile
       ecr-enabled: true
       artifactory-devhub-enabled: false
