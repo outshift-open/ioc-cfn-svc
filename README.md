@@ -1,77 +1,72 @@
 # CFN Service
 
-Go microservice template with HTTP server, database access, and CI/CD setup.
+Go microservice with HTTP server and mock database.
 
-## Quick Start - Run Locally
+## Quick Start
 
-### Option 1: Without Database (Simplest)
+### Option 1: Docker (Recommended)
 
 ```bash
 # Build and run
+docker compose --file build/docker-compose.yaml up --build
+```
+
+### Option 2: Go directly
+
+```bash
+go run .
+```
+
+### Option 3: Build binary
+
+```bash
 make build
 ./cfn-svc.bin
 ```
 
-The app runs on **http://localhost:9010** with a mock database.
+App runs on **http://localhost:9010**
 
-### Option 2: With PostgreSQL Database
-
-```bash
-# 1. Start PostgreSQL via Docker Compose
-make dc-up
-
-# 2. In another terminal, build and run the app
-make build
-make run
-```
-
-### Option 3: Run with Go directly
-
-```bash
-# Without database
-go run .
-
-# With database (start postgres first with `make dc-up`)
-DB_HOST=localhost DB_PORT=5432 DB_NAME=cfn-svc DB_USER=cfn-svc DB_PASSWORD=cfn-svc go run .
-```
-
-## Verify It's Working
+## API Endpoints
 
 ```bash
 # Health check
 curl http://localhost:9010/healthz
 
-# Create a foo
+# Readiness check
+curl http://localhost:9010/ready
+
+# CFN dummy API
+curl http://localhost:9010/api/v1/cfn/dummy
+
+# Create foo
 curl -X POST http://localhost:9010/api/v1/foo \
   -H "Content-Type: application/json" \
   -d '{"uuid":"123e4567-e89b-12d3-a456-426614174000","name":"test","email":"test@example.com"}'
 
-# Get a foo
+# Get foo
 curl http://localhost:9010/api/v1/foo/123e4567-e89b-12d3-a456-426614174000
 ```
 
 ## Configuration
 
-All config via environment variables or flags:
+Environment variables (uppercase):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 9010 | App server port |
+| `APP_NAME` | cfn-svc | Service name |
 | `DB_HOST` | - | PostgreSQL host (empty = mock DB) |
 | `DB_PORT` | - | PostgreSQL port |
 | `DB_NAME` | - | Database name |
 | `DB_USER` | - | Database user |
 | `DB_PASSWORD` | - | Database password |
 
-## Common Commands
+## Commands
 
 ```bash
 make build          # Build binary
-make run            # Run with default DB config
 make test           # Run tests
-make lint           # Run linter
-make dc-up          # Start PostgreSQL
-make dc-down        # Stop and cleanup PostgreSQL
+make docs           # Generate swagger docs
 make clean          # Remove build artifacts
 ```
 
@@ -80,23 +75,15 @@ make clean          # Remove build artifacts
 ```
 main.go             # Entry point
 pkg/
-  app/              # Application logic, routes, handlers
-  config/           # Configuration management
-  client/           # Database and external service clients
+  app/              # Routes, handlers
+  config/           # Configuration
+  client/           # Database clients
   model/            # Data models
-  tools/            # Utilities (logger, http helpers)
-build/              # Docker and compose files
-deploy/             # Helm charts and k8s configs
+build/              # Docker files
+deploy/             # Helm charts
 ```
 
-## Using as a Template
+## CI/CD
 
-1. Create new repo from this template
-2. Run `./runme.sh` to rename the service
-3. Request CI/CD pipeline from SRE team
-
-## Resources
-
-- [Troubleshooting](docs/troubleshooting.md)
-- [Go Style Guide](https://google.github.io/styleguide/go/best-practices)
-- [Effective Go](https://go.dev/doc/effective_go)
+- **PR**: Builds docker image (no push)
+- **Merge to main**: Builds and pushes to ECR/GHCR
