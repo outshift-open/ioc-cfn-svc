@@ -5,11 +5,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/client"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/client/database"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/config"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/easyhttp"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/logger"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var log = logger.SubPkg("app")

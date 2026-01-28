@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/plugin/prometheus"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/config"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/model"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
 )
 
 type Database struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/logger"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var log = logger.SubPkg("app")

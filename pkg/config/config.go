@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/namsral/flag"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/logger"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var log = logger.SubPkg("config")
@@ -19,7 +19,7 @@ var (
 	replicaIDFlag        = flag.String("hostname", uuid.NewString(), "unique id of service")
 	helmChartVersionFlag = flag.String("chart_version", "", "")
 	tagVersionFlag       = flag.String("tag_version", "", "")
-	appNameFlag          = flag.String("app_name", "cfn-svc", "")
+	appNameFlag          = flag.String("app_name", "ioc-cfn-svc", "")
 
 	oomGracefulExitThresholdFlag = flag.Float64("oom_graceful_exit_threshold", 0.98, "")
 

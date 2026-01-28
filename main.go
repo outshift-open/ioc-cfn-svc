@@ -5,9 +5,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/app"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/config"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/logger"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var buildVersion = "dev"
@@ -18,7 +18,7 @@ var log = logger.Default()
 // @version		1.0
 // @BasePath		/
 func main() {
-	log.Infof("starting service [%s]", buildVersion)
+	log.Infof("starting and running service [%s]", buildVersion)
 	config.Log()
 	defer log.Sync()
 

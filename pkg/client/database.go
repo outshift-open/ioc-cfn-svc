@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-errors/errors"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/client/database"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/model"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/tools/logger"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var log = logger.SubPkg("app")

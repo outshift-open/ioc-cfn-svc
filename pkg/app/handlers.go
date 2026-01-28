@@ -7,9 +7,9 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/cisco-eti/sre-go-helloworld/pkg/metric"
-	"github.com/cisco-eti/sre-go-helloworld/pkg/model"
-	eh "github.com/cisco-eti/sre-go-helloworld/pkg/tools/easyhttp"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 // createFooHandler godoc

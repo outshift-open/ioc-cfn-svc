@@ -1,4 +1,4 @@
-module github.com/cisco-eti/sre-go-helloworld
+module github.com/cisco-eti/ioc-cfn-svc
 
 go 1.24.0
 

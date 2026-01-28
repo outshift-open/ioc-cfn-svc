@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	eh "github.com/cisco-eti/sre-go-helloworld/pkg/tools/easyhttp"
+	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) (
