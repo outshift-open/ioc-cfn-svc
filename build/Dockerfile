@@ -14,7 +14,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o cfn-svc .
 
 # Final minimal image
-FROM alpine:latest
+FROM alpine:3.21
 
 WORKDIR /app
 
