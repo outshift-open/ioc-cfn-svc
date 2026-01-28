@@ -1,14 +1,22 @@
-# CFN Service
+# IOC CFN Service
 
 Go microservice with HTTP server and mock database.
+
+**Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
 
 ## Quick Start
 
 ### Option 1: Docker (Recommended)
 
 ```bash
-# Build and run
+# Run with pre-built image from GHCR (no local build)
+docker compose --file build/docker-compose.yaml up
+
+# Or build and run locally
 docker compose --file build/docker-compose.yaml up --build
+
+# Or run directly without compose
+docker run -p 9010:9010 ghcr.io/cisco-eti/ioc-cfn-svc:latest
 ```
 
 ### Option 2: Go directly
@@ -21,7 +29,7 @@ go run .
 
 ```bash
 make build
-./cfn-svc.bin
+./ioc-cfn-svc.bin
 ```
 
 App runs on **http://localhost:9010**
@@ -54,7 +62,7 @@ Environment variables (uppercase):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 9010 | App server port |
-| `APP_NAME` | cfn-svc | Service name |
+| `APP_NAME` | ioc-cfn-svc | Service name |
 | `DB_HOST` | - | PostgreSQL host (empty = mock DB) |
 | `DB_PORT` | - | PostgreSQL port |
 | `DB_NAME` | - | Database name |
@@ -66,6 +74,7 @@ Environment variables (uppercase):
 ```bash
 make build          # Build binary
 make test           # Run tests
+make docker         # Build docker image
 make docs           # Generate swagger docs
 make clean          # Remove build artifacts
 ```
@@ -76,14 +85,20 @@ make clean          # Remove build artifacts
 main.go             # Entry point
 pkg/
   app/              # Routes, handlers
-  config/           # Configuration
+  audit/            # Audit logging
   client/           # Database clients
+  config/           # Configuration
+  mapper/           # Data mappers
+  metric/           # Prometheus metrics
   model/            # Data models
-build/              # Docker files
+  task/             # Task management
+  tools/            # Utilities (logger, http)
+build/              # Dockerfile, docker-compose, scripts
 deploy/             # Helm charts
+docs/               # Swagger docs
 ```
 
 ## CI/CD
 
-- **PR**: Builds docker image (no push)
-- **Merge to main**: Builds and pushes to ECR/GHCR
+- **PR**: Builds `ghcr.io/cisco-eti/ioc-cfn-svc:latest` (no push)
+- **Merge to main**: Builds and pushes to GHCR/ECR

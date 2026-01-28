@@ -1,7 +1,7 @@
 #!/bin/bash -e
-# Build cfn-svc docker image
+# Build ioc-cfn-svc docker image
 
-IMAGE_NAME=${1:-cfn-svc:latest}
+IMAGE_NAME=${1:-ghcr.io/cisco-eti/ioc-cfn-svc:latest}
 
 echo "Building docker image: ${IMAGE_NAME}"
 

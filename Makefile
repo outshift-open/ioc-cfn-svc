@@ -1,10 +1,10 @@
 SHELL:=/bin/bash
-PROJECT_NAME=cfn-svc
+PROJECT_NAME=ioc-cfn-svc
 GO_FILES=$(shell go list ./... | grep -v /vendor/)
 
 GO_BUILD_ENV ?= CGO_ENABLED=0
 BUILD_VERSION ?= latest
-CONTAINER_IMAGE ?= $(PROJECT_NAME)
+CONTAINER_IMAGE ?= ghcr.io/cisco-eti/$(PROJECT_NAME)
 CONTAINER_TAG ?= $(BUILD_VERSION)
 
 .SILENT:

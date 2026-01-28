@@ -1,16 +1,16 @@
 services:
-  cfn-svc:
+  ioc-cfn-svc:
+    image: ghcr.io/cisco-eti/ioc-cfn-svc:latest
     build:
       context: ..
       dockerfile: build/Dockerfile
-    container_name: cfn-svc
+    container_name: ioc-cfn-svc
     restart: unless-stopped
     ports:
       - "9010:9010"
     environment:
-      # App config (namsral/flag reads uppercase env vars)
       PORT: "9010"
-      APP_NAME: "cfn-svc"
+      APP_NAME: "ioc-cfn-svc"
       # Database config - optional, app uses mock DB if not set
       # DB_HOST: "cfn-svc-db"
       # DB_PORT: "5432"
@@ -42,4 +42,4 @@ services:
 
 networks:
   default:
-    name: cfn-svc
+    name: ioc-cfn-svc
