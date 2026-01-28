@@ -60,41 +60,41 @@ jobs:
           ls -l /usr/local/bin
           bash build/unit-test.sh
 
-  ################################## Docker build & push ##########################
+  ################################## Docker build (PR only - no push) ##########################
+  #################################################################################################
+  docker-build:
+    name: Docker Build (PR)
+    if: github.event_name == 'pull_request'
+    needs: [ checkout-unit-tests ]
+    runs-on:
+      group: arc-runner-set
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@83b7061638ee4956cf7545a6f7efe594e5ad0247
+
+      - name: Build Docker image
+        run: |
+          docker build -t cfn-svc:${{ github.sha }} -f build/Dockerfile .
+
+  ################################## Docker build & push (merge to main only) ##########################
   #################################################################################################
   call-docker-build-push:
-    name: Call Docker Build & Push
+    name: Docker Build & Push (Main)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [ checkout-unit-tests ]
     uses: cisco-eti/gh-reusable-workflows/.github/workflows/build-push-docker.yaml@production
 
     secrets:
-      # Only needed if with:ecr-enabled or with:gar-enabled is true below
       vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
       vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
-      # These two secrets are ONLY needed when you are trying to access GAR/GCR in a venture specific project (e.g. 'k8sec-dev' for example).
-      # The values should be consistent with the vault namespace (set by 'VAULT_VENTURE_NAMESPACE' var)
-      # vault-venture-approle-role-id: ${{secrets.VAULT_SECURECN_APPROLE_ROLE_ID}}
-      # vault-venture-approle-secret-id: ${{secrets.VAULT_SECURECN_APPROLE_SECRET_ID}}
-      #######
       ghcr-username: ${{ secrets.GHCR_USERNAME }}
       ghcr-token: ${{ secrets.GHCR_TOKEN }}
       ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
 
     with:
-      ### REQUIRED
       runner-group: arc-runner-set
-      ### Docker image name
       image-name: "eti-sre/${{ github.event.repository.name }}"
-
-      ### path to where docker should copy files into image
-      ### defaults to root of repository (.)
-      # context: .
-
-      ### Dockerfile alternate name. Default is Dockerfile (relative to context path)
       dockerfile: build/Dockerfile
-      ### REQUIRED
-      ### ENABLE ONE OR BOTH REGISTRIES
-      ### tell docker where to push.
       ecr-enabled: true
       artifactory-devhub-enabled: false
       ghcr-enabled: true
@@ -193,7 +193,7 @@ jobs:
   reusable-workflow-ci-status:
     name: Reusable Workflow CI Status
     # This should be an array of ALL active jobs that are used/run
-    needs: [ checkout-unit-tests, call-docker-build-push, call-helm-publish, call-trigger-cd ]
+    needs: [ checkout-unit-tests, docker-build, call-docker-build-push, call-helm-publish, call-trigger-cd ]
     if: always()
     runs-on:
       group: arc-runner-set

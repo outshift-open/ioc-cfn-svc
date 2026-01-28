@@ -19,12 +19,24 @@ staticanalysis.txt
 *.DS_Store
 *._DS_Store
 
-# common IDE generated files
+# IDE generated files
 .idea/
+.vscode/
+*.code-workspace
 *~
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+*.local
+
+# Misc
 db.json
 vendor
-*.swp
+tmp/
+temp/
 
 # sonarqube
 .scannerwork
@@ -35,4 +47,4 @@ vendor
 .jfrog
 *.tgz
 
-helloworld.bin
+cfn-svc.bin

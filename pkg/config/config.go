@@ -19,7 +19,7 @@ var (
 	replicaIDFlag        = flag.String("hostname", uuid.NewString(), "unique id of service")
 	helmChartVersionFlag = flag.String("chart_version", "", "")
 	tagVersionFlag       = flag.String("tag_version", "", "")
-	appNameFlag          = flag.String("app_name", "helloworld", "")
+	appNameFlag          = flag.String("app_name", "cfn-svc", "")
 
 	oomGracefulExitThresholdFlag = flag.Float64("oom_graceful_exit_threshold", 0.98, "")
 

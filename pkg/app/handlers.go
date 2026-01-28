@@ -76,3 +76,17 @@ func (a *App) getFooHandler(w http.ResponseWriter, r *http.Request) (
 
 	return eh.RespondWithJSON(w, http.StatusOK, foo)
 }
+
+// getCfnDummyHandler godoc
+// @Summary		Get CFN dummy data
+// @Description	Returns mock CFN data
+// @Tags			cfn
+// @Produce		json
+// @Success		200	{object}	interface{}
+// @Router			/api/v1/cfn/dummy [get]
+func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{
+		"status":  "ok",
+		"message": "cfn dummy response",
+	})
+}

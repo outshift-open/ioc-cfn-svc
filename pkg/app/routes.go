@@ -36,5 +36,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(v1("/foo"), a.createFooHandler)
 	rtr.Get(v1("/foo/{id}"), a.getFooHandler)
 
+	// cfn endpoints
+	rtr.Get(v1("/cfn/dummy"), a.getCfnDummyHandler)
+
 	return rtr
 }
