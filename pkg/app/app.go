@@ -1,7 +1,11 @@
 package app
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -60,7 +64,38 @@ func New(buildVersion string) (*App, error) {
 
 	rtr := a.initializeRoutes()
 	a.server = easyhttp.NewServer(a.Cfg.AppPort, rtr)
+
+	a.registerOnStartup()
 	return a, nil
+}
+
+func (a *App) registerOnStartup() {
+	url := os.Getenv("MGMT_URL")
+	// TODO: remove hardcoded values, use config or env vars
+	if url == "" {
+		url = "http://mgmt/register"
+	}
+	log.Infof("registering service at %s", url)
+	body, _ := json.Marshal(map[string]any{
+		"mgmt_host_ip": "192.168.1.100",
+		"mgmt_port":    9010,
+		"cfn_id":       "cfn-12345-abcde",
+		"cfn_name":     "my-cfn-service",
+		"config":       map[string]any{"key": "value"},
+	})
+	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		log.Errorf("registration failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Errorf("failed to decode response, registration failed: %v", err)
+		return
+	}
+	log.Infof("registered at %s, response=%v", url, result)
 }
 
 // Run starts the app and serves on the specified addr. this is synchronous and
