@@ -48,14 +48,6 @@ curl http://localhost:9010/ready
 
 # CFN dummy API
 curl http://localhost:9010/api/v1/cfn/dummy
-
-# Create foo
-curl -X POST http://localhost:9010/api/v1/foo \
-  -H "Content-Type: application/json" \
-  -d '{"uuid":"123e4567-e89b-12d3-a456-426614174000","name":"test","email":"test@example.com"}'
-
-# Get foo
-curl http://localhost:9010/api/v1/foo/123e4567-e89b-12d3-a456-426614174000
 ```
 
 ## Startup Registration
