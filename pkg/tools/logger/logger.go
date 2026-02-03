@@ -129,3 +129,8 @@ func ErrorWrap(f func() error) {
 		std.Warnf("error during deferred callback: %s", err)
 	}
 }
+
+// GetLevel returns the current log level as a string
+func GetLevel() string {
+	return logLevel.String()
+}

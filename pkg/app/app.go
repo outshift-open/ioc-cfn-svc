@@ -1,12 +1,17 @@
 package app
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
@@ -60,7 +65,41 @@ func New(buildVersion string) (*App, error) {
 
 	rtr := a.initializeRoutes()
 	a.server = easyhttp.NewServer(a.Cfg.AppPort, rtr)
+
+	a.registerOnStartup()
 	return a, nil
+}
+
+// registerOnStartup calls home to mgmt plane to register this service.
+func (a *App) registerOnStartup() {
+	url := os.Getenv("MGMT_URL")
+	// TODO: remove hardcoded values, use config or env vars
+	if url == "" {
+		url = "http://mgmt/register"
+	}
+	log.Infof("registering service at %s", url)
+	body, _ := json.Marshal(map[string]any{
+		"mgmt_host_ip": "192.168.1.100",
+		"mgmt_port":    6001,
+		"cfn_id":       "cfn-12345-abcde",
+		"cfn_name":     "my-cfn-service",
+		"config":       map[string]any{"key": "value"},
+	})
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	resp, err := client.Post(ctx, url, body, map[string]string{"Content-Type": "application/json"})
+	if err != nil {
+		log.Errorf("registration failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Errorf("failed to decode response, registration failed: %v", err)
+		return
+	}
+	log.Infof("registered at %s, response=%v", url, result)
 }
 
 // Run starts the app and serves on the specified addr. this is synchronous and

@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app"
+	mcpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/mcp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
@@ -27,13 +28,22 @@ func main() {
 		log.Fatalf("failed to create app: %v", err)
 	}
 
-	// Start server in background
-	go func() {
-		log.Infof("http server listening on port %d", a.Cfg.AppPort)
-		if err := a.Run(); err != nil {
-			log.Errorf("server error: %v", err)
-		}
-	}()
+	// Start server in background based on mode
+	if os.Getenv("MCP_ENABLED") == "true" {
+		// MCP mode: run MCP server for AI tool integration
+		go func() {
+			cfg := mcpclient.ServerConfigFromEnv()
+			mcpclient.RunServer(cfg)
+		}()
+	} else {
+		// Default mode: run HTTP REST server
+		go func() {
+			log.Infof("http server listening on port %d", a.Cfg.AppPort)
+			if err := a.Run(); err != nil {
+				log.Errorf("server error: %v", err)
+			}
+		}()
+	}
 
 	// Wait for interrupt signal
 	sigChan := make(chan os.Signal, 1)

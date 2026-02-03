@@ -11,6 +11,9 @@ services:
     environment:
       PORT: "9010"
       APP_NAME: "ioc-cfn-svc"
+      # MCP mode - set via env: MCP_ENABLED=true docker compose up
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+      MCP_PORT: ${MCP_PORT:-9010}
       # Database config - optional, app uses mock DB if not set
       # DB_HOST: "cfn-svc-db"
       # DB_PORT: "5432"
