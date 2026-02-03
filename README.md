@@ -87,7 +87,7 @@ make dc-up-mcp
 # Run in MCP mode (docker run)
 docker run -p 9010:9010 -e MCP_ENABLED=true -e MCP_PORT=9010 ghcr.io/cisco-eti/ioc-cfn-svc:latest
 
-# Run MCP client to test
+# Run tests (includes MCP client-server communication test)
 go test -v ./pkg/client/mcp/...
 ```
 

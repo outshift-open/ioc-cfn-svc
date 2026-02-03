@@ -70,6 +70,7 @@ func New(buildVersion string) (*App, error) {
 	return a, nil
 }
 
+// registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
 	url := os.Getenv("MGMT_URL")
 	// TODO: remove hardcoded values, use config or env vars

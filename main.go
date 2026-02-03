@@ -28,14 +28,16 @@ func main() {
 		log.Fatalf("failed to create app: %v", err)
 	}
 
-	// Start server in background
+	// Start server in background based on mode
 	if os.Getenv("MCP_ENABLED") == "true" {
+		// MCP mode: run MCP server for AI tool integration
 		go func() {
 			cfg := mcpclient.ServerConfigFromEnv()
 			log.Infof("MCP server listening on %s", cfg.Addr())
 			mcpclient.RunServer(cfg)
 		}()
 	} else {
+		// Default mode: run HTTP REST server
 		go func() {
 			log.Infof("http server listening on port %d", a.Cfg.AppPort)
 			if err := a.Run(); err != nil {

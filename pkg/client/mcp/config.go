@@ -26,6 +26,7 @@ func getEnvInt(key string, defaultVal int) int {
 	return defaultVal
 }
 
+// ServerConfig holds MCP server settings.
 type ServerConfig struct {
 	Name    string
 	Version string
@@ -37,6 +38,7 @@ func (c ServerConfig) Addr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
+// ServerConfigFromEnv loads server config from environment variables.
 func ServerConfigFromEnv() ServerConfig {
 	return ServerConfig{
 		Name:    getEnv("MCP_SERVER_NAME", "mcp-server"),
@@ -46,6 +48,7 @@ func ServerConfigFromEnv() ServerConfig {
 	}
 }
 
+// ClientConfig holds MCP client settings.
 type ClientConfig struct {
 	Name    string
 	Version string
@@ -59,6 +62,7 @@ func (c ClientConfig) URL() string {
 	return fmt.Sprintf("http://%s:%d", c.Host, c.Port)
 }
 
+// ClientConfigFromEnv loads client config from environment variables.
 func ClientConfigFromEnv() ClientConfig {
 	return ClientConfig{
 		Name:    getEnv("MCP_CLIENT_NAME", "mcp-client"),
@@ -82,12 +86,14 @@ func echoHandler(ctx context.Context, req *mcp.CallToolRequest, params *EchoPara
 	}, nil, nil
 }
 
+// RunServer starts an MCP server with the echo tool.
 func RunServer(cfg ServerConfig) {
 	server := NewServer(cfg.Name, cfg.Version)
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	log.Fatal(ServeHTTP(server, cfg.Addr()))
 }
 
+// RunClient connects to an MCP server and calls a tool.
 func RunClient(cfg ClientConfig) {
 	ctx := context.Background()
 	client := NewClient(cfg.Name, cfg.Version)
