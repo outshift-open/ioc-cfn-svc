@@ -2,18 +2,14 @@ package app
 
 import (
 	"net/http"
-	"path/filepath"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 const (
-	v1Prefix = "/api/v1"
+	apiPrefix      = "/api"
+	internalPrefix = "/api/internal"
 )
-
-func v1(path string) string {
-	return filepath.Join(v1Prefix, path)
-}
 
 func (a *App) initializeRoutes() http.Handler {
 	rtr := easyhttp.NewRouter()
@@ -26,14 +22,11 @@ func (a *App) initializeRoutes() http.Handler {
 		})
 	})
 
-	// diagnostic endpoints
-	rtr.Get("/healthz", a.healthHandler)
-	rtr.Get("/ready", a.readyHandler)
-	// {$} for exact match. see https://pkg.go.dev/net/http#hdr-Patterns-ServeMux
-	rtr.Get("/{$}", a.healthHandler)
+	// TKF standard diagnostic endpoint
+	rtr.Get(internalPrefix+"/diagnostics/health", a.diagnosticsHealthHandler)
 
 	// cfn endpoints
-	rtr.Get(v1("/cfn/dummy"), a.getCfnDummyHandler)
+	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
 
 	return rtr
 }

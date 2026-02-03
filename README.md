@@ -45,17 +45,16 @@ App runs on **http://localhost:9010**
 ## API Endpoints
 
 ```bash
-# Health check
-curl http://localhost:9010/healthz
-
-# Readiness check
-curl http://localhost:9010/ready
+# Health check (TKF standard diagnostic)
+curl http://localhost:9010/api/internal/diagnostics/health
 
 # CFN dummy API
-curl http://localhost:9010/api/v1/cfn/dummy
+curl http://localhost:9010/api/cfn/dummy
 ```
 
 ## Startup Registration
+
+**This logic will change in the future.**
 
 On startup, the service registers itself with a management service via HTTP POST:
 
