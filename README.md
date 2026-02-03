@@ -48,6 +48,9 @@ App runs on **http://localhost:9010**
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
 
+# Get current log level
+curl http://localhost:9010/api/internal/diagnostics/loggers
+
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
 ```
