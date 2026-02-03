@@ -9,30 +9,35 @@ Go microservice with HTTP server and mock database.
 ### Option 1: Docker (Recommended)
 
 ```bash
-# Run with pre-built image from GHCR (no local build)
-docker compose --file build/docker-compose.yaml up
+# HTTP mode (default)
+make dc-up
 
-# Or build and run locally
-docker compose --file build/docker-compose.yaml up --build
+# MCP mode
+make dc-up-mcp
 
-# Or run directly without compose
-docker run -p 9010:9010 ghcr.io/cisco-eti/ioc-cfn-svc:latest
+# Build locally and run
+make dc-up-build
+MCP_ENABLED=true make dc-up-build   # MCP mode with local build
 
-# Run in MCP mode
-MCP_ENABLED=true docker compose --file build/docker-compose.yaml up
+# Or without make
+docker compose --file build/docker-compose.yaml up                    # HTTP mode
+docker compose --file build/docker-compose.yaml up --build            # Build locally
+MCP_ENABLED=true docker compose --file build/docker-compose.yaml up   # MCP mode
 ```
 
 ### Option 2: Go directly
 
 ```bash
-go run .
+go run .                    # HTTP mode
+MCP_ENABLED=true go run .   # MCP mode
 ```
 
 ### Option 3: Build binary
 
 ```bash
 make build
-./ioc-cfn-svc.bin
+make run        # HTTP mode
+make run-mcp    # MCP mode
 ```
 
 App runs on **http://localhost:9010**
@@ -71,23 +76,10 @@ Uses robust HTTP client with 3 retries and exponential backoff.
 
 ## MCP Server Mode
 
-The service supports MCP (Model Context Protocol) for AI tool integration.
+The service supports MCP (Model Context Protocol) for AI tool integration. Toggle between HTTP and MCP mode using `MCP_ENABLED` environment variable.
 
 ```bash
-# Run in MCP mode (go)
-MCP_ENABLED=true go run .
-
-# Run in MCP mode (binary)
-make build
-make run-mcp
-
-# Run in MCP mode (docker compose)
-make dc-up-mcp
-
-# Run in MCP mode (docker run)
-docker run -p 9010:9010 -e MCP_ENABLED=true -e MCP_PORT=9010 ghcr.io/cisco-eti/ioc-cfn-svc:latest
-
-# Run tests (includes MCP client-server communication test)
+# Test MCP client-server communication
 go test -v ./pkg/client/mcp/...
 ```
 
@@ -114,15 +106,21 @@ Environment variables (uppercase):
 ## Commands
 
 ```bash
+# Build & Run
 make build          # Build binary
-make run            # Run binary (HTTP mode)
-make run-mcp        # Run binary (MCP mode)
+make run            # Run HTTP mode (default)
+make run-mcp        # Run MCP mode
+
+# Docker Compose
+make dc-up          # HTTP mode (default)
+make dc-up-mcp      # MCP mode
+make dc-up-build    # Build and run
+make dc-stop        # Stop containers
+make dc-down        # Remove containers
+
+# Other
 make test           # Run tests
 make docker         # Build docker image
-make dc-up          # Docker compose up (HTTP mode)
-make dc-up-mcp      # Docker compose up (MCP mode)
-make dc-stop        # Docker compose stop
-make dc-down        # Docker compose down
 make docs           # Generate swagger docs
 make clean          # Remove build artifacts
 ```

@@ -57,7 +57,7 @@ docs:
 	swag init --parseDependency --parseInternal --dir .
 
 .PHONY: run
-run:
+run: ## Run in HTTP mode (default)
 	PORT="9010" \
 		DB_HOST=$${DB_HOST:-localhost} \
 		DB_PORT=$${DB_PORT:-5432} \
@@ -67,10 +67,8 @@ run:
 		./$(PROJECT_NAME).bin
 
 .PHONY: run-mcp
-run-mcp:
-	MCP_ENABLED=true \
-		MCP_PORT=$${MCP_PORT:-9010} \
-		./$(PROJECT_NAME).bin
+run-mcp: ## Run in MCP mode
+	MCP_ENABLED=true MCP_PORT=9010 ./$(PROJECT_NAME).bin
 
 ####################################################
 ##############     docker helpers     ##############
@@ -89,19 +87,23 @@ test-in-docker:
 ####################################################
 
 .PHONY: dc-up
-dc-up:
+dc-up: ## Run in HTTP mode (default)
 	docker compose --file build/docker-compose.yaml up
 
 .PHONY: dc-up-mcp
-dc-up-mcp:
-	MCP_ENABLED=true MCP_PORT=9010 docker compose --file build/docker-compose.yaml up
+dc-up-mcp: ## Run in MCP mode
+	MCP_ENABLED=true docker compose --file build/docker-compose.yaml up
+
+.PHONY: dc-up-build
+dc-up-build: ## Build and run
+	docker compose --file build/docker-compose.yaml up --build
 
 .PHONY: dc-stop
-dc-stop:
+dc-stop: ## Stop containers
 	docker compose --file build/docker-compose.yaml stop
 
 .PHONY: dc-down
-dc-down:
+dc-down: ## Stop and remove containers
 	docker compose --file build/docker-compose.yaml down --volumes --rmi local
 
 .PHONY: exec-db
