@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app"
+	mcpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/mcp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
@@ -28,12 +29,20 @@ func main() {
 	}
 
 	// Start server in background
-	go func() {
-		log.Infof("http server listening on port %d", a.Cfg.AppPort)
-		if err := a.Run(); err != nil {
-			log.Errorf("server error: %v", err)
-		}
-	}()
+	if os.Getenv("MCP_ENABLED") == "true" {
+		go func() {
+			cfg := mcpclient.ServerConfigFromEnv()
+			log.Infof("MCP server listening on %s", cfg.Addr())
+			mcpclient.RunServer(cfg)
+		}()
+	} else {
+		go func() {
+			log.Infof("http server listening on port %d", a.Cfg.AppPort)
+			if err := a.Run(); err != nil {
+				log.Errorf("server error: %v", err)
+			}
+		}()
+	}
 
 	// Wait for interrupt signal
 	sigChan := make(chan os.Signal, 1)

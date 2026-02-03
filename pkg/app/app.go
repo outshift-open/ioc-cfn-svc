@@ -1,16 +1,17 @@
 package app
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
@@ -78,12 +79,14 @@ func (a *App) registerOnStartup() {
 	log.Infof("registering service at %s", url)
 	body, _ := json.Marshal(map[string]any{
 		"mgmt_host_ip": "192.168.1.100",
-		"mgmt_port":    9010,
+		"mgmt_port":    6001,
 		"cfn_id":       "cfn-12345-abcde",
 		"cfn_name":     "my-cfn-service",
 		"config":       map[string]any{"key": "value"},
 	})
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	resp, err := client.Post(ctx, url, body, map[string]string{"Content-Type": "application/json"})
 	if err != nil {
 		log.Errorf("registration failed: %v", err)
 		return

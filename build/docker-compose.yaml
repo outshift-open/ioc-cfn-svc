@@ -11,6 +11,9 @@ services:
     environment:
       PORT: "9010"
       APP_NAME: "ioc-cfn-svc"
+      # MCP mode - uncomment to enable
+      # MCP_ENABLED: "true"
+      # MCP_PORT: "9010"
       # Database config - optional, app uses mock DB if not set
       # DB_HOST: "cfn-svc-db"
       # DB_PORT: "5432"

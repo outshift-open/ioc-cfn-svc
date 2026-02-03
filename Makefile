@@ -66,6 +66,12 @@ run:
 		DB_PASSWORD=$${DB_PASSWORD} \
 		./$(PROJECT_NAME).bin
 
+.PHONY: run-mcp
+run-mcp:
+	MCP_ENABLED=true \
+		MCP_PORT=$${MCP_PORT:-9010} \
+		./$(PROJECT_NAME).bin
+
 ####################################################
 ##############     docker helpers     ##############
 ####################################################
@@ -85,6 +91,10 @@ test-in-docker:
 .PHONY: dc-up
 dc-up:
 	docker compose --file build/docker-compose.yaml up
+
+.PHONY: dc-up-mcp
+dc-up-mcp:
+	MCP_ENABLED=true MCP_PORT=9010 docker compose --file build/docker-compose.yaml up
 
 .PHONY: dc-stop
 dc-stop:
