@@ -2,7 +2,6 @@ package mcpclient
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -23,16 +22,16 @@ func LoggingMiddleware() mcp.Middleware {
 			start := time.Now()
 			sessionID := req.GetSession().ID()
 
-			log.Printf("[REQUEST] Session: %s | Method: %s", sessionID, method)
+			log.Infof("[REQUEST] Session: %s | Method: %s", sessionID, method)
 
 			result, err := next(ctx, method, req)
 
 			duration := time.Since(start)
 			if err != nil {
-				log.Printf("[RESPONSE] Session: %s | Method: %s | Status: ERROR | Duration: %v | Error: %v",
+				log.Errorf("[RESPONSE] Session: %s | Method: %s | Status: ERROR | Duration: %v | Error: %v",
 					sessionID, method, duration, err)
 			} else {
-				log.Printf("[RESPONSE] Session: %s | Method: %s | Status: OK | Duration: %v",
+				log.Infof("[RESPONSE] Session: %s | Method: %s | Status: OK | Duration: %v",
 					sessionID, method, duration)
 			}
 
@@ -51,7 +50,7 @@ func ServeHTTP(server *mcp.Server, addr string) error {
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
 	}, nil)
-	log.Printf("MCP server listening on %s", addr)
+	log.Infof("MCP server listening on %s", addr)
 	return http.ListenAndServe(addr, handler)
 }
 

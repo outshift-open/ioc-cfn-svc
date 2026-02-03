@@ -3,10 +3,12 @@ package mcpclient
 
 import (
 	"context"
-	"log"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var log = logger.SubPkg("mcp")
 
 // NewClient creates an MCP client.
 func NewClient(name, version string) *mcp.Client {
@@ -36,7 +38,7 @@ func CallTool(ctx context.Context, session *mcp.ClientSession, name string, args
 func PrintToolResult(result *mcp.CallToolResult) {
 	for _, content := range result.Content {
 		if textContent, ok := content.(*mcp.TextContent); ok {
-			log.Printf("%s", textContent.Text)
+			log.Infof("%s", textContent.Text)
 		}
 	}
 }

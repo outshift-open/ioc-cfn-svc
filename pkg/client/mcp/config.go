@@ -3,7 +3,6 @@ package mcpclient
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
@@ -90,7 +89,9 @@ func echoHandler(ctx context.Context, req *mcp.CallToolRequest, params *EchoPara
 func RunServer(cfg ServerConfig) {
 	server := NewServer(cfg.Name, cfg.Version)
 	AddTool(server, "echo", "Echo back the message", echoHandler)
-	log.Fatal(ServeHTTP(server, cfg.Addr()))
+	if err := ServeHTTP(server, cfg.Addr()); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }
 
 // RunClient connects to an MCP server and calls a tool.
@@ -100,27 +101,30 @@ func RunClient(cfg ClientConfig) {
 
 	session, err := Connect(ctx, client, cfg.URL())
 	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
+		log.Errorf("failed to connect: %v", err)
+		return
 	}
 	defer session.Close()
 
-	log.Printf("Connected to server at %s", cfg.URL())
+	log.Infof("Connected to server at %s", cfg.URL())
 
 	tools, err := ListTools(ctx, session)
 	if err != nil {
-		log.Fatalf("failed to list tools: %v", err)
+		log.Errorf("failed to list tools: %v", err)
+		return
 	}
 
-	log.Println("Available tools:")
+	log.Info("Available tools:")
 	for _, tool := range tools {
-		log.Printf("  - %s: %s", tool.Name, tool.Description)
+		log.Infof("  - %s: %s", tool.Name, tool.Description)
 	}
 
 	result, err := CallTool(ctx, session, cfg.Tool, cfg.Args)
 	if err != nil {
-		log.Fatalf("failed to call tool: %v", err)
+		log.Errorf("failed to call tool: %v", err)
+		return
 	}
 
-	log.Println("Tool result:")
+	log.Info("Tool result:")
 	PrintToolResult(result)
 }

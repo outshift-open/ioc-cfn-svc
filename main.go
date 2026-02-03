@@ -33,7 +33,6 @@ func main() {
 		// MCP mode: run MCP server for AI tool integration
 		go func() {
 			cfg := mcpclient.ServerConfigFromEnv()
-			log.Infof("MCP server listening on %s", cfg.Addr())
 			mcpclient.RunServer(cfg)
 		}()
 	} else {
