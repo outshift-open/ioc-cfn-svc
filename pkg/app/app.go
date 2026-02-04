@@ -19,6 +19,13 @@ import (
 
 var log = logger.SubPkg("app")
 
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 type App struct {
 	buildVersion string
 	Cfg          config.Config
@@ -72,34 +79,51 @@ func New(buildVersion string) (*App, error) {
 
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
-	url := os.Getenv("MGMT_URL")
-	// TODO: remove hardcoded values, use config or env vars
-	if url == "" {
-		url = "http://mgmt/register"
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:6001")
+	workspaceID := getEnvOrDefault("WORKSPACE_ID", "workspace-1")
+	apiKey := getEnvOrDefault("X_API_KEY", "x-api-key")
+	cfnID := a.Cfg.CfnID // UUID generated on app startup
+	cfnName := getEnvOrDefault("CFN_NAME", "cfn")
+
+	if mgmtURL == "" || workspaceID == "" || apiKey == "" {
+		log.Warnf("skipping registration: MGMT_URL, WORKSPACE_ID, or X_API_KEY not set")
+		return
 	}
-	log.Infof("registering service at %s", url)
+
+	if cfnID == "" || cfnName == "" {
+		log.Warnf("skipping registration: CFN_ID or CFN_NAME not set")
+		return
+	}
+
+	registerURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/register"
+	log.Infof("registering CFN at %s", registerURL)
+
 	body, _ := json.Marshal(map[string]any{
-		"mgmt_host_ip": "192.168.1.100",
-		"mgmt_port":    6001,
-		"cfn_id":       "cfn-12345-abcde",
-		"cfn_name":     "my-cfn-service",
-		"config":       map[string]any{"key": "value"},
+		"cfn_id":     cfnID,
+		"cfn_name":   cfnName,
+		"cfn_config": map[string]any{},
 	})
+
 	client := httpclient.New(30 * time.Second)
 	ctx := context.Background()
-	resp, err := client.Post(ctx, url, body, map[string]string{"Content-Type": "application/json"})
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"x-api-key":    apiKey,
+	}
+
+	resp, err := client.Post(ctx, registerURL, body, headers)
 	if err != nil {
-		log.Errorf("registration failed: %v", err)
+		log.Errorf("CFN registration failed: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Errorf("failed to decode response, registration failed: %v", err)
+		log.Errorf("failed to decode registration response: %v", err)
 		return
 	}
-	log.Infof("registered at %s, response=%v", url, result)
+	log.Infof("CFN registered successfully, response=%v", result)
 }
 
 // Run starts the app and serves on the specified addr. this is synchronous and
