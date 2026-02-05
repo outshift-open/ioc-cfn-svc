@@ -87,13 +87,11 @@ func (a *App) registerOnStartup() {
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
 
 	if mgmtURL == "" || workspaceID == "" || apiKey == "" {
-		log.Warnf("skipping registration: MGMT_URL, WORKSPACE_ID, or X_API_KEY not set")
-		return
+		log.Fatalf("MGMT_URL, WORKSPACE_ID, or X_API_KEY not set")
 	}
 
 	if cfnID == "" || cfnName == "" {
-		log.Warnf("skipping registration: CFN_ID or CFN_NAME not set")
-		return
+		log.Fatalf("CFN_ID or CFN_NAME not set")
 	}
 
 	registerURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/register"
