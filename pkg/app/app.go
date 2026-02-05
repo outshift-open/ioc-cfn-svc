@@ -114,15 +114,13 @@ func (a *App) registerOnStartup() {
 
 	resp, err := client.Post(ctx, registerURL, body, headers)
 	if err != nil {
-		log.Errorf("CFN registration failed: %v", err)
-		return
+		log.Fatalf("CFN registration failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Errorf("failed to decode registration response: %v", err)
-		return
+		log.Fatalf("failed to decode registration response: %v", err)
 	}
 	log.Infof("CFN registered successfully, response=%v", result)
 
