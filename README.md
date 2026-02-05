@@ -4,6 +4,19 @@ Go microservice with HTTP server and mock database.
 
 **Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
 
+## Prerequisites
+
+Start the IoC Management Plane backend and UI (required for CFN registration):
+
+```bash
+# Clone and run the management backend
+git clone https://github.com/cisco-eti/ioc-cfn-mgmt-backend-svc
+cd ioc-cfn-mgmt-backend-svc
+task docker-compose-full-stack-up    # Start complete stack (application + databases)
+```
+
+See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/ioc-cfn-mgmt-backend-svc?tab=readme-ov-file#deployment-options) for more details.
+
 ## Quick Start
 
 ### Option 1: Docker (Recommended)
