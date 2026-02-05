@@ -40,7 +40,7 @@ func loggingMiddleware(h http.Handler) http.Handler {
 		remoteAddr := r.RemoteAddr
 		referer := r.Referer()
 
-		log.Debugf("%s %s ->", method, uri)
+		log.Infof("%s %s ->", method, uri)
 
 		cw := &cleanResponseWriter{ResponseWriter: w}
 

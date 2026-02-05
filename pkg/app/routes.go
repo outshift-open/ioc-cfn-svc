@@ -14,10 +14,10 @@ const (
 func (a *App) initializeRoutes() http.Handler {
 	rtr := easyhttp.NewRouter()
 
-	// custom middleware
+	// custom middleware - log all incoming requests
 	rtr.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Infof("checking for something in request: [%s]", r.URL.Query().Get("x"))
+			log.Infof("incoming request: %s %s", r.Method, r.URL.Path)
 			h.ServeHTTP(w, r)
 		})
 	})

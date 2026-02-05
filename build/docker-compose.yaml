@@ -8,9 +8,17 @@ services:
     restart: unless-stopped
     ports:
       - "9010:9010"
+    env_file:
+      - ../.env
     environment:
       PORT: "9010"
       APP_NAME: "ioc-cfn-svc"
+      # CFN Registration - loaded from .env file
+      # WORKSPACE_ID: ${WORKSPACE_ID}
+      # X_API_KEY: ${X_API_KEY}
+      MGMT_URL: ${MGMT_URL:-http://host.docker.internal:8000}
+      CFN_NAME: ${CFN_NAME:-cfn-local}
+      HEARTBEAT_INTERVAL_SECONDS: ${HEARTBEAT_INTERVAL_SECONDS:-29}
       # MCP mode - set via env: MCP_ENABLED=true docker compose up
       MCP_ENABLED: ${MCP_ENABLED:-false}
       MCP_PORT: ${MCP_PORT:-9010}
