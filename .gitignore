@@ -29,7 +29,6 @@ staticanalysis.txt
 
 # Environment and secrets
 .env
-.env.*
 *.local
 
 # Misc

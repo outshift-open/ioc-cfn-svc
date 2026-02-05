@@ -20,6 +20,7 @@ var (
 	helmChartVersionFlag = flag.String("chart_version", "", "")
 	tagVersionFlag       = flag.String("tag_version", "", "")
 	appNameFlag          = flag.String("app_name", "ioc-cfn-svc", "")
+	cfnIDFlag            = flag.String("cfn_id", uuid.NewString(), "unique persistent CFN identifier")
 
 	oomGracefulExitThresholdFlag = flag.Float64("oom_graceful_exit_threshold", 0.98, "")
 
@@ -54,6 +55,7 @@ type Config struct {
 	ServiceName              string
 	OomGracefulExitThreshold float64
 	ExternalServiceURL       string
+	CfnID                    string
 
 	DB  Database
 	IDP IdentityProvider
@@ -70,6 +72,7 @@ func Get() *Config {
 		ServiceName:              *appNameFlag,
 		OomGracefulExitThreshold: *oomGracefulExitThresholdFlag,
 		ExternalServiceURL:       *externalServiceURLFlag,
+		CfnID:                    *cfnIDFlag,
 		DB: Database{
 			Host:        *dbHostFlag,
 			Port:        *dbPortFlag,

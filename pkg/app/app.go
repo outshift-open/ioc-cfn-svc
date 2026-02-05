@@ -19,6 +19,13 @@ import (
 
 var log = logger.SubPkg("app")
 
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 type App struct {
 	buildVersion string
 	Cfg          config.Config
@@ -72,34 +79,99 @@ func New(buildVersion string) (*App, error) {
 
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
-	url := os.Getenv("MGMT_URL")
-	// TODO: remove hardcoded values, use config or env vars
-	if url == "" {
-		url = "http://mgmt/register"
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:8000")
+	// TODO: revisit - won't need these eventually to connect to mgmt plane
+	workspaceID := getEnvOrDefault("WORKSPACE_ID", "workspace-id")
+	apiKey := getEnvOrDefault("X_API_KEY", "x-api-key")
+	cfnID := a.Cfg.CfnID // UUID generated on app startup
+	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
+
+	if mgmtURL == "" || workspaceID == "" || apiKey == "" {
+		log.Fatalf("MGMT_URL, WORKSPACE_ID, or X_API_KEY not set")
 	}
-	log.Infof("registering service at %s", url)
+
+	if cfnID == "" || cfnName == "" {
+		log.Fatalf("CFN_ID or CFN_NAME not set")
+	}
+
+	registerURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/register"
+	log.Infof("registering CFN at %s", registerURL)
+
 	body, _ := json.Marshal(map[string]any{
-		"mgmt_host_ip": "192.168.1.100",
-		"mgmt_port":    6001,
-		"cfn_id":       "cfn-12345-abcde",
-		"cfn_name":     "my-cfn-service",
-		"config":       map[string]any{"key": "value"},
+		"cfn_id":     cfnID,
+		"cfn_name":   cfnName,
+		"cfn_config": map[string]any{},
 	})
+
 	client := httpclient.New(30 * time.Second)
 	ctx := context.Background()
-	resp, err := client.Post(ctx, url, body, map[string]string{"Content-Type": "application/json"})
+	// TODO: revisit - X-API-Key header might not be needed eventually
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"X-API-Key":    apiKey,
+	}
+
+	resp, err := client.Post(ctx, registerURL, body, headers)
 	if err != nil {
-		log.Errorf("registration failed: %v", err)
-		return
+		log.Fatalf("CFN registration failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Errorf("failed to decode response, registration failed: %v", err)
-		return
+		log.Fatalf("failed to decode registration response: %v", err)
 	}
-	log.Infof("registered at %s, response=%v", url, result)
+	log.Infof("CFN registered successfully, response=%v", result)
+
+	// Start periodic heartbeat
+	go a.startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey)
+}
+
+// startHeartbeat sends periodic heartbeat to mgmt plane to keep CFN status active.
+// It runs in a goroutine and sends PUT requests at the configured interval (default 29s).
+// The heartbeat stops when the app's stopChan is closed during shutdown.
+// TODO: revisit - workspaceID and apiKey won't be needed eventually to connect to mgmt plane
+func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
+	// Build heartbeat endpoint URL
+	heartbeatURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/" + cfnID + "/heartbeat"
+
+	// Get heartbeat interval from env or use default of 29 seconds
+	intervalStr := getEnvOrDefault("HEARTBEAT_INTERVAL_SECONDS", "29")
+	interval, err := time.ParseDuration(intervalStr + "s")
+	if err != nil {
+		interval = 29 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// Create HTTP client with 10s timeout for heartbeat requests
+	client := httpclient.New(10 * time.Second)
+	// TODO: revisit - X-API-Key header might not be needed eventually
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"X-API-Key":    apiKey,
+	}
+
+	log.Infof("starting heartbeat to %s", heartbeatURL)
+
+	for {
+		select {
+		case <-a.stopChan:
+			// App is shutting down, stop heartbeat
+			log.Info("stopping heartbeat")
+			return
+		case <-ticker.C:
+			// Send heartbeat request
+			ctx := context.Background()
+			resp, err := client.Put(ctx, heartbeatURL, nil, headers)
+			if err != nil {
+				log.Errorf("heartbeat failed: %v", err)
+				continue
+			}
+			resp.Body.Close()
+			log.Infof("heartbeat sent, status=%d", resp.StatusCode)
+		}
+	}
 }
 
 // Run starts the app and serves on the specified addr. this is synchronous and
