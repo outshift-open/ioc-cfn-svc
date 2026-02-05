@@ -107,6 +107,7 @@ func (a *App) registerOnStartup() {
 
 	client := httpclient.New(30 * time.Second)
 	ctx := context.Background()
+	// TODO: revisit - X-API-Key header might not be needed eventually
 	headers := map[string]string{
 		"Content-Type": "application/json",
 		"X-API-Key":    apiKey,
@@ -147,6 +148,7 @@ func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
 
 	// Create HTTP client with 10s timeout for heartbeat requests
 	client := httpclient.New(10 * time.Second)
+	// TODO: revisit - X-API-Key header might not be needed eventually
 	headers := map[string]string{
 		"Content-Type": "application/json",
 		"X-API-Key":    apiKey,
