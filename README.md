@@ -61,21 +61,55 @@ App runs on **http://localhost:9010**
 ```bash
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
-
+# Response: {"status":"UP"}
 
 # (todo)Get build/git info
 curl http://localhost:9010/api/internal/diagnostics/info
 
-# Get current log level
-curl http://localhost:9010/api/internal/diagnostics/loggers
-
-# Set log level dynamically (INFO, DEBUG, WARN, ERROR)
-curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
-  -H "Content-Type: application/json" \
-  -d '{"module-name": "ROOT", "log-level": "DEBUG"}'
-
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
+```
+
+### Log Level Management
+
+**GET /api/internal/diagnostics/loggers** - Get current log levels for ROOT and all packages
+
+```bash
+curl http://localhost:9010/api/internal/diagnostics/loggers
+```
+
+Response:
+```json
+{"ROOT":"info","app":"info","config":"info","mcp":"info"}
+```
+
+**POST /api/internal/diagnostics/loggers** - Set log level dynamically
+
+```bash
+# Set ROOT level (affects ALL loggers)
+curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+  -H "Content-Type: application/json" \
+  -d '{"module-name": "ROOT", "log-level": "debug"}'
+
+# Set specific package level (only affects that package)
+curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+  -H "Content-Type: application/json" \
+  -d '{"module-name": "app", "log-level": "debug"}'
+```
+
+Response: `204 No Content` on success
+
+**Request Body:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `module-name` | No | Package name or "ROOT" (default: ROOT) |
+| `log-level` | Yes | Valid levels: debug, info, warn, error, dpanic, panic, fatal |
+
+**Error Responses (400 Bad Request):**
+```json
+{"error": "log-level is required"}
+{"error": "invalid log level: verbose. Valid levels: debug, info, warn, error, dpanic, panic, fatal"}
+{"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
 ## Environment Setup

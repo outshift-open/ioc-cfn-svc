@@ -14,9 +14,9 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
 }
 
-// diagnosticsLoggersHandler returns current log level
+// diagnosticsLoggersHandler returns current log levels for ROOT and all packages
 func (a *App) diagnosticsLoggersHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"log-level": logger.GetLevel()})
+	return eh.RespondWithJSON(w, http.StatusOK, logger.GetAllLevels())
 }
 
 type setLoggerRequest struct {
@@ -36,11 +36,35 @@ func (a *App) diagnosticsSetLoggersHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	level := strings.ToLower(req.LogLevel)
-	if err := logger.SetLevel(level); err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid log level: " + req.LogLevel})
+
+	// Validate log level
+	validLevels := map[string]bool{
+		"debug": true, "info": true, "warn": true, "error": true,
+		"dpanic": true, "panic": true, "fatal": true,
+	}
+	if !validLevels[level] {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid log level: " + req.LogLevel + ". Valid levels: debug, info, warn, error, dpanic, panic, fatal",
+		})
 	}
 
-	log.Infof("log level changed to %s (module: %s)", level, req.ModuleName)
+	moduleName := strings.TrimSpace(req.ModuleName)
+	if moduleName == "" {
+		moduleName = "ROOT"
+	}
+
+	// Validate module name - must be ROOT or a registered package
+	if moduleName != "ROOT" && !logger.IsRegisteredPackage(moduleName) {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "unknown module: " + moduleName + ". Use GET /api/internal/diagnostics/loggers to see available modules",
+		})
+	}
+
+	if err := logger.SetPackageLevel(moduleName, level); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	log.Infof("log level changed to %s (module: %s)", level, moduleName)
 	w.WriteHeader(http.StatusNoContent)
 	return http.StatusNoContent, nil
 }
