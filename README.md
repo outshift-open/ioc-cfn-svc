@@ -41,6 +41,7 @@ MCP_ENABLED=true docker compose --file build/docker-compose.yaml up   # MCP mode
 ### Option 2: Go directly
 
 ```bash
+# .env file is auto-loaded on startup
 go run .                    # HTTP mode
 MCP_ENABLED=true go run .   # MCP mode
 ```
@@ -60,12 +61,55 @@ App runs on **http://localhost:9010**
 ```bash
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
+# Response: {"status":"UP"}
 
-# Get current log level
-curl http://localhost:9010/api/internal/diagnostics/loggers
+# (todo)Get build/git info
+curl http://localhost:9010/api/internal/diagnostics/info
 
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
+```
+
+### Log Level Management
+
+**GET /api/internal/diagnostics/loggers** - Get current log levels for ROOT and all packages
+
+```bash
+curl http://localhost:9010/api/internal/diagnostics/loggers
+```
+
+Response:
+```json
+{"ROOT":"info","app":"info","config":"info","mcp":"info"}
+```
+
+**POST /api/internal/diagnostics/loggers** - Set log level dynamically
+
+```bash
+# Set ROOT level (affects ALL loggers)
+curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+  -H "Content-Type: application/json" \
+  -d '{"module-name": "ROOT", "log-level": "debug"}'
+
+# Set specific package level (only affects that package)
+curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+  -H "Content-Type: application/json" \
+  -d '{"module-name": "app", "log-level": "debug"}'
+```
+
+Response: `204 No Content` on success
+
+**Request Body:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `module-name` | No | Package name or "ROOT" (default: ROOT) |
+| `log-level` | Yes | Valid levels: debug, info, warn, error, dpanic, panic, fatal |
+
+**Error Responses (400 Bad Request):**
+```json
+{"error": "log-level is required"}
+{"error": "invalid log level: verbose. Valid levels: debug, info, warn, error, dpanic, panic, fatal"}
+{"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
 ## Environment Setup
@@ -93,18 +137,17 @@ X_API_KEY=your-api-key-here
 
 ### 4. Run with .env
 
+The app automatically loads `.env` on startup via [godotenv](https://github.com/joho/godotenv).
+
 **Go local:**
 ```bash
-# Load .env and run
-source .env && go run .
+go run .   # .env is auto-loaded
 ```
 
 **Docker Compose:** (uses port `9010`)
 ```bash
-docker compose --file build/docker-compose.yaml up
-
-# Or build locally
-docker compose --file build/docker-compose.yaml up --build
+make dc-up           # Uses .env file
+make dc-up-build     # Build locally and run
 ```
 
 ## Startup Registration

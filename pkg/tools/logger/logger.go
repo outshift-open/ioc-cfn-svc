@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"sync"
 
 	"github.com/go-errors/errors"
 	"github.com/namsral/flag"
@@ -22,19 +23,26 @@ var (
 		"log encoding. supported: json, console",
 	)
 
-	logLevel = zapcore.InfoLevel
-	std      *zap.SugaredLogger
+	atomicLevel = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	std         *zap.SugaredLogger
+
+	// packageLevels stores per-package atomic log levels (only for overrides)
+	// Key is package name (e.g., "app", "mcp"), value is the atomic level
+	packageLevels = make(map[string]*zap.AtomicLevel)
+	// registeredPackages tracks all packages that called SubPkg
+	registeredPackages = make(map[string]bool)
+	packageLevelMu     sync.RWMutex
 )
 
 func init() {
 	// the calling package is responsible for first calling flag.Parse()
 	// flag.Parse()
 
-	var err error
-	logLevel, err = zapcore.ParseLevel(*logLevelFlag)
+	parsedLevel, err := zapcore.ParseLevel(*logLevelFlag)
 	if err != nil {
 		panic(err)
 	}
+	atomicLevel.SetLevel(parsedLevel)
 
 	switch *logEncodingFlag {
 	//nolint:goconst // allow "json" and "console" strings
@@ -81,19 +89,40 @@ func Default() *zap.SugaredLogger {
 	return std
 }
 
-// SubPkg returns a new logger extended off the default logger. this means that
-// you can call Sync() on the default logger to synchronize all
+// SubPkg returns a new logger for a specific package.
+// By default, it uses ROOT level. Package-specific level can be set via SetPackageLevel().
+// The logger's level can be changed at runtime via SetPackageLevel().
 func SubPkg(name string) *zap.SugaredLogger {
-	return std.Named(name)
+	// Lock (exclusive) - blocks all other readers and writers
+	// Used here because we may write to packageLevels and registeredPackages maps
+	packageLevelMu.Lock()
+	defer packageLevelMu.Unlock()
+
+	// Track this package as registered
+	registeredPackages[name] = true
+
+	// Always create package-specific AtomicLevel if not exists
+	// Initialize to ROOT level - SetPackageLevel can change it later
+	if _, exists := packageLevels[name]; !exists {
+		level := zap.NewAtomicLevelAt(atomicLevel.Level())
+		packageLevels[name] = &level
+	}
+
+	return newLoggerWithLevel(packageLevels[name]).Sugar().Named(name)
 }
 
 func newLogger() *zap.Logger {
-	// split logs between high/low priority for logs above configured log_level
+	return newLoggerWithLevel(&atomicLevel)
+}
+
+func newLoggerWithLevel(level *zap.AtomicLevel) *zap.Logger {
+	// Use provided atomicLevel for runtime level changes
+	// Split logs: errors to stderr, everything else to stdout
 	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.ErrorLevel && lvl >= logLevel
+		return lvl >= zapcore.ErrorLevel && level.Enabled(lvl)
 	})
 	lowPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl < zapcore.ErrorLevel && lvl >= logLevel
+		return lvl < zapcore.ErrorLevel && level.Enabled(lvl)
 	})
 
 	// custom configurations
@@ -130,7 +159,102 @@ func ErrorWrap(f func() error) {
 	}
 }
 
-// GetLevel returns the current log level as a string
+// GetLevel returns the current ROOT log level as a string
 func GetLevel() string {
-	return logLevel.String()
+	return atomicLevel.Level().String()
+}
+
+// IsRegisteredPackage returns true if the package has called SubPkg
+func IsRegisteredPackage(name string) bool {
+	// RLock (shared) - allows multiple concurrent readers, blocks writers
+	// Used here because we only read from registeredPackages map
+	packageLevelMu.RLock()
+	defer packageLevelMu.RUnlock()
+	return registeredPackages[name]
+}
+
+// GetPackageLevel returns the log level for a specific package.
+// Returns ROOT level if package has no specific level set.
+func GetPackageLevel(name string) string {
+	if name == "ROOT" || name == "" {
+		return atomicLevel.Level().String()
+	}
+	// RLock allows concurrent reads while blocking writes
+	packageLevelMu.RLock()
+	defer packageLevelMu.RUnlock()
+	if pkgLevel, exists := packageLevels[name]; exists {
+		return pkgLevel.Level().String()
+	}
+	return atomicLevel.Level().String()
+}
+
+// GetAllLevels returns a map of all registered package levels including ROOT
+// Shows effective level for each package (override if set, otherwise ROOT)
+func GetAllLevels() map[string]string {
+	// RLock (shared) - allows multiple concurrent readers, blocks writers
+	// Used here because we only read from packageLevels and registeredPackages maps
+	packageLevelMu.RLock()
+	defer packageLevelMu.RUnlock()
+
+	levels := make(map[string]string)
+	levels["ROOT"] = atomicLevel.Level().String()
+
+	// Show all registered packages with their effective level
+	for name := range registeredPackages {
+		if pkgLevel, hasOverride := packageLevels[name]; hasOverride {
+			levels[name] = pkgLevel.Level().String()
+		} else {
+			// No override - uses ROOT level
+			levels[name] = atomicLevel.Level().String()
+		}
+	}
+	return levels
+}
+
+// SetLevel sets the log level for ROOT or a specific package.
+// Use "ROOT" or empty string to set the global level for all loggers.
+// Use a package name to set level for that specific package only.
+func SetLevel(level string) error {
+	return SetPackageLevel("ROOT", level)
+}
+
+// SetPackageLevel sets the log level for a specific package or ROOT.
+// If moduleName is "ROOT" or empty, sets the global level.
+// Otherwise sets the level for the specified package.
+func SetPackageLevel(moduleName, level string) error {
+	newLevel, err := zapcore.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+
+	if moduleName == "ROOT" || moduleName == "" {
+		// AtomicLevel.SetLevel() is thread-safe (uses atomic.Int32 internally)
+		// Changes take effect immediately for all loggers using this level
+		atomicLevel.SetLevel(newLevel)
+
+		// Also update all package levels to match ROOT
+		// Lock (exclusive) - blocks all readers and writers while iterating and updating
+		packageLevelMu.Lock()
+		for _, pkgLevel := range packageLevels {
+			pkgLevel.SetLevel(newLevel)
+		}
+		packageLevelMu.Unlock()
+		return nil
+	}
+
+	// Lock (exclusive) - blocks all readers and writers
+	// Used here because we may write to packageLevels map
+	packageLevelMu.Lock()
+	defer packageLevelMu.Unlock()
+
+	// Set package-specific level
+	// AtomicLevel.SetLevel() is thread-safe - changes are immediate
+	if pkgLevel, exists := packageLevels[moduleName]; exists {
+		pkgLevel.SetLevel(newLevel)
+	} else {
+		// Create new package level if it doesn't exist yet
+		level := zap.NewAtomicLevelAt(newLevel)
+		packageLevels[moduleName] = &level
+	}
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 	mcpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/mcp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/joho/godotenv"
 )
 
 var buildVersion = "dev"
@@ -19,6 +20,9 @@ var log = logger.Default()
 // @version		1.0
 // @BasePath		/
 func main() {
+	// Load .env file if it exists (ignore error if not found)
+	_ = godotenv.Load()
+
 	log.Infof("starting and running service [%s]", buildVersion)
 	config.Log()
 	defer log.Sync()

@@ -17,14 +17,7 @@ permissions:
 jobs:
   checkout-unit-tests:
     name: Checkout & Unit Tests
-    runs-on:
-      group: arc-runner-set
-    container:
-      image:  ${{ vars.DEFAULT_CONTAINER_RUNNER }}
-      options: --user root
-      credentials:
-        username: ${{ secrets.GHCR_USERNAME }}
-        password: ${{ secrets.GHCR_TOKEN }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -40,8 +33,7 @@ jobs:
     name: Docker Build (PR)
     if: github.event_name == 'pull_request'
     needs: [ checkout-unit-tests ]
-    runs-on:
-      group: arc-runner-set
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -67,7 +59,7 @@ jobs:
       ghcr-org-token: ${{ secrets.GHCR_TOKEN }}
 
     with:
-      runner-group: arc-runner-set
+      runner-group: ubuntu-latest
       image-name: "ioc-cfn-svc"
       dockerfile: build/Dockerfile
       ecr-enabled: true
@@ -146,8 +138,7 @@ jobs:
     name: CI Status
     needs: [ checkout-unit-tests, docker-build, call-docker-build-push]
     if: always()
-    runs-on:
-      group: arc-runner-set
+    runs-on: ubuntu-latest
     steps:
       - name: Check status
         if: ${{ cancelled() || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'failure') }}

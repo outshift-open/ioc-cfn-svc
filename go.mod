@@ -7,6 +7,7 @@ toolchain go1.24.7
 require (
 	github.com/go-errors/errors v1.5.1
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/namsral/flag v1.7.4-pre
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1

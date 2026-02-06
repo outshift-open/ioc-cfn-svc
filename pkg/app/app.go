@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -121,6 +122,10 @@ func (a *App) registerOnStartup() {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Fatalf("failed to decode registration response: %v", err)
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Fatalf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
+	}
 	log.Infof("CFN registered successfully, response=%v", result)
 
 	// Start periodic heartbeat
@@ -169,7 +174,12 @@ func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
 				continue
 			}
 			resp.Body.Close()
-			log.Infof("heartbeat sent, status=%d", resp.StatusCode)
+			if resp.StatusCode == http.StatusOK {
+				log.Info("heartbeat successful")
+				log.Debugf("heartbeat successful, url=%s, status=%d", heartbeatURL, resp.StatusCode)
+			} else {
+				log.Errorf("heartbeat failed, status=%d", resp.StatusCode)
+			}
 		}
 	}
 }
