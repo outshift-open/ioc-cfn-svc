@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -169,7 +170,11 @@ func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
 				continue
 			}
 			resp.Body.Close()
-			log.Infof("heartbeat sent, status=%d", resp.StatusCode)
+			if resp.StatusCode == http.StatusOK {
+				log.Info("heartbeat successful")
+			} else {
+				log.Errorf("heartbeat failed, status=%d", resp.StatusCode)
+			}
 		}
 	}
 }
