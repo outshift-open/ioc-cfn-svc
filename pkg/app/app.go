@@ -176,6 +176,7 @@ func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				log.Info("heartbeat successful")
+				log.Debugf("heartbeat successful, url=%s, status=%d", heartbeatURL, resp.StatusCode)
 			} else {
 				log.Errorf("heartbeat failed, status=%d", resp.StatusCode)
 			}

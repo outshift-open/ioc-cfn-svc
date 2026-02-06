@@ -134,3 +134,14 @@ func ErrorWrap(f func() error) {
 func GetLevel() string {
 	return logLevel.String()
 }
+
+// SetLevel sets the log level dynamically at runtime
+func SetLevel(level string) error {
+	newLevel, err := zapcore.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+	logLevel = newLevel
+	std = newLogger().Sugar().Named("app")
+	return nil
+}
