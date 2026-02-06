@@ -122,6 +122,10 @@ func (a *App) registerOnStartup() {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Fatalf("failed to decode registration response: %v", err)
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Fatalf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
+	}
 	log.Infof("CFN registered successfully, response=%v", result)
 
 	// Start periodic heartbeat

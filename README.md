@@ -41,6 +41,7 @@ MCP_ENABLED=true docker compose --file build/docker-compose.yaml up   # MCP mode
 ### Option 2: Go directly
 
 ```bash
+# .env file is auto-loaded on startup
 go run .                    # HTTP mode
 MCP_ENABLED=true go run .   # MCP mode
 ```
@@ -93,18 +94,17 @@ X_API_KEY=your-api-key-here
 
 ### 4. Run with .env
 
+The app automatically loads `.env` on startup via [godotenv](https://github.com/joho/godotenv).
+
 **Go local:**
 ```bash
-# Load .env and run
-source .env && go run .
+go run .   # .env is auto-loaded
 ```
 
 **Docker Compose:** (uses port `9010`)
 ```bash
-docker compose --file build/docker-compose.yaml up
-
-# Or build locally
-docker compose --file build/docker-compose.yaml up --build
+make dc-up           # Uses .env file
+make dc-up-build     # Build locally and run
 ```
 
 ## Startup Registration
