@@ -6,10 +6,10 @@ import (
 	"syscall"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app"
-	"github.com/joho/godotenv"
 	mcpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/mcp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/joho/godotenv"
 )
 
 var buildVersion = "dev"
