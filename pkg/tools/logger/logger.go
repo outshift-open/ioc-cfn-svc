@@ -22,19 +22,19 @@ var (
 		"log encoding. supported: json, console",
 	)
 
-	logLevel = zapcore.InfoLevel
-	std      *zap.SugaredLogger
+	atomicLevel = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	std         *zap.SugaredLogger
 )
 
 func init() {
 	// the calling package is responsible for first calling flag.Parse()
 	// flag.Parse()
 
-	var err error
-	logLevel, err = zapcore.ParseLevel(*logLevelFlag)
+	parsedLevel, err := zapcore.ParseLevel(*logLevelFlag)
 	if err != nil {
 		panic(err)
 	}
+	atomicLevel.SetLevel(parsedLevel)
 
 	switch *logEncodingFlag {
 	//nolint:goconst // allow "json" and "console" strings
@@ -88,12 +88,13 @@ func SubPkg(name string) *zap.SugaredLogger {
 }
 
 func newLogger() *zap.Logger {
-	// split logs between high/low priority for logs above configured log_level
+	// Use atomicLevel for runtime level changes - affects all loggers globally
+	// Split logs: errors to stderr, everything else to stdout
 	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.ErrorLevel && lvl >= logLevel
+		return lvl >= zapcore.ErrorLevel && atomicLevel.Enabled(lvl)
 	})
 	lowPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl < zapcore.ErrorLevel && lvl >= logLevel
+		return lvl < zapcore.ErrorLevel && atomicLevel.Enabled(lvl)
 	})
 
 	// custom configurations
@@ -132,16 +133,16 @@ func ErrorWrap(f func() error) {
 
 // GetLevel returns the current log level as a string
 func GetLevel() string {
-	return logLevel.String()
+	return atomicLevel.Level().String()
 }
 
-// SetLevel sets the log level dynamically at runtime
+// SetLevel sets the log level dynamically at runtime.
+// This affects ALL loggers globally, including MCP and other packages.
 func SetLevel(level string) error {
 	newLevel, err := zapcore.ParseLevel(level)
 	if err != nil {
 		return err
 	}
-	logLevel = newLevel
-	std = newLogger().Sugar().Named("app")
+	atomicLevel.SetLevel(newLevel)
 	return nil
 }
