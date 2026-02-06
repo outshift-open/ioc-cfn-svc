@@ -62,8 +62,17 @@ App runs on **http://localhost:9010**
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
 
+
+# (todo)Get build/git info
+curl http://localhost:9010/api/internal/diagnostics/info
+
 # Get current log level
 curl http://localhost:9010/api/internal/diagnostics/loggers
+
+# Set log level dynamically (INFO, DEBUG, WARN, ERROR)
+curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+  -H "Content-Type: application/json" \
+  -d '{"module-name": "ROOT", "log-level": "DEBUG"}'
 
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
