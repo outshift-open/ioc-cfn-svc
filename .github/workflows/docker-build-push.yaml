@@ -1,0 +1,114 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [main]
+    tags: ["*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pre-cleanup Docker images
+        run: docker system prune -af || true
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Get Git tag (if any)
+        id: get_tag
+        run: |
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate metadata
+        id: metadata
+        run: |
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "date_formatted=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log Event Type
+        run: |
+          echo "=== Git Event Info ==="
+          echo "Event Name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Ref Name: ${{ github.ref_name }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Short SHA: ${{ steps.metadata.outputs.short_sha }}"
+          echo "Tag: ${{ steps.get_tag.outputs.tag_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "=== Build Action ==="
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "Action: BUILD ONLY (no push)"
+            echo "PR Number: ${{ github.event.pull_request.number }}"
+          elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "Action: BUILD AND PUSH"
+            echo "Tags: latest, sha-${{ steps.metadata.outputs.short_sha }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "Action: BUILD AND PUSH (tag)"
+            echo "Tag: ${{ steps.get_tag.outputs.tag_name }}"
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+          logout: false
+
+      - name: Build Docker image (PR)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: build/Dockerfile
+          push: false
+          platforms: linux/amd64
+          tags: ghcr.io/cisco-eti/ioc-cfn-svc:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build and push Docker image (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: build/Dockerfile
+          push: true
+          platforms: linux/amd64, linux/arm64
+          tags: |
+            ghcr.io/cisco-eti/ioc-cfn-svc:latest
+            ghcr.io/cisco-eti/ioc-cfn-svc:sha-${{ steps.metadata.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build and push Docker image (tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: build/Dockerfile
+          push: true
+          platforms: linux/amd64, linux/arm64
+          tags: ghcr.io/cisco-eti/ioc-cfn-svc:${{ steps.get_tag.outputs.tag_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
