@@ -93,6 +93,8 @@ func Default() *zap.SugaredLogger {
 // By default, it uses ROOT level. Package-specific level can be set via SetPackageLevel().
 // The logger's level can be changed at runtime via SetPackageLevel().
 func SubPkg(name string) *zap.SugaredLogger {
+	// Lock (exclusive) - blocks all other readers and writers
+	// Used here because we may write to packageLevels and registeredPackages maps
 	packageLevelMu.Lock()
 	defer packageLevelMu.Unlock()
 
@@ -164,6 +166,8 @@ func GetLevel() string {
 
 // IsRegisteredPackage returns true if the package has called SubPkg
 func IsRegisteredPackage(name string) bool {
+	// RLock (shared) - allows multiple concurrent readers, blocks writers
+	// Used here because we only read from registeredPackages map
 	packageLevelMu.RLock()
 	defer packageLevelMu.RUnlock()
 	return registeredPackages[name]
@@ -187,6 +191,8 @@ func GetPackageLevel(name string) string {
 // GetAllLevels returns a map of all registered package levels including ROOT
 // Shows effective level for each package (override if set, otherwise ROOT)
 func GetAllLevels() map[string]string {
+	// RLock (shared) - allows multiple concurrent readers, blocks writers
+	// Used here because we only read from packageLevels and registeredPackages maps
 	packageLevelMu.RLock()
 	defer packageLevelMu.RUnlock()
 
@@ -227,6 +233,7 @@ func SetPackageLevel(moduleName, level string) error {
 		atomicLevel.SetLevel(newLevel)
 
 		// Also update all package levels to match ROOT
+		// Lock (exclusive) - blocks all readers and writers while iterating and updating
 		packageLevelMu.Lock()
 		for _, pkgLevel := range packageLevels {
 			pkgLevel.SetLevel(newLevel)
@@ -235,7 +242,8 @@ func SetPackageLevel(moduleName, level string) error {
 		return nil
 	}
 
-	// Lock protects packageLevels map access during read/write
+	// Lock (exclusive) - blocks all readers and writers
+	// Used here because we may write to packageLevels map
 	packageLevelMu.Lock()
 	defer packageLevelMu.Unlock()
 
