@@ -1,4 +1,4 @@
-# IOC CFN Service
+# IOC CFN Service -test
 
 Go microservice with HTTP server and mock database.
 
