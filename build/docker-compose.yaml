@@ -4,6 +4,10 @@ services:
     build:
       context: ..
       dockerfile: build/Dockerfile
+      args:
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
+        GIT_COMMIT_TIME: ${GIT_COMMIT_TIME:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
     container_name: ioc-cfn-svc
     restart: unless-stopped
     ports:

@@ -63,8 +63,9 @@ App runs on **http://localhost:9010**
 curl http://localhost:9010/api/internal/diagnostics/health
 # Response: {"status":"UP"}
 
-# (todo)Get build/git info
+# Get build/git info
 curl http://localhost:9010/api/internal/diagnostics/info
+# Response: {"git":{"commit":{"time":"2025-01-01T00:00:00-08:00","id":"abc1234"},"branch":"main"}}
 
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy

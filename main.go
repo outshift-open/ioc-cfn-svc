@@ -13,6 +13,9 @@ import (
 )
 
 var buildVersion = "dev"
+var gitCommitSHA = "unknown"
+var gitCommitTime = "unknown"
+var gitBranch = "unknown"
 
 var log = logger.Default()
 
@@ -23,11 +26,11 @@ func main() {
 	// Load .env file if it exists (ignore error if not found)
 	_ = godotenv.Load()
 
-	log.Infof("starting and running service [%s]", buildVersion)
+	log.Infof("starting and running service [%s] commit=[%s] time=[%s] branch=[%s]", buildVersion, gitCommitSHA, gitCommitTime, gitBranch)
 	config.Log()
 	defer log.Sync()
 
-	a, err := app.New(buildVersion)
+	a, err := app.New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch)
 	if err != nil {
 		log.Fatalf("failed to create app: %v", err)
 	}
