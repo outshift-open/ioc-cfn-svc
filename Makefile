@@ -7,6 +7,10 @@ BUILD_VERSION ?= latest
 CONTAINER_IMAGE ?= ghcr.io/cisco-eti/$(PROJECT_NAME)
 CONTAINER_TAG ?= $(BUILD_VERSION)
 
+GIT_COMMIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_COMMIT_TIME ?= $(shell git log -1 --format=%cI 2>/dev/null || echo "unknown")
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
 .SILENT:
 
 all: fmt lint vet docs test build
@@ -14,7 +18,7 @@ all: fmt lint vet docs test build
 .PHONY: build
 build:
 	$(GO_BUILD_ENV) go mod verify
-	$(GO_BUILD_ENV) go build -ldflags "-X main.buildVersion=${BUILD_VERSION}" -o ./$(PROJECT_NAME).bin .
+	$(GO_BUILD_ENV) go build -ldflags "-X main.buildVersion=${BUILD_VERSION} -X main.gitCommitSHA=${GIT_COMMIT_SHA} -X main.gitCommitTime=${GIT_COMMIT_TIME} -X main.gitBranch=${GIT_BRANCH}" -o ./$(PROJECT_NAME).bin .
 
 vendor:
 	go mod vendor
@@ -70,17 +74,21 @@ run: ## Run in HTTP mode (default)
 run-mcp: ## Run in MCP mode
 	MCP_ENABLED=true MCP_PORT=9010 ./$(PROJECT_NAME).bin
 
+.PHONY: dev
+dev: ## Run with go run (picks up .env file, injects git info)
+	$(GO_BUILD_ENV) go run -ldflags "-X main.buildVersion=${BUILD_VERSION} -X main.gitCommitSHA=${GIT_COMMIT_SHA} -X main.gitCommitTime=${GIT_COMMIT_TIME} -X main.gitBranch=${GIT_BRANCH}" .
+
 ####################################################
 ##############     docker helpers     ##############
 ####################################################
 
 .PHONY: docker
 docker:
-	BUILD_VERSION=$(BUILD_VERSION) ./build/build-docker.sh
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) BUILD_VERSION=$(BUILD_VERSION) ./build/build-docker.sh
 
 .PHONY: test-in-docker
 test-in-docker:
-	BUILD_VERSION=$(BUILD_VERSION) ./build/build-docker.sh --unit-test --code-coverage --static-analysis
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) BUILD_VERSION=$(BUILD_VERSION) ./build/build-docker.sh --unit-test --code-coverage --static-analysis
 
 ####################################################
 ############## docker compose helpers ##############
@@ -88,15 +96,15 @@ test-in-docker:
 
 .PHONY: dc-up
 dc-up: ## Run in HTTP mode (default)
-	docker compose --file build/docker-compose.yaml up
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --file build/docker-compose.yaml up
 
 .PHONY: dc-up-mcp
 dc-up-mcp: ## Run in MCP mode
-	MCP_ENABLED=true docker compose --file build/docker-compose.yaml up
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) MCP_ENABLED=true docker compose --file build/docker-compose.yaml up
 
 .PHONY: dc-up-build
 dc-up-build: ## Build and run
-	docker compose --file build/docker-compose.yaml up --build
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --file build/docker-compose.yaml up --build
 
 .PHONY: dc-stop
 dc-stop: ## Stop containers

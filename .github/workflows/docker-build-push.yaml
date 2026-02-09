@@ -37,6 +37,8 @@ jobs:
           echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
           echo "date_formatted=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "git_commit_time=$(git log -1 --format=%cI)" >> "$GITHUB_OUTPUT"
+          echo "git_branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Log Event Type
         run: |
@@ -59,6 +61,10 @@ jobs:
           push: false
           platforms: linux/amd64
           tags: ghcr.io/cisco-eti/ioc-cfn-svc:pr-${{ github.event.pull_request.number }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
+            GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
+            GIT_BRANCH=${{ steps.metadata.outputs.git_branch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -74,6 +80,10 @@ jobs:
           tags: |
             ghcr.io/cisco-eti/ioc-cfn-svc:latest
             ghcr.io/cisco-eti/ioc-cfn-svc:sha-${{ steps.metadata.outputs.short_sha }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
+            GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
+            GIT_BRANCH=${{ steps.metadata.outputs.git_branch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -87,6 +97,10 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: ghcr.io/cisco-eti/ioc-cfn-svc:${{ steps.get_tag.outputs.tag_name }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
+            GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
+            GIT_BRANCH=${{ steps.metadata.outputs.git_branch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false

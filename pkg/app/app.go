@@ -29,6 +29,9 @@ func getEnvOrDefault(key, defaultVal string) string {
 
 type App struct {
 	buildVersion string
+	gitCommitSHA  string
+	gitCommitTime string
+	gitBranch     string
 	Cfg          config.Config
 	server       *easyhttp.EasyServer
 
@@ -40,7 +43,7 @@ type App struct {
 	s3 client.S3
 }
 
-func New(buildVersion string) (*App, error) {
+func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
 	cfg := config.Get()
 
 	var db client.Database
@@ -64,6 +67,9 @@ func New(buildVersion string) (*App, error) {
 	s3 = client.NewMockS3()
 	a := &App{
 		buildVersion:     buildVersion,
+		gitCommitSHA:     gitCommitSHA,
+		gitCommitTime:    gitCommitTime,
+		gitBranch:        gitBranch,
 		Cfg:              *cfg,
 		readyForRequests: &atomic.Bool{},
 		stopChan:         make(chan struct{}),

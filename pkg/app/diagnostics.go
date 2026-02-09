@@ -9,6 +9,20 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
+// diagnosticsInfoHandler returns git build info
+func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	info := map[string]any{
+		"git": map[string]any{
+			"commit": map[string]any{
+				"time": a.gitCommitTime,
+				"id":   a.gitCommitSHA,
+			},
+			"branch": a.gitBranch,
+		},
+	}
+	return eh.RespondWithJSON(w, http.StatusOK, info)
+}
+
 // diagnosticsHealthHandler returns TKF standard health response
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
