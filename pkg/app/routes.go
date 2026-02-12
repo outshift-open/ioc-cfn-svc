@@ -3,7 +3,9 @@ package app
 import (
 	"net/http"
 
+	_ "github.com/cisco-eti/ioc-cfn-svc/docs"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 const (
@@ -30,6 +32,13 @@ func (a *App) initializeRoutes() http.Handler {
 
 	// cfn endpoints
 	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
+
+	// shared memories
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.postSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.postSharedMemoriesQueryHandler)
+
+	// Swagger UI + spec
+	rtr.HandleHTTP("/docs/", httpSwagger.WrapHandler)
 
 	return rtr
 }
