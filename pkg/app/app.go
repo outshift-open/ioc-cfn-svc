@@ -28,12 +28,12 @@ func getEnvOrDefault(key, defaultVal string) string {
 }
 
 type App struct {
-	buildVersion string
+	buildVersion  string
 	gitCommitSHA  string
 	gitCommitTime string
 	gitBranch     string
-	Cfg          config.Config
-	server       *easyhttp.EasyServer
+	Cfg           config.Config
+	server        *easyhttp.EasyServer
 
 	readyForRequests *atomic.Bool
 	stopChan         chan struct{}
@@ -120,17 +120,17 @@ func (a *App) registerOnStartup() {
 
 	resp, err := client.Post(ctx, registerURL, body, headers)
 	if err != nil {
-		log.Fatalf("CFN registration failed: %v", err)
+		log.Errorf("CFN registration failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Fatalf("failed to decode registration response: %v", err)
+		log.Errorf("failed to decode registration response: %v", err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Fatalf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
+		log.Errorf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
 	}
 	log.Infof("CFN registered successfully, response=%v", result)
 

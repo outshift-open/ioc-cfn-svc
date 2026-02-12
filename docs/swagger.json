@@ -2,13 +2,171 @@
     "swagger": "2.0",
     "info": {
         "title": "Template API",
-        "termsOfService": "http://swagger.io/terms/",
         "contact": {},
-        "license": {
-            "name": "Apache 2.0"
-        },
         "version": "1.0"
     },
     "basePath": "/",
-    "paths": {}
+    "paths": {
+        "/api/v1/cfn/dummy": {
+            "get": {
+                "description": "Returns mock CFN data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cfn"
+                ],
+                "summary": "Get CFN dummy data",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {}
+                    }
+                }
+            }
+        },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories": {
+            "post": {
+                "description": "Upserts shared memory entries for a given workspace and multi-agentic system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shared-memories"
+                ],
+                "summary": "Upsert shared memories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "System ID",
+                        "name": "systemId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Upsert request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryUpsertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query": {
+            "post": {
+                "description": "Queries shared memory entries for a given workspace and multi-agentic system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shared-memories"
+                ],
+                "summary": "Query shared memories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "System ID",
+                        "name": "systemId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "sharedmemory.SharedMemoryQueryRequest": {
+            "type": "object"
+        },
+        "sharedmemory.SharedMemoryResponse": {
+            "type": "object"
+        },
+        "sharedmemory.SharedMemoryUpsertRequest": {
+            "type": "object"
+        }
+    }
 }
