@@ -29,7 +29,7 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 // @Accept		json
 // @Produce		json
 // @Param		workspaceId	path		string								true	"Workspace ID"
-// @Param		systemId		path		string								true	"System ID"
+// @Param		systemId		path		string								true	"Multi-Agentic System ID"
 // @Param		body			body		sharedmemory.SharedMemoryUpsertRequest	true	"Upsert request"
 // @Success		201				{object}	sharedmemory.SharedMemoryResponse
 // @Failure		400				{object}	map[string]string
@@ -60,7 +60,7 @@ func (a *App) postSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) 
 // @Accept		json
 // @Produce		json
 // @Param		workspaceId	path		string								true	"Workspace ID"
-// @Param		systemId		path		string								true	"System ID"
+// @Param		systemId		path		string								true	"Multi-Agentic System ID"
 // @Param		body			body		sharedmemory.SharedMemoryQueryRequest	true	"Query request"
 // @Success		200				{object}	sharedmemory.SharedMemoryResponse
 // @Failure		400				{object}	map[string]string

@@ -35,7 +35,7 @@ paths:
         name: workspaceId
         required: true
         type: string
-      - description: System ID
+      - description: Multi-Agentic System ID
         in: path
         name: systemId
         required: true
@@ -80,7 +80,7 @@ paths:
         name: workspaceId
         required: true
         type: string
-      - description: System ID
+      - description: Multi-Agentic System ID
         in: path
         name: systemId
         required: true

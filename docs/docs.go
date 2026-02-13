@@ -56,7 +56,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "System ID",
+                        "description": "Multi-Agentic System ID",
                         "name": "systemId",
                         "in": "path",
                         "required": true
@@ -122,7 +122,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "System ID",
+                        "description": "Multi-Agentic System ID",
                         "name": "systemId",
                         "in": "path",
                         "required": true
