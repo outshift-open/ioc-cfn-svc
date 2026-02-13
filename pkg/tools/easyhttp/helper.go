@@ -31,3 +31,11 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) (
 	w.Write(response)
 	return code, nil
 }
+
+func PathParam(r *http.Request, key string) string {
+	return r.PathValue(key)
+}
+
+func (rtr *Router) HandleHTTP(path string, h http.Handler) {
+	rtr.mux.Handle(path, h)
+}

@@ -151,6 +151,9 @@ make dc-up           # Uses .env file
 make dc-up-build     # Build locally and run
 ```
 
+### 5. Access OpenAPI documentation
+OpenAPI docs available at: http://localhost:9010/docs/index.html
+
 ## Startup Registration
 
 On startup, the service registers itself with the IoC Management Plane:
