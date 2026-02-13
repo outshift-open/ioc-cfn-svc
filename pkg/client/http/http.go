@@ -134,8 +134,8 @@ func (c *Client) Put(ctx context.Context, url string, body []byte, headers map[s
 }
 
 // Delete performs an HTTP DELETE request.
-func (c *Client) Delete(ctx context.Context, url string, headers map[string]string) (*http.Response, error) {
-	return c.Do(ctx, http.MethodDelete, url, nil, headers)
+func (c *Client) Delete(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) {
+	return c.Do(ctx, http.MethodDelete, url, body, headers)
 }
 
 // Patch performs an HTTP PATCH request.
