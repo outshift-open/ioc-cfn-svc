@@ -2,10 +2,12 @@ package database
 
 import (
 	"github.com/go-errors/errors"
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/prometheus"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
 )
@@ -51,11 +53,12 @@ func (db *Database) Ping() error {
 }
 
 func (db *Database) MigrateUp() error {
-	err := db.DB.AutoMigrate(&model.FooType{})
-	if err != nil {
+	if err := db.DB.AutoMigrate(&model.FooType{}); err != nil {
 		return err
 	}
-
+	if err := audit.MigrateUp(db.DB); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -106,4 +109,20 @@ func (db *Database) Create_Session(s *model.SessionType) error {
 		return q.Error
 	}
 	return nil
+}
+
+func (db *Database) CreateAuditEvent(a *audit.Audit) error {
+	return audit.CreateAuditEvent(db.DB, a)
+}
+
+func (db *Database) GetAuditEventByID(id uuid.UUID) (*audit.Audit, error) {
+	return audit.GetAuditEventByID(db.DB, id)
+}
+
+func (db *Database) ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error) {
+	return audit.ListAuditEvents(db.DB, resourceType, auditType)
+}
+
+func (db *Database) DeleteAuditEventByID(id uuid.UUID) error {
+	return audit.DeleteAuditEventByID(db.DB, id)
 }

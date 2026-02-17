@@ -169,6 +169,71 @@ Response: `204 No Content` on success
 {"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
+### Audit Events
+
+**POST /api/internal/audit-events** - Create an audit event
+
+```bash
+curl -X POST http://localhost:9010/api/internal/audit-events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "ce-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "ce-123",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "last_modified_by": "00000000-0000-0000-0000-000000000001"
+  }'
+```
+
+Response: `200 OK`
+```json
+{"message": "entry created"}
+```
+
+**Request Body:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `resource_type` | Yes | `COGNITIVE_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
+| `resource_identifier` | Yes | Identifier of the resource |
+| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY` |
+| `audit_resource_identifier` | Yes | Identifier of the audited resource |
+| `operation_id` | No | Optional operation correlation ID |
+| `audit_information` | No | Optional JSON object with additional details |
+| `audit_extra_information` | No | Optional string with extra context |
+| `created_by` | Yes | UUID of the creator |
+| `last_modified_by` | Yes | UUID of the last modifier |
+
+**GET /api/internal/audit-events** - List audit events (with optional filters)
+
+```bash
+# List all
+curl http://localhost:9010/api/internal/audit-events
+
+# Filter by resource_type
+curl "http://localhost:9010/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
+
+# Filter by audit_type
+curl "http://localhost:9010/api/internal/audit-events?audit_type=RESOURCE_CREATED"
+
+# Filter by both
+curl "http://localhost:9010/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+```
+
+**GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
+
+```bash
+curl http://localhost:9010/api/internal/audit-events/<event-id>
+```
+
+**DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
+
+```bash
+curl -X DELETE http://localhost:9010/api/internal/audit-events/<event-id>
+```
+
+Response: `204 No Content`
+
 ## Environment Setup
 
 ### 1. Create .env file
