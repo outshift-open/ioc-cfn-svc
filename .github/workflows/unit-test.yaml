@@ -1,4 +1,4 @@
-name: CI - Lint and Unit Test
+name: Unit Tests
 
 on:
   push:
@@ -99,17 +99,3 @@ jobs:
 #      vault-approle-role-id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
 #      vault-approle-secret-id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
 
-  reusable-workflow-ci-status:
-    name: CI Status
-    needs: [ checkout-unit-tests ]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status
-        if: ${{ cancelled() || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'failure') }}
-        run: |
-          echo "*** WORKFLOW FAILED ***"
-          exit 1
-      - name: Success
-        run: |
-          echo "*** WORKFLOW SUCCESS ***"
