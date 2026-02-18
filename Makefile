@@ -56,8 +56,12 @@ lint:
 	go fmt ./...
 	golangci-lint run -v
 
+.PHONY: install-swag
+install-swag:
+	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
+
 .PHONY: docs
-docs:
+docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
 
 .PHONY: run

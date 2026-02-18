@@ -7,6 +7,200 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/internal/audit-events": {
+            "get": {
+                "description": "Returns audit events with optional resource_type and audit_type query filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "List audit events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by resource type",
+                        "name": "resource_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by audit type",
+                        "name": "audit_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/audit.Audit"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new audit event after validating required fields and enum values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Create an audit event",
+                "parameters": [
+                    {
+                        "description": "Audit event request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/audit.CreateAuditEventRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/audit-events/{eventId}": {
+            "get": {
+                "description": "Returns a single audit event by its UUID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Get an audit event by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Audit event UUID",
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/audit.Audit"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a single audit event by its UUID (internal API only)",
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Delete an audit event",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Audit event UUID",
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/cfn/dummy": {
             "get": {
                 "description": "Returns mock CFN data",
@@ -159,6 +353,85 @@
         }
     },
     "definitions": {
+        "audit.Audit": {
+            "type": "object",
+            "properties": {
+                "audit_extra_information": {
+                    "type": "string"
+                },
+                "audit_information": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "audit_resource_identifier": {
+                    "type": "string"
+                },
+                "audit_type": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_on": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_modified_by": {
+                    "type": "string"
+                },
+                "last_modified_on": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "resource_identifier": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "audit.CreateAuditEventRequest": {
+            "type": "object",
+            "properties": {
+                "audit_extra_information": {
+                    "type": "string"
+                },
+                "audit_information": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "audit_resource_identifier": {
+                    "type": "string"
+                },
+                "audit_type": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "last_modified_by": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "resource_identifier": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.SharedMemoryQueryRequest": {
             "type": "object"
         },

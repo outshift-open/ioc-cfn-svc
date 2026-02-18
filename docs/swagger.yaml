@@ -1,5 +1,57 @@
 basePath: /
 definitions:
+  audit.Audit:
+    properties:
+      audit_extra_information:
+        type: string
+      audit_information:
+        items:
+          type: integer
+        type: array
+      audit_resource_identifier:
+        type: string
+      audit_type:
+        type: string
+      created_by:
+        type: string
+      created_on:
+        type: string
+      id:
+        type: string
+      last_modified_by:
+        type: string
+      last_modified_on:
+        type: string
+      operation_id:
+        type: string
+      resource_identifier:
+        type: string
+      resource_type:
+        type: string
+    type: object
+  audit.CreateAuditEventRequest:
+    properties:
+      audit_extra_information:
+        type: string
+      audit_information:
+        items:
+          type: integer
+        type: array
+      audit_resource_identifier:
+        type: string
+      audit_type:
+        type: string
+      created_by:
+        type: string
+      last_modified_by:
+        type: string
+      operation_id:
+        type: string
+      resource_identifier:
+        type: string
+      resource_type:
+        type: string
+    type: object
   sharedmemory.SharedMemoryQueryRequest:
     type: object
   sharedmemory.SharedMemoryQueryResponse:
@@ -29,6 +81,136 @@ info:
   title: Template API
   version: "1.0"
 paths:
+  /api/internal/audit-events:
+    get:
+      description: Returns audit events with optional resource_type and audit_type
+        query filters
+      parameters:
+      - description: Filter by resource type
+        in: query
+        name: resource_type
+        type: string
+      - description: Filter by audit type
+        in: query
+        name: audit_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/audit.Audit'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List audit events
+      tags:
+      - audit
+    post:
+      consumes:
+      - application/json
+      description: Creates a new audit event after validating required fields and
+        enum values
+      parameters:
+      - description: Audit event request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/audit.CreateAuditEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create an audit event
+      tags:
+      - audit
+  /api/internal/audit-events/{eventId}:
+    delete:
+      description: Deletes a single audit event by its UUID (internal API only)
+      parameters:
+      - description: Audit event UUID
+        in: path
+        name: eventId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete an audit event
+      tags:
+      - audit
+    get:
+      description: Returns a single audit event by its UUID
+      parameters:
+      - description: Audit event UUID
+        in: path
+        name: eventId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/audit.Audit'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get an audit event by ID
+      tags:
+      - audit
   /api/v1/cfn/dummy:
     get:
       description: Returns mock CFN data
