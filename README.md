@@ -177,6 +177,7 @@ Response: `204 No Content` on success
 curl -X POST http://localhost:9010/api/internal/audit-events \
   -H "Content-Type: application/json" \
   -d '{
+    "operation_id": "op-12345",
     "resource_type": "COGNITIVE_ENGINE",
     "resource_identifier": "ce-123",
     "audit_type": "RESOURCE_CREATED",
@@ -210,20 +211,103 @@ Response: `200 OK`
 # List all
 curl http://localhost:9010/api/internal/audit-events
 
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "operation_id": "op-12345",
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "engine-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "cognitive-engine-456",
+    "audit_information": {"config": {"version": "1.0"}},
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_on": "2024-02-18T15:30:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
+    "last_modified_on": "2024-02-18T15:30:00Z"
+  }
+]
+
 # Filter by resource_type
 curl "http://localhost:9010/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "operation_id": "op-12345",
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "engine-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "cognitive-engine-456",
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_on": "2024-02-18T15:30:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
+    "last_modified_on": "2024-02-18T15:30:00Z"
+  }
+]
 
 # Filter by audit_type
 curl "http://localhost:9010/api/internal/audit-events?audit_type=RESOURCE_CREATED"
 
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "operation_id": "op-67890",
+    "resource_type": "MAS",
+    "resource_identifier": "mas-456",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "mas-agent-789",
+    "created_by": "550e8400-e29b-41d4-a716-446655440002",
+    "created_on": "2024-02-18T16:45:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440002",
+    "last_modified_on": "2024-02-18T16:45:00Z"
+  }
+]
+
 # Filter by both
 curl "http://localhost:9010/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "operation_id": "op-11111",
+    "resource_type": "MAS",
+    "resource_identifier": "mas-456",
+    "audit_type": "KNOWLEDGE_QUERY",
+    "audit_resource_identifier": "knowledge-query-123",
+    "audit_information": {"query": "test query", "results": 5},
+    "created_by": "550e8400-e29b-41d4-a716-446655440003",
+    "created_on": "2024-02-18T17:20:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440003",
+    "last_modified_on": "2024-02-18T17:20:00Z"
+  }
+]
 ```
 
 **GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
 
 ```bash
 curl http://localhost:9010/api/internal/audit-events/<event-id>
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_id": "op-12345",
+  "resource_type": "COGNITIVE_ENGINE",
+  "resource_identifier": "ce-123",
+  "audit_type": "RESOURCE_CREATED",
+  "audit_resource_identifier": "ce-123",
+  "audit_information": {"config": {"version": "1.0"}},
+  "created_by": "00000000-0000-0000-0000-000000000001",
+  "created_on": "2024-02-18T15:30:00Z",
+  "last_modified_by": "00000000-0000-0000-0000-000000000001",
+  "last_modified_on": "2024-02-18T15:30:00Z"
+}
 ```
 
 **DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
