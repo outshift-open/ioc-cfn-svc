@@ -56,8 +56,12 @@ lint:
 	go fmt ./...
 	golangci-lint run -v
 
+.PHONY: install-swag
+install-swag:
+	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
+
 .PHONY: docs
-docs:
+docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
 
 .PHONY: run
@@ -96,24 +100,24 @@ test-in-docker:
 
 .PHONY: dc-up
 dc-up: ## Run in HTTP mode (default)
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --file build/docker-compose.yaml up
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --env-file .env --file build/docker-compose.yaml up
 
 .PHONY: dc-up-mcp
 dc-up-mcp: ## Run in MCP mode
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) MCP_ENABLED=true docker compose --file build/docker-compose.yaml up
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) MCP_ENABLED=true docker compose --env-file .env --file build/docker-compose.yaml up
 
 .PHONY: dc-up-build
 dc-up-build: ## Build and run
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --file build/docker-compose.yaml up --build
+	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --env-file .env --file build/docker-compose.yaml up --build
 
 .PHONY: dc-stop
 dc-stop: ## Stop containers
-	docker compose --file build/docker-compose.yaml stop
+	docker compose --env-file .env --file build/docker-compose.yaml stop
 
 .PHONY: dc-down
 dc-down: ## Stop and remove containers
-	docker compose --file build/docker-compose.yaml down --volumes --rmi local
+	docker compose --env-file .env --file build/docker-compose.yaml down --volumes --rmi local
 
 .PHONY: exec-db
 exec-db:
-	docker compose exec cfn-svc-db psql -U cfn-svc -d cfn-svc
+	docker compose --env-file .env --file build/docker-compose.yaml exec cfn-svc-db psql -U postgresUser -d cfn_cp
