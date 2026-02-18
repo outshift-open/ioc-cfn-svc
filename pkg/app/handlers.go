@@ -36,8 +36,9 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 // @Failure		500				{object}	map[string]string
 // @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories [post]
 func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	workspaceID := eh.PathParam(r, "workspaceId")
-	systemID := eh.PathParam(r, "systemId")
+	// TODO: validate workspaceId and systemId path params
+	//workspaceID := eh.PathParam(r, "workspaceId")
+	//systemID := eh.PathParam(r, "systemId")
 
 	var req sharedmemory.SharedMemoryUpsertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
