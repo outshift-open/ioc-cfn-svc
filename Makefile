@@ -116,4 +116,4 @@ dc-down: ## Stop and remove containers
 
 .PHONY: exec-db
 exec-db:
-	docker compose --env-file .env --file build/docker-compose.yaml exec ioc-mgmt-relational-db psql -U postgresUser -d cfn_cp
+	docker compose --env-file .env --file build/docker-compose.yaml exec cfn-svc-db psql -U postgresUser -d cfn_cp
