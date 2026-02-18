@@ -19,7 +19,7 @@ See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/i
 
 2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
 
-<!-- TODO: Consolidate docker-compose with other CFN repos (e.g. shared docker-compose for mgmt-backend + cfn-svc + postgres) -->
+> **TODO:** Consolidate docker-compose with other CFN repos (e.g. shared docker-compose for mgmt-backend + cfn-svc + postgres)
 
 ## Quick Start
 
