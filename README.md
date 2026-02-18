@@ -173,6 +173,8 @@ Response: `204 No Content` on success
 
 ### Audit Events
 
+> For full audit system documentation (architecture, schema, enums, design decisions), see [AUDIT.md](AUDIT.md).
+
 **POST /api/internal/audit-events** - Create an audit event
 
 ```bash
