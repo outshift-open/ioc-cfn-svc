@@ -18,20 +18,20 @@ pkg/client/database/database.go — Real (Postgres) Database implementation
 
 ### `Audit` struct (`pkg/audit/audit.go`)
 
-| Field | Type | DB Constraint | JSON Key | Required |
-|-------|------|---------------|----------|----------|
-| `ID` | `uuid.UUID` | `uuid; primaryKey` | `id` | Auto-generated |
-| `OperationID` | `*string` | `size:128` | `operation_id` | No |
-| `ResourceType` | `string` | `size:64; not null` | `resource_type` | Yes |
-| `ResourceIdentifier` | `string` | `size:128; not null` | `resource_identifier` | Yes |
-| `AuditType` | `string` | `size:64; not null` | `audit_type` | Yes |
-| `AuditResourceIdentifier` | `string` | `size:128; not null` | `audit_resource_identifier` | Yes |
-| `AuditInformation` | `datatypes.JSON` | `type:jsonb` | `audit_information` | No |
-| `AuditExtraInformation` | `*string` | — | `audit_extra_information` | No |
-| `CreatedBy` | `uuid.UUID` | `uuid; not null` | `created_by` | Yes |
-| `CreatedOn` | `time.Time` | `not null` | `created_on` | Auto-set |
-| `LastModifiedBy` | `uuid.UUID` | `uuid; not null` | `last_modified_by` | Yes |
-| `LastModifiedOn` | `time.Time` | `not null` | `last_modified_on` | Auto-set |
+| Field | Type | DB Constraint | JSON Key | Required             |
+|-------|------|---------------|----------|----------------------|
+| `ID` | `uuid.UUID` | `uuid; primaryKey` | `id` | Auto-generated       |
+| `OperationID` | `*string` | `size:128` | `operation_id` | No(TBD- will change) |
+| `ResourceType` | `string` | `size:64; not null` | `resource_type` | Yes                  |
+| `ResourceIdentifier` | `string` | `size:128; not null` | `resource_identifier` | Yes                  |
+| `AuditType` | `string` | `size:64; not null` | `audit_type` | Yes                  |
+| `AuditResourceIdentifier` | `string` | `size:128; not null` | `audit_resource_identifier` | Yes                  |
+| `AuditInformation` | `datatypes.JSON` | `type:jsonb` | `audit_information` | No                   |
+| `AuditExtraInformation` | `*string` | — | `audit_extra_information` | No                   |
+| `CreatedBy` | `uuid.UUID` | `uuid; not null` | `created_by` | Yes                  |
+| `CreatedOn` | `time.Time` | `not null` | `created_on` | Auto-set             |
+| `LastModifiedBy` | `uuid.UUID` | `uuid; not null` | `last_modified_by` | Yes                  |
+| `LastModifiedOn` | `time.Time` | `not null` | `last_modified_on` | Auto-set             |
 
 ## Enums
 

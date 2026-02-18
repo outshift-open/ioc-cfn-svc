@@ -205,7 +205,7 @@ Response: `200 OK`
 | `resource_identifier` | Yes | Identifier of the resource |
 | `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY` |
 | `audit_resource_identifier` | Yes | Identifier of the audited resource |
-| `operation_id` | No | Optional operation correlation ID |
+| `operation_id` | No(TBD will change) | Optional operation correlation ID |
 | `audit_information` | No | Optional JSON object with additional details |
 | `audit_extra_information` | No | Optional string with extra context |
 | `created_by` | Yes | UUID of the creator |
