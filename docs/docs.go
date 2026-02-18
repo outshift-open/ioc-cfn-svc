@@ -75,7 +75,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/sharedmemory.SharedMemoryResponse"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryUpsertResponse"
                         }
                     },
                     "400": {
@@ -101,7 +101,7 @@ const docTemplate = `{
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query": {
             "post": {
-                "description": "Queries shared memory entries for a given workspace and multi-agentic system",
+                "description": "Fetches shared memory entries for a given workspace and multi-agentic system",
                 "consumes": [
                     "application/json"
                 ],
@@ -111,7 +111,7 @@ const docTemplate = `{
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Query shared memories",
+                "summary": "Fetch shared memories",
                 "parameters": [
                     {
                         "type": "string",
@@ -141,7 +141,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/sharedmemory.SharedMemoryResponse"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryQueryResponse"
                         }
                     },
                     "400": {
@@ -170,11 +170,38 @@ const docTemplate = `{
         "sharedmemory.SharedMemoryQueryRequest": {
             "type": "object"
         },
-        "sharedmemory.SharedMemoryResponse": {
+        "sharedmemory.SharedMemoryQueryResponse": {
             "type": "object"
         },
         "sharedmemory.SharedMemoryUpsertRequest": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "memories": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            }
+        },
+        "sharedmemory.SharedMemoryUpsertResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
         }
     }
 }`

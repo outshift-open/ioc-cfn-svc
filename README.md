@@ -58,6 +58,8 @@ App runs on **http://localhost:9010**
 
 ## API Endpoints
 
+### Health & Info
+
 ```bash
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
@@ -70,6 +72,60 @@ curl http://localhost:9010/api/internal/diagnostics/info
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
 ```
+
+### Shared Memory APIs
+
+**Upsert Shared Memories** - Store memories and relationships for inter-agent communication
+
+```bash
+curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memories": [
+      {
+        "id": "mem-1",
+        "content": "User prefers dark mode",
+        "type": "preference",
+        "timestamp": "2026-02-18T10:00:00Z"
+      },
+      {
+        "id": "mem-2",
+        "content": "Project uses Go 1.21",
+        "type": "technical"
+      }
+    ],
+    "relationships": [
+      {
+        "from": "mem-1",
+        "to": "mem-2",
+        "type": "related_to",
+        "strength": 0.8
+      }
+    ]
+  }'
+
+# Response (201 Created):
+# {
+#   "status": "success",
+#   "message": "shared memories upserted successfully"
+# }
+```
+
+**Fetch Shared Memories** - Query stored memories for agent coordination
+
+```bash
+curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Response (200 OK):
+# TODO: Response format to be defined
+```
+
+**Notes:**
+- Replace `{workspaceId}` and `{systemId}` with actual IDs
+- Memories and relationships accept flexible key-value structures
+- Designed for multi-agent systems to share context and coordinate actions
 
 ### Log Level Management
 
@@ -151,8 +207,9 @@ make dc-up           # Uses .env file
 make dc-up-build     # Build locally and run
 ```
 
-### 5. Access OpenAPI documentation
-OpenAPI docs available at: http://localhost:9010/docs/index.html
+### 5. Access API documentation
+- **OpenAPI/Swagger UI**: http://localhost:9010/docs/index.html
+- **Shared Memory API Guide**: [docs/SHARED_MEMORY_API.md](docs/SHARED_MEMORY_API.md)
 
 ## Startup Registration
 

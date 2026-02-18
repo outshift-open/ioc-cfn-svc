@@ -34,8 +34,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
 
 	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.postSharedMemoriesHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.postSharedMemoriesQueryHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.upsertSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
 	// Swagger UI + spec
 	rtr.HandleHTTP("/docs/", httpSwagger.WrapHandler)

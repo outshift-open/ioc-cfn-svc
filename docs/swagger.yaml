@@ -2,9 +2,27 @@ basePath: /
 definitions:
   sharedmemory.SharedMemoryQueryRequest:
     type: object
-  sharedmemory.SharedMemoryResponse:
+  sharedmemory.SharedMemoryQueryResponse:
     type: object
   sharedmemory.SharedMemoryUpsertRequest:
+    properties:
+      memories:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      relationships:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+    type: object
+  sharedmemory.SharedMemoryUpsertResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
     type: object
 info:
   contact: {}
@@ -52,7 +70,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/sharedmemory.SharedMemoryResponse'
+            $ref: '#/definitions/sharedmemory.SharedMemoryUpsertResponse'
         "400":
           description: Bad Request
           schema:
@@ -72,7 +90,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Queries shared memory entries for a given workspace and multi-agentic
+      description: Fetches shared memory entries for a given workspace and multi-agentic
         system
       parameters:
       - description: Workspace ID
@@ -97,7 +115,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/sharedmemory.SharedMemoryResponse'
+            $ref: '#/definitions/sharedmemory.SharedMemoryQueryResponse'
         "400":
           description: Bad Request
           schema:
@@ -110,7 +128,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Query shared memories
+      summary: Fetch shared memories
       tags:
       - shared-memories
 swagger: "2.0"
