@@ -26,30 +26,7 @@ services:
       DB_NAME: ${DB_NAME:-cfn_cp}
       DB_USER: ${DB_USER:-postgresUser}
       DB_PASSWORD: ${DB_PASSWORD:-postgresPW}
-    depends_on:
-      cfn-svc-db:
-        condition: service_healthy
-
-  cfn-svc-db:
-    image: postgres:17-alpine
-    container_name: cfn-svc-db
-    restart: always
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: ${DB_NAME:-cfn_cp}
-      POSTGRES_USER: ${DB_USER:-postgresUser}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgresPW}
-    volumes:
-      - cfn-svc-postgres-volume:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgresUser} -d ${DB_NAME:-cfn_cp}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  cfn-svc-postgres-volume:
+      DB_SSL_MODE: ${DB_SSL_MODE:-disable}
 
 networks:
   default:
