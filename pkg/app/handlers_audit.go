@@ -11,6 +11,8 @@ import (
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
+// createAuditEventHandler handles POST /api/internal/audit-events.
+// Creates a new audit event after validating required fields and enum values.
 func (a *App) createAuditEventHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	var req audit.CreateAuditEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -54,6 +56,8 @@ func (a *App) createAuditEventHandler(w http.ResponseWriter, r *http.Request) (i
 	})
 }
 
+// getAuditEventHandler handles GET /api/internal/audit-events/{eventId}.
+// Returns a single audit event by its UUID.
 func (a *App) getAuditEventHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	idStr := eh.PathParam(r, "eventId")
 	id, err := uuid.Parse(idStr)
@@ -73,6 +77,8 @@ func (a *App) getAuditEventHandler(w http.ResponseWriter, r *http.Request) (int,
 	return eh.RespondWithJSON(w, http.StatusOK, event)
 }
 
+// listAuditEventsHandler handles GET /api/internal/audit-events.
+// Returns audit events with optional resource_type and audit_type query filters.
 func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	resourceType := r.URL.Query().Get("resource_type")
 	auditType := r.URL.Query().Get("audit_type")
@@ -92,6 +98,8 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 	return eh.RespondWithJSON(w, http.StatusOK, events)
 }
 
+// deleteAuditEventHandler handles DELETE /api/internal/audit-events/{eventId}.
+// Deletes a single audit event by its UUID. Internal API only.
 func (a *App) deleteAuditEventHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	idStr := eh.PathParam(r, "eventId")
 	id, err := uuid.Parse(idStr)

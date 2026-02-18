@@ -52,14 +52,17 @@ var validAuditTypes = map[string]bool{
 	AuditTypeKnowledgeQuery:     true,
 }
 
+// IsValidResourceType returns true if the given resource type is a known valid value.
 func IsValidResourceType(rt string) bool {
 	return validResourceTypes[rt]
 }
 
+// IsValidAuditType returns true if the given audit type is a known valid value.
 func IsValidAuditType(at string) bool {
 	return validAuditTypes[at]
 }
 
+// ValidResourceTypesList returns a comma-separated string of all valid resource types.
 func ValidResourceTypesList() string {
 	keys := make([]string, 0, len(validResourceTypes))
 	for k := range validResourceTypes {
@@ -68,6 +71,7 @@ func ValidResourceTypesList() string {
 	return strings.Join(keys, ", ")
 }
 
+// ValidAuditTypesList returns a comma-separated string of all valid audit types.
 func ValidAuditTypesList() string {
 	keys := make([]string, 0, len(validAuditTypes))
 	for k := range validAuditTypes {
@@ -76,6 +80,7 @@ func ValidAuditTypesList() string {
 	return strings.Join(keys, ", ")
 }
 
+// ValidateResourceType returns an error if the given resource type is not valid.
 func ValidateResourceType(rt string) error {
 	if !IsValidResourceType(rt) {
 		return fmt.Errorf("invalid resource_type: %s. Valid values: %s", rt, ValidResourceTypesList())
@@ -83,6 +88,7 @@ func ValidateResourceType(rt string) error {
 	return nil
 }
 
+// ValidateAuditType returns an error if the given audit type is not valid.
 func ValidateAuditType(at string) error {
 	if !IsValidAuditType(at) {
 		return fmt.Errorf("invalid audit_type: %s. Valid values: %s", at, ValidAuditTypesList())
