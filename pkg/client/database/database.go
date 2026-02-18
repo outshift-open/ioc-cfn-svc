@@ -53,27 +53,10 @@ func (db *Database) Ping() error {
 }
 
 func (db *Database) MigrateUp() error {
-	if err := db.DB.AutoMigrate(&model.FooType{}); err != nil {
-		return err
-	}
 	if err := audit.MigrateUp(db.DB); err != nil {
 		return err
 	}
 	return nil
-}
-
-func (db *Database) Create_Foo(f *model.FooType) error {
-	res := db.DB.Create(f)
-	return errors.New(res.Error)
-}
-
-func (db *Database) Get_Foo_By_UUID(uuid string) (*model.FooType, error) {
-	foo := model.FooType{}
-	res := db.DB.Where("uuid = ?", uuid).Find(&foo)
-	if res.Error != nil {
-		return nil, errors.New(res.Error)
-	}
-	return &foo, nil
 }
 
 func (db *Database) Find_User_By_IDPUserID_And_Issuer(idpUserID string,
