@@ -87,21 +87,18 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:8000")
-	// TODO: revisit - won't need these eventually to connect to mgmt plane
-	workspaceID := getEnvOrDefault("WORKSPACE_ID", "workspace-id")
-	apiKey := getEnvOrDefault("X_API_KEY", "x-api-key")
 	cfnID := a.Cfg.CfnID // UUID generated on app startup
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
 
-	if mgmtURL == "" || workspaceID == "" || apiKey == "" {
-		log.Fatalf("MGMT_URL, WORKSPACE_ID, or X_API_KEY not set")
+	if mgmtURL == "" {
+		log.Fatalf("MGMT_URL not set")
 	}
 
 	if cfnID == "" || cfnName == "" {
 		log.Fatalf("CFN_ID or CFN_NAME not set")
 	}
 
-	registerURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/register"
+	registerURL := mgmtURL + "/api/cognitive-fabric-nodes/register"
 	log.Infof("registering CFN at %s", registerURL)
 
 	body, _ := json.Marshal(map[string]any{
@@ -112,10 +109,9 @@ func (a *App) registerOnStartup() {
 
 	client := httpclient.New(30 * time.Second)
 	ctx := context.Background()
-	// TODO: revisit - X-API-Key header might not be needed eventually
 	headers := map[string]string{
 		"Content-Type": "application/json",
-		"X-API-Key":    apiKey,
+		"Accept":       "application/json",
 	}
 
 	resp, err := client.Post(ctx, registerURL, body, headers)
@@ -135,16 +131,15 @@ func (a *App) registerOnStartup() {
 	log.Infof("CFN registered successfully, response=%v", result)
 
 	// Start periodic heartbeat
-	go a.startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey)
+	go a.startHeartbeat(mgmtURL, cfnID)
 }
 
 // startHeartbeat sends periodic heartbeat to mgmt plane to keep CFN status active.
 // It runs in a goroutine and sends PUT requests at the configured interval (default 29s).
 // The heartbeat stops when the app's stopChan is closed during shutdown.
-// TODO: revisit - workspaceID and apiKey won't be needed eventually to connect to mgmt plane
-func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
+func (a *App) startHeartbeat(mgmtURL, cfnID string) {
 	// Build heartbeat endpoint URL
-	heartbeatURL := mgmtURL + "/api/workspaces/" + workspaceID + "/cognitive-fabric-node/" + cfnID + "/heartbeat"
+	heartbeatURL := mgmtURL + "/api/cognitive-fabric-nodes/" + cfnID + "/heartbeat"
 
 	// Get heartbeat interval from env or use default of 29 seconds
 	intervalStr := getEnvOrDefault("HEARTBEAT_INTERVAL_SECONDS", "29")
@@ -157,10 +152,8 @@ func (a *App) startHeartbeat(mgmtURL, workspaceID, cfnID, apiKey string) {
 
 	// Create HTTP client with 10s timeout for heartbeat requests
 	client := httpclient.New(10 * time.Second)
-	// TODO: revisit - X-API-Key header might not be needed eventually
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		"X-API-Key":    apiKey,
+		"Accept": "application/json",
 	}
 
 	log.Infof("starting heartbeat to %s", heartbeatURL)
