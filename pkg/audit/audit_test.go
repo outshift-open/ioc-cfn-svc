@@ -213,6 +213,14 @@ func TestDeleteAuditEventByID(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDeleteAuditEventByID_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+
+	err := DeleteAuditEventByID(db, uuid.New())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
 func TestEnumConstants(t *testing.T) {
 	assert.Equal(t, "COGNITIVE_ENGINE", ResourceTypeCognitiveEngine)
 	assert.Equal(t, "POLICY_ENFORCER", ResourceTypePolicyEnforcer)

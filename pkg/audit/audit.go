@@ -177,6 +177,14 @@ func ListAuditEvents(db *gorm.DB, resourceType, auditType string) ([]Audit, erro
 }
 
 // DeleteAuditEventByID deletes a single audit event by its UUID. Internal API only.
+// Returns an error if the event does not exist.
 func DeleteAuditEventByID(db *gorm.DB, id uuid.UUID) error {
-	return db.Where("id = ?", id).Delete(&Audit{}).Error
+	result := db.Where("id = ?", id).Delete(&Audit{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("audit event [%s] not found", id)
+	}
+	return nil
 }
