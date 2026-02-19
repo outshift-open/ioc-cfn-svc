@@ -23,8 +23,8 @@ type Client struct {
 	baseURL    string
 }
 
-// NewClient creates a new knowledge memory service client
-func NewClient(baseURL string) *Client {
+// NewClient creates a new knowledge memory service client with health check
+func NewClient(baseURL string) (*Client, error) {
 	if baseURL == "" {
 		baseURL = DefaultKnowledgeMemorySvcRestEndpoint
 	}
@@ -33,10 +33,37 @@ func NewClient(baseURL string) *Client {
 	config.Timeout = 30 * time.Second
 	config.MaxRetries = 3
 
-	return &Client{
+	client := &Client{
 		httpClient: httpclient.NewWithConfig(config),
 		baseURL:    baseURL,
 	}
+
+	// Perform health check
+	if err := client.healthCheck(); err != nil {
+		return nil, fmt.Errorf("health check failed: %w", err)
+	}
+
+	return client, nil
+}
+
+// healthCheck performs a health check against the service
+func (c *Client) healthCheck() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	healthURL := c.baseURL + "/health"
+	resp, err := c.httpClient.Get(ctx, healthURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to call health endpoint: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("health check failed with status: %s", resp.Status)
+	}
+
+	log.Infof("Health check passed for service at %s", c.baseURL)
+	return nil
 }
 
 // UpsertKnowledgeGraph sends a POST request to upsert knowledge graph data using schema types
@@ -58,7 +85,7 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	}
 
 	// Make POST request
-	url := c.baseURL + "/api/knowledge/graph"
+	url := c.baseURL + "/api/knowledge/graphs"
 	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %w", err)
@@ -96,7 +123,7 @@ func (c *Client) QueryKnowledgeGraphPath(ctx context.Context, request *Knowledge
 		return nil, fmt.Errorf("request validation failed: %w", err)
 	}
 
-	return c.executeQuery(ctx, request, "/api/knowledge/graph/query")
+	return c.executeQuery(ctx, request, "/api/knowledge/graphs/query")
 }
 
 // QueryKnowledgeGraphNeighbor sends a POST request to query knowledge graph neighbors using schema types
@@ -106,7 +133,7 @@ func (c *Client) QueryKnowledgeGraphNeighbor(ctx context.Context, request *Knowl
 		return nil, fmt.Errorf("request validation failed: %w", err)
 	}
 
-	return c.executeQuery(ctx, request, "/api/knowledge/graph/query")
+	return c.executeQuery(ctx, request, "/api/knowledge/graphs/query")
 }
 
 // QueryKnowledgeGraphConcept sends a POST request to query knowledge graph concept using schema types
@@ -116,7 +143,7 @@ func (c *Client) QueryKnowledgeGraphConcept(ctx context.Context, request *Knowle
 		return nil, fmt.Errorf("request validation failed: %w", err)
 	}
 
-	return c.executeQuery(ctx, request, "/api/knowledge/graph/query")
+	return c.executeQuery(ctx, request, "/api/knowledge/graphs/query")
 }
 
 // DeleteKnowledgeGraph sends a DELETE request to delete knowledge graph data using schema types
@@ -138,7 +165,7 @@ func (c *Client) DeleteKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	}
 
 	// Make DELETE request
-	url := c.baseURL + "/api/knowledge/graph"
+	url := c.baseURL + "/api/knowledge/graphs"
 	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DELETE request: %w", err)

@@ -1,0 +1,71 @@
+services:
+  ioc-graph-db:
+    image: skaiworldwide/agensgraph:v2.16.0-alpine3.22
+    platform: linux/amd64
+    profiles:
+      - db-only
+    environment:
+      POSTGRES_DB: ${AGENSGRAPH_DB:-ioc-graph-db}
+      POSTGRES_USER: ${AGENSGRAPH_USER}
+      POSTGRES_PASSWORD: ${AGENSGRAPH_PASSWORD}
+    ports:
+      - "${AGENSGRAPH_PORT:-5456}:5432"
+    volumes:
+      - agensgraph_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U ${AGENSGRAPH_USER} -d ${AGENSGRAPH_DB:-ioc-graph-db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  ioc-graph-db-viewer:
+    image: skaiworldwide/agviewer:latest
+    profiles:
+      - db-only
+    environment:
+      DB_HOST: ioc-graph-db
+      DB_PORT: 5432
+      DB_USER: ${AGENSGRAPH_USER}
+      DB_PASSWORD: ${AGENSGRAPH_PASSWORD}
+      DB_NAME: ${AGENSGRAPH_DB:-ioc-graph-db}
+    ports:
+      - "${AGENSGRAPH_PORT_UI:-3000}:3000"
+    restart: unless-stopped
+    depends_on:
+      - ioc-graph-db
+
+  ioc-knowledge-memory-svc:
+    image: ghcr.io/cisco-eti/ioc-knowledge-memory-svc:2026-02-19-ad94a98
+    platform: linux/amd64
+    profiles:
+      - api
+    ports:
+      - "8001:8001"
+    environment:
+      - SERVICE_NAME=ioc-knowledge-memory-svc
+      - APPLICATION_VERSION=dev
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - AGENSGRAPH_HOST=ioc-graph-db
+      - AGENSGRAPH_DB=${AGENSGRAPH_DB:-ioc-graph-db}
+      - AGENSGRAPH_USER=${AGENSGRAPH_USER}
+      - AGENSGRAPH_PASSWORD=${AGENSGRAPH_PASSWORD}
+      - AGENSGRAPH_PORT=5432
+    restart: unless-stopped
+    depends_on:
+      ioc-graph-db:
+        condition: service_healthy
+      ioc-graph-db-viewer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  agensgraph_data:
+
