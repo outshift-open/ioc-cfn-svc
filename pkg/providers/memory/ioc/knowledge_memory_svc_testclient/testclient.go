@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 )
 
@@ -16,9 +18,14 @@ import (
 //This sample shows how to use the Knowledge Memory Service directly to perform knowledge graph operations
 // using the JSON requests and responses.
 
-const (
-	KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT = "http://localhost:8001"
-)
+// getServiceURL returns the Knowledge Memory Service URL from environment or default
+func getServiceURL() string {
+	serviceURL := os.Getenv("KNOWLEDGE_MEMORY_SVC_URL")
+	if serviceURL != "" {
+		return serviceURL
+	}
+	return "http://localhost:8001"
+}
 
 // go run pkg/client/http/samples/knowledge_memory_svc_client.go
 
@@ -157,7 +164,7 @@ func upsertKnowledgeGraph(client *httpclient.Client) error {
 	}
 
 	// Make POST request
-	url := KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT + "/api/knowledge/graph"
+	url := getServiceURL() + "/api/knowledge/graphs"
 	resp, err := client.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return fmt.Errorf("failed to send POST request: %w", err)
@@ -215,7 +222,7 @@ func queryKnowledgeGraphPath(client *httpclient.Client) error {
 	}
 
 	// Make POST request
-	url := KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT + "/api/knowledge/graph/query"
+	url := getServiceURL() + "/api/knowledge/graphs/query"
 	resp, err := client.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return fmt.Errorf("failed to send POST request: %w", err)
@@ -270,7 +277,7 @@ func queryKnowledgeGraphNeighbor(client *httpclient.Client) error {
 	}
 
 	// Make POST request
-	url := KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT + "/api/knowledge/graph/query"
+	url := getServiceURL() + "/api/knowledge/graphs/query"
 	resp, err := client.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return fmt.Errorf("failed to send POST request: %w", err)
@@ -325,7 +332,7 @@ func queryKnowledgeGraphConcept(client *httpclient.Client) error {
 	}
 
 	// Make POST request
-	url := KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT + "/api/knowledge/graph/query"
+	url := getServiceURL() + "/api/knowledge/graphs/query"
 	resp, err := client.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return fmt.Errorf("failed to send POST request: %w", err)
@@ -384,7 +391,7 @@ func deleteKnowledgeGraph(client *httpclient.Client) error {
 	}
 
 	// Make DELETE request
-	url := KNOWLEDGE_MEMORY_SVC_REST_ENDPOINT + "/api/knowledge/graph"
+	url := getServiceURL() + "/api/knowledge/graphs"
 	resp, err := client.Delete(ctx, url, jsonData, headers)
 	if err != nil {
 		return fmt.Errorf("failed to send DELETE request: %w", err)
@@ -415,6 +422,21 @@ func deleteKnowledgeGraph(client *httpclient.Client) error {
 
 func main() {
 	fmt.Println("Starting HTTP Client Sample...")
+
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("No .env file found or error loading .env file: %v", err)
+	} else {
+		fmt.Println("Loaded environment variables from .env file")
+	}
+
+	// Read environment variable for service URL
+	serviceURL := os.Getenv("KNOWLEDGE_MEMORY_SVC_URL")
+	if serviceURL != "" {
+		fmt.Printf("Using Knowledge Memory Service URL from environment: %s", serviceURL)
+	} else {
+		fmt.Println("Using default Knowledge Memory Service URL")
+	}
 
 	// Create client using helper function
 	client := createClient()

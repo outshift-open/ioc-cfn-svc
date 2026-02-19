@@ -133,7 +133,7 @@ type KnowledgeGraphStoreResponse struct {
 	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
 }
 
-// MarshalJSON custom marshaling to exclude nil request_id
+// MarshalJSON custom marshaling
 func (k *KnowledgeGraphStoreResponse) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeGraphStoreResponse
 	aux := &struct {
@@ -191,7 +191,7 @@ type KnowledgeGraphDeleteResponse struct {
 	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
 }
 
-// MarshalJSON custom marshaling to exclude nil request_id
+// MarshalJSON custom marshaling
 func (k *KnowledgeGraphDeleteResponse) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeGraphDeleteResponse
 	aux := &struct {
@@ -210,16 +210,17 @@ func (k *KnowledgeGraphDeleteResponse) MarshalJSON() ([]byte, error) {
 
 // KnowledgeGraphQueryCriteria represents query criteria for knowledge graph queries
 type KnowledgeGraphQueryCriteria struct {
-	Depth     *int   `json:"depth,omitempty" description:"Depth of the query (number of hops) to be used for path queries"`
-	QueryType string `json:"query_type" description:"Type of query to execute"`
+	Depth        *int   `json:"depth,omitempty" description:"Depth of the query (number of hops) to be used for path queries"`
+	UseDirection *bool  `json:"use_direction,omitempty" description:"Whether to use directed relationships in path queries"`
+	QueryType    string `json:"query_type" description:"Type of query to execute"`
 }
 
-// NewKnowledgeGraphQueryCriteria creates new query criteria with default values
-func NewKnowledgeGraphQueryCriteria() *KnowledgeGraphQueryCriteria {
-	depth := 1
+// NewKnowledgeGraphQueryCriteria creates new query criteria with specified values
+func NewKnowledgeGraphQueryCriteria(queryType string, depth *int, useDirection *bool) *KnowledgeGraphQueryCriteria {
 	return &KnowledgeGraphQueryCriteria{
-		Depth:     &depth,
-		QueryType: QueryTypeNeighbour,
+		Depth:        depth,
+		UseDirection: useDirection,
+		QueryType:    queryType,
 	}
 }
 
@@ -239,10 +240,10 @@ type KnowledgeGraphQueryRequest struct {
 }
 
 // NewKnowledgeGraphQueryRequest creates a new query request with auto-generated UUID
-func NewKnowledgeGraphQueryRequest() *KnowledgeGraphQueryRequest {
+func NewKnowledgeGraphQueryRequest(queryCriteria *KnowledgeGraphQueryCriteria) *KnowledgeGraphQueryRequest {
 	return &KnowledgeGraphQueryRequest{
 		RequestID:     uuid.New().String(),
-		QueryCriteria: NewKnowledgeGraphQueryCriteria(),
+		QueryCriteria: queryCriteria,
 	}
 }
 
@@ -296,7 +297,7 @@ type KnowledgeGraphQueryResponse struct {
 	Records   []KnowledgeGraphQueryResponseRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
 }
 
-// MarshalJSON custom marshaling to exclude empty records and nil request_id
+// MarshalJSON custom marshaling
 func (k *KnowledgeGraphQueryResponse) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeGraphQueryResponse
 	aux := &struct {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
@@ -17,10 +19,25 @@ var log = logger.Default()
 func main() {
 	log.Info("Starting IOC Memory Provider Client Sample...")
 
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Infof("No .env file found or error loading .env file: %v", err)
+	} else {
+		log.Info("Loaded environment variables from .env file")
+	}
+
+	// Read environment variable for service URL
+	serviceURL := os.Getenv("KNOWLEDGE_MEMORY_SVC_URL")
+	if serviceURL != "" {
+		log.Infof("Using Knowledge Memory Service URL from environment: %s", serviceURL)
+	} else {
+		log.Info("Using default Knowledge Memory Service URL")
+	}
+
 	// Create client
-	client := iocmemoryprovider.NewClient("")
-	if client == nil {
-		log.Fatal("Failed to create client")
+	client, err := iocmemoryprovider.NewClient(serviceURL)
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
 	log.Info("Client established successfully")
@@ -183,17 +200,21 @@ func testUpsertKnowledgeGraph(ctx context.Context, client *iocmemoryprovider.Cli
 }
 
 func testQueryKnowledgeGraphPath(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for path query
+	// depth := 2
+	useDirection := false // false for undirected path, true for directed path
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+		iocmemoryprovider.QueryTypePath,
+		nil, // unspecified depth will return paths of any length, set depth to limit it
+		&useDirection,
+	)
+
 	// Create request using schema types
-	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest()
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
 
 	// Set workspace and MAS IDs
-	masID := "523e4567-e89b-12d3-a456-426614174000"
 	request.MasID = &masID
-
-	// Set query criteria for path query
-	request.QueryCriteria = &iocmemoryprovider.KnowledgeGraphQueryCriteria{
-		QueryType: iocmemoryprovider.QueryTypePath,
-	}
 
 	// Set concepts for path query (requires exactly 2)
 	request.Records = iocmemoryprovider.QueryRecords{
@@ -219,17 +240,20 @@ func testQueryKnowledgeGraphPath(ctx context.Context, client *iocmemoryprovider.
 }
 
 func testQueryKnowledgeGraphNeighbor(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for neighbor query
+	useDirection := true
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+		iocmemoryprovider.QueryTypeNeighbour,
+		nil,
+		&useDirection,
+	)
+
 	// Create request using schema types
-	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest()
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
 
 	// Set workspace and MAS IDs
-	masID := "523e4567-e89b-12d3-a456-426614174000"
 	request.MasID = &masID
-
-	// Set query criteria for neighbor query
-	request.QueryCriteria = &iocmemoryprovider.KnowledgeGraphQueryCriteria{
-		QueryType: iocmemoryprovider.QueryTypeNeighbour,
-	}
 
 	// Set concepts for neighbor query (requires exactly 1)
 	request.Records = iocmemoryprovider.QueryRecords{
@@ -254,17 +278,19 @@ func testQueryKnowledgeGraphNeighbor(ctx context.Context, client *iocmemoryprovi
 }
 
 func testQueryKnowledgeGraphConcept(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for concept query
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+		iocmemoryprovider.QueryTypeConcept,
+		nil,
+		nil,
+	)
+
 	// Create request using schema types
-	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest()
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
 
 	// Set workspace and MAS IDs
-	masID := "523e4567-e89b-12d3-a456-426614174000"
 	request.MasID = &masID
-
-	// Set query criteria for concept query
-	request.QueryCriteria = &iocmemoryprovider.KnowledgeGraphQueryCriteria{
-		QueryType: iocmemoryprovider.QueryTypeConcept,
-	}
 
 	// Set concepts for concept query (requires exactly 1)
 	request.Records = iocmemoryprovider.QueryRecords{
