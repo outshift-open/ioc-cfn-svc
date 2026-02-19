@@ -34,8 +34,14 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
 
 	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.postSharedMemoriesHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.postSharedMemoriesQueryHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.upsertSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.fetchSharedMemoriesHandler)
+
+	// audit events (internal API)
+	rtr.Post(internalPrefix+"/audit-events", a.createAuditEventHandler)
+	rtr.Get(internalPrefix+"/audit-events", a.listAuditEventsHandler)
+	rtr.Get(internalPrefix+"/audit-events/{eventId}", a.getAuditEventHandler)
+	rtr.Delete(internalPrefix+"/audit-events/{eventId}", a.deleteAuditEventHandler)
 
 	// Swagger UI + spec
 	rtr.HandleHTTP("/docs/", httpSwagger.WrapHandler)

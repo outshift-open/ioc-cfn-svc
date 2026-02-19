@@ -17,40 +17,16 @@ services:
     environment:
       PORT: "9010"
       APP_NAME: "ioc-cfn-svc"
-      # CFN Registration - WORKSPACE_ID, X_API_KEY, MGMT_URL loaded from .env file
-      CFN_NAME: ${CFN_NAME:-cfn-local}
-      HEARTBEAT_INTERVAL_SECONDS: ${HEARTBEAT_INTERVAL_SECONDS:-29}
-      # MCP mode - set via env: MCP_ENABLED=true docker compose up
+      CFN_NAME: ${CFN_NAME:-cfn-new}
+      HEARTBEAT_INTERVAL_SECONDS: ${HEARTBEAT_INTERVAL_SECONDS:-10}
       MCP_ENABLED: ${MCP_ENABLED:-false}
       MCP_PORT: ${MCP_PORT:-9010}
-      # Database config - optional, app uses mock DB if not set
-      # DB_HOST: "cfn-svc-db"
-      # DB_PORT: "5432"
-      # DB_NAME: "cfn-svc"
-      # DB_USER: "cfn-svc"
-      # DB_PASSWORD: "cfn-svc"
-
-  # Uncomment below if you need PostgreSQL database
-  # cfn-svc-db:
-  #   image: postgres:15
-  #   container_name: cfn-svc-db
-  #   restart: always
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_DB: "cfn-svc"
-  #     POSTGRES_USER: "cfn-svc"
-  #     POSTGRES_PASSWORD: "cfn-svc"
-  #   volumes:
-  #     - cfn-svc-postgres-volume:/var/lib/postgresql/data/
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U cfn-svc -d cfn-svc"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-
-# volumes:
-#   cfn-svc-postgres-volume:
+      DB_HOST: ${DB_HOST:-cfn-svc-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-cfn_cp}
+      DB_USER: ${DB_USER:-postgresUser}
+      DB_PASSWORD: ${DB_PASSWORD:-postgresPW}
+      DB_SSL_MODE: ${DB_SSL_MODE:-disable}
 
 networks:
   default:
