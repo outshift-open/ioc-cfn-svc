@@ -10,6 +10,7 @@ import (
 
 // TODO: Handler logic, API route, and request/response structs may change based on
 // core logic implementation and final API design.
+// TODO: Add audit CRUD operations for cognitive agents memory queries.
 
 // cognitiveAgentsMemoryHandler godoc
 // @Summary		Query cognitive agent memory

@@ -11,6 +11,8 @@
 // and the Go struct fields / JSON tags in this package may change as the
 // upstream Cognitive Agents API evolves. Update the structs and paths here
 // when the API contract is modified.
+//
+// TODO: Add audit CRUD operations for cognitive agent API calls.
 package cognitiveagentclient
 
 import (

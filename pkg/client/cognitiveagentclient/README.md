@@ -58,3 +58,4 @@ cognitiveagentclient.RunTestClient("http://localhost:8000", "reasoner")
 - [ ] Define `GeneralCognitionResponse` fields once API schema is finalized.
 - [ ] Define `ReasonerCognitionResponse` fields once API schema is finalized.
 - [ ] Update `ReasonerRequest.AdditionalContext` type once API clarifies the schema.
+- [ ] Add audit CRUD operations for cognitive agent API calls.
