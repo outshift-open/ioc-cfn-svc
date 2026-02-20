@@ -300,9 +300,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories": {
             "post": {
-                "description": "Upserts shared memory entries (concepts and relations) for a given workspace and multi-agentic system.",
+                "description": "Upserts shared memory entries for a given workspace and multi-agentic system",
                 "consumes": [
                     "application/json"
                 ],
@@ -312,7 +312,7 @@ const docTemplate = `{
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Upsert shared memories.",
+                "summary": "Upsert shared memories",
                 "parameters": [
                     {
                         "type": "string",
@@ -324,7 +324,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Multi-Agentic System ID",
-                        "name": "masId",
+                        "name": "systemId",
                         "in": "path",
                         "required": true
                     },
@@ -332,20 +332,21 @@ const docTemplate = `{
                         "description": "Upsert request",
                         "name": "body",
                         "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryUpsertRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Shared memories successfully upserted",
+                        "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryUpsertResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -354,7 +355,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -365,9 +366,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query": {
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query": {
             "post": {
-                "description": "Queries shared memories for a given workspace and multi-agentic system using a graph path query.",
+                "description": "Fetches shared memory entries for a given workspace and multi-agentic system",
                 "consumes": [
                     "application/json"
                 ],
@@ -389,28 +390,29 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Multi-Agentic System ID",
-                        "name": "masId",
+                        "name": "systemId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Fetch request",
+                        "description": "Query request",
                         "name": "body",
                         "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryQueryRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Query executed successfully",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse"
+                            "$ref": "#/definitions/sharedmemory.SharedMemoryQueryResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -419,7 +421,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -511,140 +513,6 @@ const docTemplate = `{
                 }
             }
         },
-        "iocmemoryprovider.Concept": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "description": {
-                    "type": "string"
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.EmbeddingConfig": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "number"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreRequest": {
-            "type": "object",
-            "properties": {
-                "force_replace": {
-                    "type": "boolean"
-                },
-                "mas_id": {
-                    "type": "string"
-                },
-                "memory_type": {
-                    "type": "string"
-                },
-                "records": {
-                    "$ref": "#/definitions/iocmemoryprovider.Records"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "wksp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
-                }
-            }
-        },
-        "iocmemoryprovider.Records": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Concept"
-                    }
-                },
-                "relations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Relation"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.Relation": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "relation": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.ResponseStatus": {
-            "type": "string",
-            "enum": [
-                "success",
-                "failure",
-                "validation error",
-                "not found"
-            ],
-            "x-enum-varnames": [
-                "ResponseStatusSuccess",
-                "ResponseStatusFailure",
-                "ResponseStatusValidationError",
-                "ResponseStatusNotFound"
-            ]
-        },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
         },
@@ -699,6 +567,42 @@ const docTemplate = `{
                 },
                 "http-status": {
                     "type": "integer"
+                }
+            }
+        },
+        "sharedmemory.SharedMemoryQueryRequest": {
+            "type": "object"
+        },
+        "sharedmemory.SharedMemoryQueryResponse": {
+            "type": "object"
+        },
+        "sharedmemory.SharedMemoryUpsertRequest": {
+            "type": "object",
+            "properties": {
+                "memories": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            }
+        },
+        "sharedmemory.SharedMemoryUpsertResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }

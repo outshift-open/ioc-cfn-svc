@@ -52,96 +52,6 @@ definitions:
       resource_type:
         type: string
     type: object
-  iocmemoryprovider.Concept:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      description:
-        type: string
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      name:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-    type: object
-  iocmemoryprovider.EmbeddingConfig:
-    properties:
-      data:
-        items:
-          type: number
-        type: array
-      name:
-        type: string
-    type: object
-  iocmemoryprovider.KnowledgeGraphStoreRequest:
-    properties:
-      force_replace:
-        type: boolean
-      mas_id:
-        type: string
-      memory_type:
-        type: string
-      records:
-        $ref: '#/definitions/iocmemoryprovider.Records'
-      request_id:
-        type: string
-      wksp_id:
-        type: string
-    type: object
-  iocmemoryprovider.KnowledgeGraphStoreResponse:
-    properties:
-      message:
-        type: string
-      request_id:
-        type: string
-      status:
-        $ref: '#/definitions/iocmemoryprovider.ResponseStatus'
-    type: object
-  iocmemoryprovider.Records:
-    properties:
-      concepts:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Concept'
-        type: array
-      relations:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Relation'
-        type: array
-    type: object
-  iocmemoryprovider.Relation:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      node_ids:
-        items:
-          type: string
-        type: array
-      relation:
-        type: string
-    type: object
-  iocmemoryprovider.ResponseStatus:
-    enum:
-    - success
-    - failure
-    - validation error
-    - not found
-    type: string
-    x-enum-varnames:
-    - ResponseStatusSuccess
-    - ResponseStatusFailure
-    - ResponseStatusValidationError
-    - ResponseStatusNotFound
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -180,6 +90,30 @@ definitions:
         type: object
       http-status:
         type: integer
+    type: object
+  sharedmemory.SharedMemoryQueryRequest:
+    type: object
+  sharedmemory.SharedMemoryQueryResponse:
+    type: object
+  sharedmemory.SharedMemoryUpsertRequest:
+    properties:
+      memories:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      relationships:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+    type: object
+  sharedmemory.SharedMemoryUpsertResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
     type: object
 info:
   contact: {}
@@ -378,12 +312,12 @@ paths:
       summary: Execute memory operations on remote memory provider
       tags:
       - memory-operations
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories:
     post:
       consumes:
       - application/json
-      description: Upserts shared memory entries (concepts and relations) for a given
-        workspace and multi-agentic system.
+      description: Upserts shared memory entries for a given workspace and multi-agentic
+        system
       parameters:
       - description: Workspace ID
         in: path
@@ -392,42 +326,43 @@ paths:
         type: string
       - description: Multi-Agentic System ID
         in: path
-        name: masId
+        name: systemId
         required: true
         type: string
       - description: Upsert request
         in: body
         name: body
+        required: true
         schema:
-          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest'
+          $ref: '#/definitions/sharedmemory.SharedMemoryUpsertRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Shared memories successfully upserted
+          description: Created
           schema:
-            $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse'
+            $ref: '#/definitions/sharedmemory.SharedMemoryUpsertResponse'
         "400":
-          description: Invalid request
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Upsert shared memories.
+      summary: Upsert shared memories
       tags:
       - shared-memories
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query:
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query:
     post:
       consumes:
       - application/json
-      description: Queries shared memories for a given workspace and multi-agentic
-        system using a graph path query.
+      description: Fetches shared memory entries for a given workspace and multi-agentic
+        system
       parameters:
       - description: Workspace ID
         in: path
@@ -436,29 +371,30 @@ paths:
         type: string
       - description: Multi-Agentic System ID
         in: path
-        name: masId
+        name: systemId
         required: true
         type: string
-      - description: Fetch request
+      - description: Query request
         in: body
         name: body
+        required: true
         schema:
-          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest'
+          $ref: '#/definitions/sharedmemory.SharedMemoryQueryRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Query executed successfully
+          description: OK
           schema:
-            $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse'
+            $ref: '#/definitions/sharedmemory.SharedMemoryQueryResponse'
         "400":
-          description: Invalid request
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string
