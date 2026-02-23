@@ -130,8 +130,14 @@ func (a *App) registerOnStartup() {
 	}
 	log.Infof("CFN registered successfully, response=%v", result)
 
-	// Start periodic heartbeat
-	go a.startHeartbeat(mgmtURL, cfnID)
+	// Extract the CFN ID returned by the management plane
+	registeredCfnID, ok := result["cfn_id"].(string)
+	if !ok || registeredCfnID == "" {
+		log.Fatalf("registration response missing valid cfn_id: %v", result)
+	}
+
+	// Start periodic heartbeat with the registered ID from management plane
+	go a.startHeartbeat(mgmtURL, registeredCfnID)
 }
 
 // startHeartbeat sends periodic heartbeat to mgmt plane to keep CFN status active.
