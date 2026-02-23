@@ -1,22 +1,13 @@
 package cognitiveagentclient
 
-// RunTestClient is a smoke-test helper that sends a sample request to a
-// Cognitive Agent API endpoint and prints the response to stdout.
-//
-// Supported endpoint values:
-//
-//   - "otel"     — POST /api/_otel      (sample OpenTelemetry spans)
-//   - "general"  — POST /api/_general   (general knowledge cognition request)
-//   - "reasoner" — POST /api/_reasoner  (reasoner evidence request with intent query)
-//   - "all"      — runs all three endpoints sequentially
+// RunTestClient is a smoke-test helper that sends sample requests to the
+// Cognitive Agent API endpoints and prints the responses to stdout.
 //
 // Usage (from anywhere in the codebase):
 //
 //   import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitiveagentclient"
 //
-//   cognitiveagentclient.RunTestClient("http://localhost:8000", "all")
-//   cognitiveagentclient.RunTestClient("http://localhost:8000", "otel")
-//   cognitiveagentclient.RunTestClient("http://localhost:8000", "reasoner")
+//   cognitiveagentclient.RunTestClient("http://localhost:8000")
 //
 // Set the base URL to the running Cognitive Agent service address.
 
@@ -31,98 +22,82 @@ import (
 // Entry point
 // ---------------------------------------------------------------------------
 
-// RunTestClient exercises the specified cognitive agent API endpoint.
-// Pass "all" to run every endpoint, or one of "otel", "general", "reasoner".
-func RunTestClient(baseURL string, endpoint string) {
-	fmt.Printf("Cognitive Agent Test Client — base URL: %s, endpoint: %s\n\n", baseURL, endpoint)
+// RunTestClient exercises all cognitive agent API endpoints.
+func RunTestClient(baseURL string) {
+	fmt.Printf("Cognitive Agent Test Client — base URL: %s\n\n", baseURL)
 
 	client := New(baseURL, 30*time.Second)
 	ctx := context.Background()
 
-	switch endpoint {
-	case "otel":
-		testSendOtelSpans(ctx, client)
-	case "general":
-		testSendGeneral(ctx, client)
-	case "reasoner":
-		testSendReasonerEvidence(ctx, client)
-	case "all":
-		testSendOtelSpans(ctx, client)
-		testSendGeneral(ctx, client)
-		testSendReasonerEvidence(ctx, client)
-	default:
-		fmt.Printf("unknown endpoint %q: use \"otel\", \"general\", \"reasoner\", or \"all\"\n", endpoint)
-	}
+	testSendExtraction(ctx, client)
+	testSendReasoningEvidence(ctx, client)
+	testSendSemanticNegotiation(ctx, client)
 }
 
 // ---------------------------------------------------------------------------
-// Per-endpoint test helpers
+// Test helpers
 // ---------------------------------------------------------------------------
 
-// testSendOtelSpans sends a sample OtelSpan to POST /api/_otel.
-func testSendOtelSpans(ctx context.Context, client *Client) {
-	fmt.Println("=== POST /api/_otel ===")
+// testSendExtraction sends a sample extraction request to POST /api/knowledge-mgmt/extraction.
+func testSendExtraction(ctx context.Context, client *Client) {
+	fmt.Println("=== POST /api/knowledge-mgmt/extraction ===")
 
-	spans := []OtelSpan{
-		{
-			MASID:        "sample-mas-id",
-			WorkspaceID:  "sample-workspace-id",
-			TraceID:      "162b29522a339e6b1acb21b8041dcda5",
-			SpanID:       "2b6a701a27797f5c",
-			ParentSpanID: "",
-			SpanName:     "farm_agent.build_graph.agent",
-			ServiceName:  "corto.farm_agent",
-			SpanAttributes: map[string]string{
-				"agent_id":             "farm_agent.build_graph",
-				"gen_ai.request.model": "gpt-4",
+	req := &ExtractionRequest{
+		Header: Header{
+			WorkspaceID: "sample-workspace-id",
+			MASID:       "sample-mas-id",
+			AgentID:     "sample-agent-id",
+		},
+		Payload: ExtractionPayload{
+			Metadata: ExtractionPayloadMetadata{
+				Format: "observe-sdk-otel",
 			},
-			Duration: 21346166,
+			Data: []ExtractionDataRecord{
+				{
+					TraceID:      "162b29522a339e6b1acb21b8041dcda5",
+					SpanID:       "2b6a701a27797f5c",
+					ParentSpanID: "",
+					SpanName:     "farm_agent.build_graph.agent",
+					ServiceName:  "corto.farm_agent",
+					SpanAttributes: map[string]string{
+						"agent_id":             "farm_agent.build_graph",
+						"gen_ai.request.model": "gpt-4",
+					},
+					Duration: 21346166,
+				},
+			},
 		},
 	}
 
-	resp, err := client.SendOtelSpans(ctx, spans)
+	resp, err := client.SendExtraction(ctx, req)
 	if err != nil {
 		fmt.Printf("  error: %v\n", err)
 		return
 	}
 
-	printKnowledgeCognitionResponse(resp)
+	printExtractionResponse(resp)
 }
 
-// testSendGeneral sends a sample GeneralRequest to POST /api/_general.
-func testSendGeneral(ctx context.Context, client *Client) {
-	fmt.Println("=== POST /api/_general ===")
+// testSendReasoningEvidence sends a sample reasoning evidence request to POST /api/knowledge-mgmt/reasoning/evidence.
+func testSendReasoningEvidence(ctx context.Context, client *Client) {
+	fmt.Println("=== POST /api/knowledge-mgmt/reasoning/evidence ===")
 
-	requests := []GeneralRequest{
-		{
-			KnowledgeCognitionRequestID: "30cbc343f7a41aa2c91bdffc08b99f1f",
-			MASID:                       "sample-mas-id",
-			WorkspaceID:                 "sample-workspace-id",
+	req := &ReasoningEvidenceRequest{
+		Header: Header{
+			WorkspaceID: "sample-workspace-id",
+			MASID:       "sample-mas-id",
+			AgentID:     "sample-agent-id",
+		},
+		Payload: ReasoningEvidencePayload{
+			Metadata: ReasoningEvidencePayloadMetadata{
+				QueryType: "Semantic Graph Traversal",
+			},
+			Intent:            "what does the orchestrator do?",
+			AdditionalContext: []interface{}{},
 		},
 	}
 
-	resp, err := client.SendGeneral(ctx, requests)
-	if err != nil {
-		fmt.Printf("  error: %v\n", err)
-		return
-	}
-
-	printJSON("GeneralCognitionResponse", resp)
-}
-
-// testSendReasonerEvidence sends a sample ReasonerRequest to POST /api/_reasoner.
-func testSendReasonerEvidence(ctx context.Context, client *Client) {
-	fmt.Println("=== POST /api/_reasoner ===")
-
-	request := &ReasonerRequest{
-		MASID:             "sample-mas-id",
-		WorkspaceID:       "sample-workspace-id",
-		Intent:            "what does the orchestrator do?",
-		AdditionalContext: []interface{}{},
-		Meta:              map[string]interface{}{},
-	}
-
-	resp, err := client.SendReasonerEvidence(ctx, request)
+	resp, err := client.SendReasoningEvidence(ctx, req)
 	if err != nil {
 		fmt.Printf("  error: %v\n", err)
 		return
@@ -131,13 +106,41 @@ func testSendReasonerEvidence(ctx context.Context, client *Client) {
 	printJSON("ReasonerCognitionResponse", resp)
 }
 
+// testSendSemanticNegotiation sends a sample semantic negotiation request to POST /api/semantic-negotiation.
+func testSendSemanticNegotiation(ctx context.Context, client *Client) {
+	fmt.Println("=== POST /api/semantic-negotiation ===")
+
+	req := &SemanticNegotiationRequest{
+		Header: Header{
+			WorkspaceID: "sample-workspace-id",
+			MASID:       "sample-mas-id",
+			AgentID:     "sample-agent-id",
+		},
+		Payload: SemanticNegotiationPayload{},
+	}
+
+	resp, err := client.SendSemanticNegotiation(ctx, req)
+	if err != nil {
+		fmt.Printf("  error: %v\n", err)
+		return
+	}
+
+	printJSON("SemanticNegotiationResponse", resp)
+}
+
 // ---------------------------------------------------------------------------
 // Output helpers
 // ---------------------------------------------------------------------------
 
-// printKnowledgeCognitionResponse prints a structured summary of the _otel response.
-func printKnowledgeCognitionResponse(resp *KnowledgeCognitionResponse) {
-	fmt.Printf("  Request ID: %s\n", resp.KnowledgeCognitionRequestID)
+// printExtractionResponse prints a structured summary of the extraction response.
+func printExtractionResponse(resp *KnowledgeCognitionResponse) {
+	fmt.Printf("  Response ID: %s\n", resp.ResponseID)
+	fmt.Printf("  Header: workspace=%s, mas=%s, agent=%s\n",
+		resp.Header.WorkspaceID, resp.Header.MASID, resp.Header.AgentID)
+	if resp.Error != nil {
+		fmt.Printf("  Error: %s\n", resp.Error.Message)
+		return
+	}
 	fmt.Printf("  Descriptor: %s\n", resp.Descriptor)
 	fmt.Printf("  Concepts (%d):\n", len(resp.Concepts))
 	for _, c := range resp.Concepts {
@@ -147,8 +150,8 @@ func printKnowledgeCognitionResponse(resp *KnowledgeCognitionResponse) {
 	for _, r := range resp.Relations {
 		fmt.Printf("    - %s: %v\n", r.Relationship, r.NodeIDs)
 	}
-	fmt.Printf("  Meta: %d records, %d concepts, %d relations\n",
-		resp.Meta.RecordsProcessed, resp.Meta.ConceptsExtracted, resp.Meta.RelationsExtracted)
+	fmt.Printf("  Metadata: %d records, %d concepts, %d relations\n",
+		resp.Metadata.RecordsProcessed, resp.Metadata.ConceptsExtracted, resp.Metadata.RelationsExtracted)
 }
 
 // printJSON pretty-prints any response as indented JSON with a label.

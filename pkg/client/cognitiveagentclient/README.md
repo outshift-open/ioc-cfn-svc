@@ -14,11 +14,11 @@ Go client for the **Cognitive Agents API** with built-in retries and exponential
 Your App  ──▶  cognitiveagentclient.Client  ──▶  httpclient.Client  ──▶  Cognitive Agents Service
 ```
 
-| Step | Endpoint             | Method                 | Description                                      |
-| ---- | -------------------- | ---------------------- | ------------------------------------------------ |
-| 1    | `POST /api/_otel`    | `SendOtelSpans`        | Ingest OTel spans → extract concepts & relations  |
-| 2    | `POST /api/_general` | `SendGeneral`          | General cognition using request ID from step 1    |
-| 3    | `POST /api/_reasoner`| `SendReasonerEvidence` | Natural-language intent → reasoner evidence       |
+| Endpoint                                        | Method                  | Description                                           |
+| ----------------------------------------------- | ----------------------- | ----------------------------------------------------- |
+| `POST /api/knowledge-mgmt/extraction`           | `SendExtraction`        | Ingest agent telemetry → extract concepts & relations  |
+| `POST /api/knowledge-mgmt/reasoning/evidence`   | `SendReasoningEvidence` | Reasoning evidence request with an intent query        |
+| `POST /api/semantic-negotiation`                | `SendSemanticNegotiation` | Semantic negotiation request (TBD)                   |
 
 ---
 
@@ -29,18 +29,22 @@ import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitiveagentclient"
 
 client := cognitiveagentclient.New("http://localhost:8000", 30*time.Second)
 
-resp, err := client.SendOtelSpans(ctx, spans)          // step 1
-genResp, err := client.SendGeneral(ctx, requests)       // step 2
-resResp, err := client.SendReasonerEvidence(ctx, req)   // step 3
+resp, err := client.SendExtraction(ctx, &cognitiveagentclient.ExtractionRequest{
+    Header: cognitiveagentclient.Header{
+        WorkspaceID: "ws-001",
+        MASID:       "mas-001",
+    },
+    Payload: cognitiveagentclient.ExtractionPayload{
+        Metadata: cognitiveagentclient.ExtractionPayloadMetadata{Format: "observe-sdk-otel"},
+        Data:     records,
+    },
+})
 ```
 
 ## Smoke Test
 
 ```go
-cognitiveagentclient.RunTestClient("http://localhost:8000", "all")       // all endpoints
-cognitiveagentclient.RunTestClient("http://localhost:8000", "otel")      // single endpoint
-cognitiveagentclient.RunTestClient("http://localhost:8000", "general")
-cognitiveagentclient.RunTestClient("http://localhost:8000", "reasoner")
+cognitiveagentclient.RunTestClient("http://localhost:8000")
 ```
 
 ---
@@ -55,7 +59,4 @@ cognitiveagentclient.RunTestClient("http://localhost:8000", "reasoner")
 
 ## TODO
 
-- [ ] Define `GeneralCognitionResponse` fields once API schema is finalized.
-- [ ] Define `ReasonerCognitionResponse` fields once API schema is finalized.
-- [ ] Update `ReasonerRequest.AdditionalContext` type once API clarifies the schema.
 - [ ] Add audit CRUD operations for cognitive agent API calls.

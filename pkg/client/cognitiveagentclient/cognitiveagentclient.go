@@ -1,14 +1,13 @@
 // Package cognitiveagentclient provides a client for the Cognitive Agents API.
 //
-// It supports three endpoints:
-//   - POST /api/_otel      — ingest OpenTelemetry span data and extract knowledge.
-//   - POST /api/_general   — general knowledge cognition request.
-//   - POST /api/_reasoner  — reasoner evidence request with an intent query.
+// It supports the following endpoints:
+//   - POST /api/knowledge-mgmt/extraction          — ingest agent telemetry data and extract knowledge.
+//   - POST /api/knowledge-mgmt/reasoning/evidence   — reasoning evidence request with an intent query.
+//   - POST /api/semantic-negotiation                 — semantic negotiation request.
 //
 // The client wraps httpclient.Client for retries and exponential backoff.
 //
-// NOTE: API endpoint suffixes (e.g. /api/_otel, /api/_general, /api/_reasoner)
-// and the Go struct fields / JSON tags in this package may change as the
+// NOTE: The Go struct fields / JSON tags in this package may change as the
 // upstream Cognitive Agents API evolves. Update the structs and paths here
 // when the API contract is modified.
 //
@@ -27,63 +26,100 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Request types
-// NOTE: Struct fields and JSON tags may change as the API evolves.
+// Common types
 // ---------------------------------------------------------------------------
 
-// OtelSpan represents a single OpenTelemetry span record sent to POST /api/_otel.
-type OtelSpan struct {
-	MASID          string            `json:"mas_id"`          // Multi-Agent System identifier
-	WorkspaceID    string            `json:"workspace_id"`    // Workspace identifier
-	TraceID        string            `json:"TraceId"`         // Distributed trace ID
-	SpanID         string            `json:"SpanId"`          // Unique span ID within the trace
-	ParentSpanID   string            `json:"ParentSpanId"`    // Parent span ID (empty for root spans)
-	SpanName       string            `json:"SpanName"`        // Human-readable span name
-	ServiceName    string            `json:"ServiceName"`     // Originating service name
-	SpanAttributes map[string]string `json:"SpanAttributes"` // Arbitrary key-value span attributes
-	Duration       int64             `json:"Duration"`        // Span duration in nanoseconds
+// Header carries routing context for CFN requests and responses.
+type Header struct {
+	WorkspaceID string `json:"workspace_id"`       // Mandatory
+	MASID       string `json:"mas_id"`             // Mandatory
+	AgentID     string `json:"agent_id,omitempty"` // Optional
 }
 
-// GeneralRequest represents a request to POST /api/_general.
-type GeneralRequest struct {
-	KnowledgeCognitionRequestID string `json:"knowledge_cognition_request_id"` // ID from a prior _otel response
-	MASID                       string `json:"mas_id"`                         // Multi-Agent System identifier
-	WorkspaceID                 string `json:"workspace_id"`                   // Workspace identifier
+// ErrorDetail provides debugging information when an error occurs.
+type ErrorDetail struct {
+	Message string                 `json:"message"`
+	Detail  map[string]interface{} `json:"detail,omitempty"`
 }
 
-// ReasonerRequest represents a request to POST /api/_reasoner.
-type ReasonerRequest struct {
-	MASID             string                 `json:"mas_id"`              // Multi-Agent System identifier
-	WorkspaceID       string                 `json:"workspace_id"`        // Workspace identifier
-	Intent            string                 `json:"intent"`              // Natural-language query / intent
-	AdditionalContext []interface{}           `json:"additional_context"` // Extra context (to be updated in the API)
-	Meta              map[string]interface{} `json:"meta"`               // Arbitrary metadata
+// ---------------------------------------------------------------------------
+// Request types
+// ---------------------------------------------------------------------------
+
+// ExtractionPayloadMetadata describes the format and labels of the incoming data.
+type ExtractionPayloadMetadata struct {
+	Format string `json:"format"` // e.g. "observe-sdk-otel", "openclaw"
+}
+
+// ExtractionPayload holds the metadata and raw data array for an extraction request.
+type ExtractionPayload struct {
+	Metadata ExtractionPayloadMetadata `json:"metadata"`
+	Data     []ExtractionDataRecord    `json:"data"`
+}
+
+// ExtractionDataRecord represents a single telemetry record (e.g. an OTel span).
+type ExtractionDataRecord struct {
+	TraceID        string            `json:"TraceId"`
+	SpanID         string            `json:"SpanId"`
+	ParentSpanID   string            `json:"ParentSpanId"`
+	SpanName       string            `json:"SpanName"`
+	ServiceName    string            `json:"ServiceName"`
+	SpanAttributes map[string]string `json:"SpanAttributes"`
+	Duration       int64             `json:"Duration"`
+}
+
+// ExtractionRequest is the request body for POST /api/knowledge-mgmt/extraction.
+type ExtractionRequest struct {
+	Header    Header             `json:"header"`
+	RequestID string             `json:"request_id,omitempty"`
+	Payload   ExtractionPayload  `json:"payload"`
+}
+
+// ReasoningEvidencePayloadMetadata describes the type of reasoning query.
+type ReasoningEvidencePayloadMetadata struct {
+	QueryType string `json:"query_type,omitempty"` // e.g. "Semantic Graph Traversal", "Vector Search"
+}
+
+// ReasoningEvidencePayload holds the intent and optional context for a reasoning evidence request.
+type ReasoningEvidencePayload struct {
+	Metadata          ReasoningEvidencePayloadMetadata `json:"metadata,omitempty"`
+	Intent            string                           `json:"intent"`
+	AdditionalContext []interface{}                     `json:"additional_context,omitempty"`
+}
+
+// ReasoningEvidenceRequest is the request body for POST /api/knowledge-mgmt/reasoning/evidence.
+type ReasoningEvidenceRequest struct {
+	Header    Header                   `json:"header"`
+	RequestID string                   `json:"request_id,omitempty"`
+	Payload   ReasoningEvidencePayload `json:"payload"`
+}
+
+// SemanticNegotiationPayload holds the payload for a semantic negotiation request.
+// TODO: Define fields once the API contract is finalized.
+type SemanticNegotiationPayload struct {
+	// TBD
+}
+
+// SemanticNegotiationRequest is the request body for POST /api/semantic-negotiation.
+type SemanticNegotiationRequest struct {
+	Header    Header                       `json:"header"`
+	RequestID string                       `json:"request_id,omitempty"`
+	Payload   SemanticNegotiationPayload   `json:"payload"`
 }
 
 // ---------------------------------------------------------------------------
 // Response types
-// NOTE: Struct fields and JSON tags may change as the API evolves.
 // ---------------------------------------------------------------------------
 
-// ReasonerCognitionResponse is the response from POST /api/_reasoner.
-// TODO: define fields once the API response schema is finalized.
-type ReasonerCognitionResponse struct {
-	Raw json.RawMessage `json:"raw"` // Raw JSON until schema is defined
-}
-
-// GeneralCognitionResponse is the response from POST /api/_general.
-// TODO: define fields once the API response schema is finalized.
-type GeneralCognitionResponse struct {
-	Raw json.RawMessage `json:"raw"` // Raw JSON until schema is defined
-}
-
-// KnowledgeCognitionResponse is the response from POST /api/_otel.
+// KnowledgeCognitionResponse is the response from POST /api/knowledge-mgmt/extraction.
 type KnowledgeCognitionResponse struct {
-	KnowledgeCognitionRequestID string     `json:"knowledge_cognition_request_id"`
-	Concepts                    []Concept  `json:"concepts"`
-	Relations                   []Relation `json:"relations"`
-	Descriptor                  string     `json:"descriptor"`
-	Meta                        Meta       `json:"meta"`
+	Header     Header       `json:"header"`
+	ResponseID string       `json:"response_id"`
+	Error      *ErrorDetail `json:"error,omitempty"`
+	Concepts   []Concept    `json:"concepts,omitempty"`
+	Relations  []Relation   `json:"relations,omitempty"`
+	Descriptor string       `json:"descriptor,omitempty"`
+	Metadata   Meta         `json:"metadata,omitempty"`
 }
 
 // Concept represents an extracted concept from telemetry data.
@@ -101,6 +137,23 @@ type Relation struct {
 	NodeIDs      []string               `json:"node_ids"`
 	Relationship string                 `json:"relationship"`
 	Attributes   map[string]interface{} `json:"attributes"`
+}
+
+// ReasonerCognitionResponse is the response from POST /api/knowledge-mgmt/reasoning/evidence.
+type ReasonerCognitionResponse struct {
+	Header     Header                   `json:"header"`
+	ResponseID string                   `json:"response_id"`
+	Error      *ErrorDetail             `json:"error,omitempty"`
+	Records    []map[string]interface{} `json:"records,omitempty"`  // List of TKFKnowledgeRecord (TODO: define struct)
+	Metadata   map[string]interface{}   `json:"metadata,omitempty"`
+}
+
+// SemanticNegotiationResponse is the response from POST /api/semantic-negotiation.
+// TODO: Define additional fields once the API contract is finalized.
+type SemanticNegotiationResponse struct {
+	Header     Header       `json:"header"`
+	ResponseID string       `json:"response_id"`
+	Error      *ErrorDetail `json:"error,omitempty"`
 }
 
 // Meta contains metadata about the knowledge cognition processing.
@@ -144,49 +197,48 @@ func NewWithHTTPClient(baseURL string, httpClient *httpclient.Client) *Client {
 
 // ---------------------------------------------------------------------------
 // API methods
-// NOTE: Endpoint paths may change as the API evolves.
 // ---------------------------------------------------------------------------
 
-// SendOtelSpans sends OpenTelemetry span data to POST /api/_otel
-// and returns the extracted knowledge cognition response.
-func (c *Client) SendOtelSpans(ctx context.Context, spans []OtelSpan) (*KnowledgeCognitionResponse, error) {
-	body, err := json.Marshal(spans)
+// SendExtraction sends a knowledge extraction request to POST /api/knowledge-mgmt/extraction
+// and returns the knowledge cognition response.
+func (c *Client) SendExtraction(ctx context.Context, req *ExtractionRequest) (*KnowledgeCognitionResponse, error) {
+	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal otel spans: %w", err)
+		return nil, fmt.Errorf("failed to marshal extraction request: %w", err)
 	}
 
 	var result KnowledgeCognitionResponse
-	if err := c.post(ctx, "/api/_otel", body, &result); err != nil {
+	if err := c.post(ctx, "/api/knowledge-mgmt/extraction", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-// SendGeneral sends a general knowledge cognition request to POST /api/_general
-// and returns the general cognition response.
-func (c *Client) SendGeneral(ctx context.Context, requests []GeneralRequest) (*GeneralCognitionResponse, error) {
-	body, err := json.Marshal(requests)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal general requests: %w", err)
-	}
-
-	var result GeneralCognitionResponse
-	if err := c.post(ctx, "/api/_general", body, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// SendReasonerEvidence sends a reasoner evidence request to POST /api/_reasoner
+// SendReasoningEvidence sends a reasoning evidence request to POST /api/knowledge-mgmt/reasoning/evidence
 // and returns the reasoner cognition response.
-func (c *Client) SendReasonerEvidence(ctx context.Context, request *ReasonerRequest) (*ReasonerCognitionResponse, error) {
-	body, err := json.Marshal(request)
+func (c *Client) SendReasoningEvidence(ctx context.Context, req *ReasoningEvidenceRequest) (*ReasonerCognitionResponse, error) {
+	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal reasoner request: %w", err)
+		return nil, fmt.Errorf("failed to marshal reasoning evidence request: %w", err)
 	}
 
 	var result ReasonerCognitionResponse
-	if err := c.post(ctx, "/api/_reasoner", body, &result); err != nil {
+	if err := c.post(ctx, "/api/knowledge-mgmt/reasoning/evidence", body, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// SendSemanticNegotiation sends a semantic negotiation request to POST /api/semantic-negotiation
+// and returns the semantic negotiation response.
+func (c *Client) SendSemanticNegotiation(ctx context.Context, req *SemanticNegotiationRequest) (*SemanticNegotiationResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal semantic negotiation request: %w", err)
+	}
+
+	var result SemanticNegotiationResponse
+	if err := c.post(ctx, "/api/semantic-negotiation", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
