@@ -17,14 +17,8 @@ type ReasonerPayload struct {
 	AdditionalContext []map[string]any `json:"additional_context,omitempty"`
 }
 
-type ReasonerHeader struct {
-	WorkspaceID string `json:"workspace_id"`
-	MASID       string `json:"mas_id"`
-	AgentID     string `json:"agent_id,omitempty"`
-}
-
 type ReasonerEnvelopeRequest struct {
-	Header    ReasonerHeader  `json:"header"`
+	Header    Header          `json:"header"`
 	RequestID string          `json:"request_id,omitempty"`
 	Payload   ReasonerPayload `json:"payload"`
 }
@@ -41,7 +35,7 @@ type TKFKnowledgeRecord struct {
 }
 
 type ReasonerEnvelopeResponse struct {
-	Header     ReasonerHeader       `json:"header"`
+	Header     Header               `json:"header"`
 	ResponseID string               `json:"response_id"`
 	Error      *ReasonerError       `json:"error,omitempty"`
 	Records    []TKFKnowledgeRecord `json:"records,omitempty"`
@@ -87,7 +81,7 @@ func InvokeReasoningEvidence(
 	}
 
 	reqPayload := ReasonerEnvelopeRequest{
-		Header: ReasonerHeader{
+		Header: Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
 			AgentID:     agentID,
