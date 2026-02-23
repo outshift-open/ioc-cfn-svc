@@ -86,7 +86,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
-	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:8000")
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 	cfnID := a.Cfg.CfnID // UUID generated on app startup
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
 

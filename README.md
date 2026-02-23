@@ -58,7 +58,7 @@ make run        # HTTP mode
 make run-mcp    # MCP mode
 ```
 
-App runs on **http://localhost:9010**
+App runs on **http://localhost:9002**
 
 ## API Endpoints
 
@@ -66,15 +66,15 @@ App runs on **http://localhost:9010**
 
 ```bash
 # Health check (TKF standard diagnostic)
-curl http://localhost:9010/api/internal/diagnostics/health
+curl http://localhost:9002/api/internal/diagnostics/health
 # Response: {"status":"UP"}
 
 # Get build/git info
-curl http://localhost:9010/api/internal/diagnostics/info
+curl http://localhost:9002/api/internal/diagnostics/info
 # Response: {"git":{"commit":{"time":"2025-01-01T00:00:00-08:00","id":"abc1234"},"branch":"main"}}
 
 # CFN dummy API
-curl http://localhost:9010/api/cfn/dummy
+curl http://localhost:9002/api/cfn/dummy
 ```
 
 ### Shared Memory APIs
@@ -82,7 +82,7 @@ curl http://localhost:9010/api/cfn/dummy
 **Upsert Shared Memories** - Store memories and relationships for inter-agent communication
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories \
+curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -118,7 +118,7 @@ curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-sy
 **Fetch Shared Memories** - Query stored memories for agent coordination
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query \
+curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query \
   -H "Content-Type: application/json" \
   -d '{}'
 
@@ -136,7 +136,7 @@ curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-sy
 **GET /api/internal/diagnostics/loggers** - Get current log levels for ROOT and all packages
 
 ```bash
-curl http://localhost:9010/api/internal/diagnostics/loggers
+curl http://localhost:9002/api/internal/diagnostics/loggers
 ```
 
 Response:
@@ -148,12 +148,12 @@ Response:
 
 ```bash
 # Set ROOT level (affects ALL loggers)
-curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+curl -X POST http://localhost:9002/api/internal/diagnostics/loggers \
   -H "Content-Type: application/json" \
   -d '{"module-name": "ROOT", "log-level": "debug"}'
 
 # Set specific package level (only affects that package)
-curl -X POST http://localhost:9010/api/internal/diagnostics/loggers \
+curl -X POST http://localhost:9002/api/internal/diagnostics/loggers \
   -H "Content-Type: application/json" \
   -d '{"module-name": "app", "log-level": "debug"}'
 ```
@@ -180,7 +180,7 @@ Response: `204 No Content` on success
 **POST /api/internal/audit-events** - Create an audit event
 
 ```bash
-curl -X POST http://localhost:9010/api/internal/audit-events \
+curl -X POST http://localhost:9002/api/internal/audit-events \
   -H "Content-Type: application/json" \
   -d '{
     "operation_id": "op-12345",
@@ -215,7 +215,7 @@ Response: `200 OK`
 
 ```bash
 # List all
-curl http://localhost:9010/api/internal/audit-events
+curl http://localhost:9002/api/internal/audit-events
 
 # Response:
 [
@@ -235,7 +235,7 @@ curl http://localhost:9010/api/internal/audit-events
 ]
 
 # Filter by resource_type
-curl "http://localhost:9010/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
+curl "http://localhost:9002/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
 
 # Response:
 [
@@ -254,7 +254,7 @@ curl "http://localhost:9010/api/internal/audit-events?resource_type=COGNITIVE_EN
 ]
 
 # Filter by audit_type
-curl "http://localhost:9010/api/internal/audit-events?audit_type=RESOURCE_CREATED"
+curl "http://localhost:9002/api/internal/audit-events?audit_type=RESOURCE_CREATED"
 
 # Response:
 [
@@ -273,7 +273,7 @@ curl "http://localhost:9010/api/internal/audit-events?audit_type=RESOURCE_CREATE
 ]
 
 # Filter by both
-curl "http://localhost:9010/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+curl "http://localhost:9002/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
 
 # Response:
 [
@@ -296,7 +296,7 @@ curl "http://localhost:9010/api/internal/audit-events?resource_type=MAS&audit_ty
 **GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
 
 ```bash
-curl http://localhost:9010/api/internal/audit-events/<event-id>
+curl http://localhost:9002/api/internal/audit-events/<event-id>
 ```
 
 **Response:**
@@ -319,7 +319,7 @@ curl http://localhost:9010/api/internal/audit-events/<event-id>
 **DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
 
 ```bash
-curl -X DELETE http://localhost:9010/api/internal/audit-events/<event-id>
+curl -X DELETE http://localhost:9002/api/internal/audit-events/<event-id>
 ```
 
 Response: `204 No Content`
@@ -356,14 +356,14 @@ The app automatically loads `.env` on startup via [godotenv](https://github.com/
 go run .   # .env is auto-loaded
 ```
 
-**Docker Compose:** (uses port `9010`)
+**Docker Compose:** (uses port `9002`)
 ```bash
 make dc-up           # Uses .env file
 make dc-up-build     # Build locally and run
 ```
 
 ### 5. Access API documentation
-- **OpenAPI/Swagger UI**: http://localhost:9010/docs/index.html
+- **OpenAPI/Swagger UI**: http://localhost:9002/docs/index.html
 - **Shared Memory API Guide**: [docs/SHARED_MEMORY_API.md](docs/SHARED_MEMORY_API.md)
 
 ## Startup Registration
@@ -406,20 +406,20 @@ Environment variables (uppercase):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | 9010 | App server port |
+| `PORT` | 9002 | App server port |
 | `APP_NAME` | ioc-cfn-svc | Service name |
 | `DB_HOST` | - | PostgreSQL host (empty = mock DB) |
 | `DB_PORT` | - | PostgreSQL port |
 | `DB_NAME` | - | Database name |
 | `DB_USER` | - | Database user |
 | `DB_PASSWORD` | - | Database password |
-| `MGMT_URL` | http://localhost:8000 | Management plane URL |
+| `MGMT_URL` | http://localhost:9000 | Management plane URL |
 | `WORKSPACE_ID` | - | Workspace ID from IoC Mgmt Plane |
 | `X_API_KEY` | - | API key from IoC Mgmt Plane |
 | `CFN_NAME` | cfn-local | CFN instance name |
 | `HEARTBEAT_INTERVAL_SECONDS` | 29 | Heartbeat interval in seconds |
 | `MCP_ENABLED` | false | Enable MCP server mode |
-| `MCP_PORT` | 9010 | MCP server port |
+| `MCP_PORT` | 9002 | MCP server port |
 | `MCP_HOST` | (empty) | MCP server host |
 
 ## Commands

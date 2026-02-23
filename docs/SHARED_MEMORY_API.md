@@ -5,7 +5,7 @@ The Shared Memory API enables multi-agent systems to share context, coordinate a
 ## Base URL
 
 ```
-http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories
+http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories
 ```
 
 ## Endpoints
@@ -66,7 +66,7 @@ http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{system
 **Example cURL Command:**
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/ws-abc123/multi-agentic-systems/sys-xyz789/shared-memories \
+curl -X POST http://localhost:9002/api/workspaces/ws-abc123/multi-agentic-systems/sys-xyz789/shared-memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -122,7 +122,7 @@ curl -X POST http://localhost:9010/api/workspaces/ws-abc123/multi-agentic-system
 **Example cURL Command:**
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/ws-abc123/multi-agentic-systems/sys-xyz789/shared-memories/query \
+curl -X POST http://localhost:9002/api/workspaces/ws-abc123/multi-agentic-systems/sys-xyz789/shared-memories/query \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
@@ -172,7 +172,7 @@ Agents can share learned information with other agents in the system:
 
 ```bash
 # Agent A stores a learned preference
-curl -X POST http://localhost:9010/api/workspaces/ws-1/multi-agentic-systems/sys-1/shared-memories \
+curl -X POST http://localhost:9002/api/workspaces/ws-1/multi-agentic-systems/sys-1/shared-memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -195,7 +195,7 @@ curl -X POST http://localhost:9010/api/workspaces/ws-1/multi-agentic-systems/sys
 Share project context across multiple agents:
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/project-x/multi-agentic-systems/dev-team/shared-memories \
+curl -X POST http://localhost:9002/api/workspaces/project-x/multi-agentic-systems/dev-team/shared-memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -225,7 +225,7 @@ curl -X POST http://localhost:9010/api/workspaces/project-x/multi-agentic-system
 Build relationships between memories:
 
 ```bash
-curl -X POST http://localhost:9010/api/workspaces/ws-1/multi-agentic-systems/sys-1/shared-memories \
+curl -X POST http://localhost:9002/api/workspaces/ws-1/multi-agentic-systems/sys-1/shared-memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -301,5 +301,5 @@ Returned when an unexpected error occurs during processing.
 
 Interactive API documentation is available at:
 ```
-http://localhost:9010/docs/index.html
+http://localhost:9002/docs/index.html
 ```

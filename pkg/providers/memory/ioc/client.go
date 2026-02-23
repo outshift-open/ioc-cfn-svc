@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DefaultKnowledgeMemorySvcRestEndpoint = "http://localhost:8001"
+	DefaultKnowledgeMemorySvcRestEndpoint = "http://localhost:9003"
 )
 
 var log = logger.SubPkg("app")

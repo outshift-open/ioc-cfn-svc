@@ -30,6 +30,6 @@ WORKDIR /app
 
 COPY --from=builder /app/cfn-svc .
 
-EXPOSE 9010
+EXPOSE 9002
 
 ENTRYPOINT ["./cfn-svc"]
