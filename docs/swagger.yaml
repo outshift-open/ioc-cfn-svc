@@ -52,6 +52,45 @@ definitions:
       resource_type:
         type: string
     type: object
+  memoryoperations.MemoryOperationHeader:
+    type: object
+  memoryoperations.MemoryOperationPayload:
+    properties:
+      http-headers:
+        additionalProperties:
+          type: string
+        description: Custom headers
+        type: object
+      http-request-body:
+        additionalProperties: true
+        description: JSON payload
+        type: object
+      http-request-type:
+        description: POST, PUT, GET, DELETE, etc.
+        type: string
+      http-url:
+        description: URL with query parameters (URL encoded)
+        type: string
+    type: object
+  memoryoperations.MemoryOperationRequest:
+    properties:
+      header:
+        $ref: '#/definitions/memoryoperations.MemoryOperationHeader'
+      payload:
+        $ref: '#/definitions/memoryoperations.MemoryOperationPayload'
+    type: object
+  memoryoperations.MemoryOperationResponse:
+    properties:
+      http-headers:
+        additionalProperties:
+          type: string
+        type: object
+      http-response-body:
+        additionalProperties: true
+        type: object
+      http-status:
+        type: integer
+    type: object
   sharedmemory.SharedMemoryQueryRequest:
     type: object
   sharedmemory.SharedMemoryQueryResponse:
@@ -223,6 +262,56 @@ paths:
       summary: Get CFN dummy data
       tags:
       - cfn
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
+    post:
+      consumes:
+      - application/json
+      description: Proxies HTTP requests to a remote memory provider for agent memory
+        operations
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: Memory operation request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/memoryoperations.MemoryOperationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/memoryoperations.MemoryOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Execute memory operations on remote memory provider
+      tags:
+      - memory-operations
   /api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories:
     post:
       consumes:

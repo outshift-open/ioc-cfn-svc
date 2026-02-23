@@ -1,10 +1,17 @@
 package app
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"time"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -88,4 +95,125 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	// TODO: query shared memories for (workspaceID, systemId)
 
 	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.SharedMemoryQueryResponse{})
+}
+
+// memoryOperationsHandler godoc
+// @Summary		Execute memory operations on remote memory provider
+// @Description	Proxies HTTP requests to a remote memory provider for agent memory operations
+// @Tags			memory-operations
+// @Accept		json
+// @Produce		json
+// @Param		workspaceId	path		string								true	"Workspace ID"
+// @Param		masId		path		string								true	"Multi-Agentic System ID"
+// @Param		agentId		path		string								true	"Agent ID"
+// @Param		body		body		memoryoperations.MemoryOperationRequest	true	"Memory operation request"
+// @Success		200			{object}	memoryoperations.MemoryOperationResponse
+// @Failure		400			{object}	map[string]string
+// @Failure		500			{object}	map[string]string
+// @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations [post]
+func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+	agentID := eh.PathParam(r, "agentId")
+
+	// Log path parameters for debugging
+	log.Debugf("memory operation request: workspaceId=%s, masId=%s, agentId=%s", workspaceID, masID, agentID)
+
+	// Parse the request body
+	var req memoryoperations.MemoryOperationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("invalid JSON body: %v", err),
+		})
+	}
+
+	// Validate required fields
+	if req.Payload.HTTPRequestType == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "http-request-type is required",
+		})
+	}
+	if req.Payload.HTTPURL == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "http-url is required",
+		})
+	}
+
+	// Marshal the request body if provided
+	var requestBody []byte
+	var err error
+	if req.Payload.HTTPRequestBody != nil && len(req.Payload.HTTPRequestBody) > 0 {
+		requestBody, err = json.Marshal(req.Payload.HTTPRequestBody)
+		if err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("failed to marshal request body: %v", err),
+			})
+		}
+	}
+
+	// Create HTTP client with timeout
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+
+	// Prepare headers
+	headers := make(map[string]string)
+	if req.Payload.HTTPHeaders != nil {
+		headers = req.Payload.HTTPHeaders
+	}
+
+	// Ensure Content-Type is set for requests with body
+	if requestBody != nil && headers["Content-Type"] == "" {
+		headers["Content-Type"] = "application/json"
+	}
+
+	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, req.Payload.HTTPURL)
+
+	// Forward the request to the memory provider
+	resp, err := client.Do(ctx, req.Payload.HTTPRequestType, req.Payload.HTTPURL, requestBody, headers)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("failed to read response from memory provider: %v", err),
+		})
+	}
+
+	// Parse the response body as JSON
+	var responseBodyJSON map[string]interface{}
+	if len(responseBody) > 0 {
+		// Try to parse as JSON, but don't fail if it's not valid JSON
+		if err := json.NewDecoder(bytes.NewReader(responseBody)).Decode(&responseBodyJSON); err != nil {
+			// If it's not valid JSON, store it as a string
+			responseBodyJSON = map[string]interface{}{
+				"raw": string(responseBody),
+			}
+		}
+	}
+
+	// Extract response headers
+	responseHeaders := make(map[string]string)
+	for key, values := range resp.Header {
+		if len(values) > 0 {
+			responseHeaders[key] = values[0]
+		}
+	}
+
+	// Build the response
+	response := memoryoperations.MemoryOperationResponse{
+		HTTPStatus:       resp.StatusCode,
+		HTTPHeaders:      responseHeaders,
+		HTTPResponseBody: responseBodyJSON,
+	}
+
+	log.Infof("memory provider responded with status: %d", resp.StatusCode)
+
+	// Return the response with 200 status (the actual HTTP status from the memory provider is in the response body)
+	return eh.RespondWithJSON(w, http.StatusOK, response)
 }

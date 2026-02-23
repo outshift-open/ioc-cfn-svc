@@ -219,6 +219,79 @@
                 }
             }
         },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
+            "post": {
+                "description": "Proxies HTTP requests to a remote memory provider for agent memory operations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "memory-operations"
+                ],
+                "summary": "Execute memory operations on remote memory provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Memory operation request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memoryoperations.MemoryOperationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/memoryoperations.MemoryOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories": {
             "post": {
                 "description": "Upserts shared memory entries for a given workspace and multi-agentic system",
@@ -429,6 +502,63 @@
                 },
                 "resource_type": {
                     "type": "string"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationHeader": {
+            "type": "object"
+        },
+        "memoryoperations.MemoryOperationPayload": {
+            "type": "object",
+            "properties": {
+                "http-headers": {
+                    "description": "Custom headers",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "http-request-body": {
+                    "description": "JSON payload",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "http-request-type": {
+                    "description": "POST, PUT, GET, DELETE, etc.",
+                    "type": "string"
+                },
+                "http-url": {
+                    "description": "URL with query parameters (URL encoded)",
+                    "type": "string"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/memoryoperations.MemoryOperationHeader"
+                },
+                "payload": {
+                    "$ref": "#/definitions/memoryoperations.MemoryOperationPayload"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationResponse": {
+            "type": "object",
+            "properties": {
+                "http-headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "http-response-body": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "http-status": {
+                    "type": "integer"
                 }
             }
         },
