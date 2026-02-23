@@ -11,16 +11,16 @@ services:
     container_name: ioc-cfn-svc
     restart: unless-stopped
     ports:
-      - "9010:9010"
+      - "9002:9002"
     env_file:
       - ../.env
     environment:
-      PORT: "9010"
+      PORT: "9002"
       APP_NAME: "ioc-cfn-svc"
       CFN_NAME: ${CFN_NAME:-cfn-new}
       HEARTBEAT_INTERVAL_SECONDS: ${HEARTBEAT_INTERVAL_SECONDS:-10}
       MCP_ENABLED: ${MCP_ENABLED:-false}
-      MCP_PORT: ${MCP_PORT:-9010}
+      MCP_PORT: ${MCP_PORT:-9002}
       DB_HOST: ${DB_HOST:-cfn-svc-db}
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME:-cfn_cp}

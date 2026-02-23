@@ -14,8 +14,8 @@ import (
 var log = logger.SubPkg("config")
 
 var (
-	portFlag             = flag.Int("port", 9010, "port to run app server")
-	metricsPortFlag      = flag.Int("metrics_port", 9020, "port to run metrics server")
+	portFlag             = flag.Int("port", 9002, "port to run app server")
+	metricsPortFlag      = flag.Int("metrics_port", 9012, "port to run metrics server")
 	replicaIDFlag        = flag.String("hostname", uuid.NewString(), "unique id of service")
 	helmChartVersionFlag = flag.String("chart_version", "", "")
 	tagVersionFlag       = flag.String("tag_version", "", "")

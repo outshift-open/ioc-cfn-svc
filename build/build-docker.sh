@@ -19,4 +19,4 @@ docker build \
     -f build/Dockerfile \
     .
 
-echo "Done! Run with: docker run -p 9010:9010 ${IMAGE_NAME}"
+echo "Done! Run with: docker run -p 9002:9002 ${IMAGE_NAME}"

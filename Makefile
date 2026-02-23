@@ -66,7 +66,7 @@ docs: install-swag
 
 .PHONY: run
 run: ## Run in HTTP mode (default)
-	PORT="9010" \
+	PORT="9002" \
 		DB_HOST=$${DB_HOST:-localhost} \
 		DB_PORT=$${DB_PORT:-5432} \
 		DB_NAME=$${DB_NAME:-cfn-svc} \
@@ -76,7 +76,7 @@ run: ## Run in HTTP mode (default)
 
 .PHONY: run-mcp
 run-mcp: ## Run in MCP mode
-	MCP_ENABLED=true MCP_PORT=9010 ./$(PROJECT_NAME).bin
+	MCP_ENABLED=true MCP_PORT=9002 ./$(PROJECT_NAME).bin
 
 .PHONY: dev
 dev: ## Run with go run (picks up .env file, injects git info)

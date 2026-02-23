@@ -24,7 +24,7 @@ func getServiceURL() string {
 	if serviceURL != "" {
 		return serviceURL
 	}
-	return "http://localhost:8001"
+	return "http://localhost:9003"
 }
 
 // go run pkg/client/http/samples/knowledge_memory_svc_client.go
