@@ -133,6 +133,8 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 			"error": "http-request-type is required",
 		})
 	}
+
+	// TODO: Get the URL from config we synced from Management plane
 	if req.Payload.HTTPURL == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "http-url is required",
@@ -169,6 +171,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, req.Payload.HTTPURL)
 
 	// Forward the request to the memory provider
+	// TODO: replace this with Agentic Memory Client
 	resp, err := client.Do(ctx, req.Payload.HTTPRequestType, req.Payload.HTTPURL, requestBody, headers)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
