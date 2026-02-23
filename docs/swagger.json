@@ -242,7 +242,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "System ID",
+                        "description": "Multi-Agentic System ID",
                         "name": "systemId",
                         "in": "path",
                         "required": true
@@ -308,7 +308,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "System ID",
+                        "description": "Multi-Agentic System ID",
                         "name": "systemId",
                         "in": "path",
                         "required": true
