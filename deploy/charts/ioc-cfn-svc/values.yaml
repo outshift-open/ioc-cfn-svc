@@ -29,7 +29,7 @@ domainPrefix: helloworld-go
 dbname: helloworlddev
 dockerPreamable: 626007623524.dkr.ecr.us-east-2.amazonaws.com/eti-sre
 servicePort: "9002"
-metricsPort: "9012"
+metricsPort: "9022"
 
 # Pod security Standards
 # https://kubernetes.io/docs/concepts/security/pod-security-standards/
