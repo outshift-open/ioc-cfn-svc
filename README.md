@@ -6,7 +6,7 @@ Go microservice with HTTP server and mock database.
 
 ## Prerequisites
 
-Start the IoC Management Plane backend and UI (required for CFN registration):
+1. **IoC Management Plane**: Start the backend and UI (required for CFN registration):
 
 ```bash
 # Clone and run the management backend
@@ -16,6 +16,10 @@ task docker-compose-full-stack-up    # Start complete stack (application + datab
 ```
 
 See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/ioc-cfn-mgmt-backend-svc?tab=readme-ov-file#deployment-options) for more details.
+
+2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
+
+> **TODO:** Consolidate docker-compose with other CFN repos (e.g. shared docker-compose for mgmt-backend + cfn-svc + postgres)
 
 ## Quick Start
 
@@ -58,6 +62,8 @@ App runs on **http://localhost:9010**
 
 ## API Endpoints
 
+### Health & Info
+
 ```bash
 # Health check (TKF standard diagnostic)
 curl http://localhost:9010/api/internal/diagnostics/health
@@ -70,6 +76,60 @@ curl http://localhost:9010/api/internal/diagnostics/info
 # CFN dummy API
 curl http://localhost:9010/api/cfn/dummy
 ```
+
+### Shared Memory APIs
+
+**Upsert Shared Memories** - Store memories and relationships for inter-agent communication
+
+```bash
+curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memories": [
+      {
+        "id": "mem-1",
+        "content": "User prefers dark mode",
+        "type": "preference",
+        "timestamp": "2026-02-18T10:00:00Z"
+      },
+      {
+        "id": "mem-2",
+        "content": "Project uses Go 1.21",
+        "type": "technical"
+      }
+    ],
+    "relationships": [
+      {
+        "from": "mem-1",
+        "to": "mem-2",
+        "type": "related_to",
+        "strength": 0.8
+      }
+    ]
+  }'
+
+# Response (201 Created):
+# {
+#   "status": "success",
+#   "message": "shared memories upserted successfully"
+# }
+```
+
+**Fetch Shared Memories** - Query stored memories for agent coordination
+
+```bash
+curl -X POST http://localhost:9010/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Response (200 OK):
+# TODO: Response format to be defined
+```
+
+**Notes:**
+- Replace `{workspaceId}` and `{systemId}` with actual IDs
+- Memories and relationships accept flexible key-value structures
+- Designed for multi-agent systems to share context and coordinate actions
 
 ### Log Level Management
 
@@ -113,6 +173,157 @@ Response: `204 No Content` on success
 {"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
+### Audit Events
+
+> For full audit system documentation (architecture, schema, enums, design decisions), see [AUDIT.md](AUDIT.md).
+
+**POST /api/internal/audit-events** - Create an audit event
+
+```bash
+curl -X POST http://localhost:9010/api/internal/audit-events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation_id": "op-12345",
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "ce-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "ce-123",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "last_modified_by": "00000000-0000-0000-0000-000000000001"
+  }'
+```
+
+Response: `200 OK`
+```json
+{"message": "entry created"}
+```
+
+**Request Body:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `resource_type` | Yes | `COGNITIVE_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
+| `resource_identifier` | Yes | Identifier of the resource |
+| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY` |
+| `audit_resource_identifier` | Yes | Identifier of the audited resource |
+| `operation_id` | No(TBD will change) | Optional operation correlation ID |
+| `audit_information` | No | Optional JSON object with additional details |
+| `audit_extra_information` | No | Optional string with extra context |
+| `created_by` | Yes | UUID of the creator |
+| `last_modified_by` | Yes | UUID of the last modifier |
+
+**GET /api/internal/audit-events** - List audit events (with optional filters)
+
+```bash
+# List all
+curl http://localhost:9010/api/internal/audit-events
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "operation_id": "op-12345",
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "engine-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "cognitive-engine-456",
+    "audit_information": {"config": {"version": "1.0"}},
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_on": "2024-02-18T15:30:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
+    "last_modified_on": "2024-02-18T15:30:00Z"
+  }
+]
+
+# Filter by resource_type
+curl "http://localhost:9010/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "operation_id": "op-12345",
+    "resource_type": "COGNITIVE_ENGINE",
+    "resource_identifier": "engine-123",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "cognitive-engine-456",
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_on": "2024-02-18T15:30:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
+    "last_modified_on": "2024-02-18T15:30:00Z"
+  }
+]
+
+# Filter by audit_type
+curl "http://localhost:9010/api/internal/audit-events?audit_type=RESOURCE_CREATED"
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "operation_id": "op-67890",
+    "resource_type": "MAS",
+    "resource_identifier": "mas-456",
+    "audit_type": "RESOURCE_CREATED",
+    "audit_resource_identifier": "mas-agent-789",
+    "created_by": "550e8400-e29b-41d4-a716-446655440002",
+    "created_on": "2024-02-18T16:45:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440002",
+    "last_modified_on": "2024-02-18T16:45:00Z"
+  }
+]
+
+# Filter by both
+curl "http://localhost:9010/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+
+# Response:
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "operation_id": "op-11111",
+    "resource_type": "MAS",
+    "resource_identifier": "mas-456",
+    "audit_type": "KNOWLEDGE_QUERY",
+    "audit_resource_identifier": "knowledge-query-123",
+    "audit_information": {"query": "test query", "results": 5},
+    "created_by": "550e8400-e29b-41d4-a716-446655440003",
+    "created_on": "2024-02-18T17:20:00Z",
+    "last_modified_by": "550e8400-e29b-41d4-a716-446655440003",
+    "last_modified_on": "2024-02-18T17:20:00Z"
+  }
+]
+```
+
+**GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
+
+```bash
+curl http://localhost:9010/api/internal/audit-events/<event-id>
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "operation_id": "op-12345",
+  "resource_type": "COGNITIVE_ENGINE",
+  "resource_identifier": "ce-123",
+  "audit_type": "RESOURCE_CREATED",
+  "audit_resource_identifier": "ce-123",
+  "audit_information": {"config": {"version": "1.0"}},
+  "created_by": "00000000-0000-0000-0000-000000000001",
+  "created_on": "2024-02-18T15:30:00Z",
+  "last_modified_by": "00000000-0000-0000-0000-000000000001",
+  "last_modified_on": "2024-02-18T15:30:00Z"
+}
+```
+
+**DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
+
+```bash
+curl -X DELETE http://localhost:9010/api/internal/audit-events/<event-id>
+```
+
+Response: `204 No Content`
+
 ## Environment Setup
 
 ### 1. Create .env file
@@ -151,8 +362,9 @@ make dc-up           # Uses .env file
 make dc-up-build     # Build locally and run
 ```
 
-### 5. Access OpenAPI documentation
-OpenAPI docs available at: http://localhost:9010/docs/index.html
+### 5. Access API documentation
+- **OpenAPI/Swagger UI**: http://localhost:9010/docs/index.html
+- **Shared Memory API Guide**: [docs/SHARED_MEMORY_API.md](docs/SHARED_MEMORY_API.md)
 
 ## Startup Registration
 

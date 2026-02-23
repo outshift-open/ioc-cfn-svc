@@ -22,7 +22,7 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 	})
 }
 
-// postSharedMemoriesHandler godoc
+// upsertSharedMemoriesHandler godoc
 // @Summary		Upsert shared memories
 // @Description	Upserts shared memory entries for a given workspace and multi-agentic system
 // @Tags			shared-memories
@@ -31,13 +31,14 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 // @Param		workspaceId	path		string								true	"Workspace ID"
 // @Param		systemId		path		string								true	"Multi-Agentic System ID"
 // @Param		body			body		sharedmemory.SharedMemoryUpsertRequest	true	"Upsert request"
-// @Success		201				{object}	sharedmemory.SharedMemoryResponse
+// @Success		201				{object}	sharedmemory.SharedMemoryUpsertResponse
 // @Failure		400				{object}	map[string]string
 // @Failure		500				{object}	map[string]string
 // @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories [post]
-func (a *App) postSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	workspaceID := eh.PathParam(r, "workspaceId")
-	systemID := eh.PathParam(r, "systemId")
+func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	// TODO: validate workspaceId and systemId path params
+	//workspaceID := eh.PathParam(r, "workspaceId")
+	//systemID := eh.PathParam(r, "systemId")
 
 	var req sharedmemory.SharedMemoryUpsertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -46,27 +47,31 @@ func (a *App) postSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	_ = workspaceID
-	_ = systemID
 	// TODO: persist shared memory for (workspaceID, systemID)
+	// For now, return a lightweight mock response
 
-	return eh.RespondWithJSON(w, http.StatusCreated, sharedmemory.SharedMemoryResponse{})
+	response := sharedmemory.SharedMemoryUpsertResponse{
+		Status:  "success",
+		Message: "shared memories upserted successfully",
+	}
+
+	return eh.RespondWithJSON(w, http.StatusCreated, response)
 }
 
-// postSharedMemoriesQueryHandler godoc
-// @Summary		Query shared memories
-// @Description	Queries shared memory entries for a given workspace and multi-agentic system
+// fetchSharedMemoriesHandler godoc
+// @Summary		Fetch shared memories
+// @Description	Fetches shared memory entries for a given workspace and multi-agentic system
 // @Tags			shared-memories
 // @Accept		json
 // @Produce		json
 // @Param		workspaceId	path		string								true	"Workspace ID"
 // @Param		systemId		path		string								true	"Multi-Agentic System ID"
 // @Param		body			body		sharedmemory.SharedMemoryQueryRequest	true	"Query request"
-// @Success		200				{object}	sharedmemory.SharedMemoryResponse
+// @Success		200				{object}	sharedmemory.SharedMemoryQueryResponse
 // @Failure		400				{object}	map[string]string
 // @Failure		500				{object}	map[string]string
 // @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query [post]
-func (a *App) postSharedMemoriesQueryHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	workspaceID := eh.PathParam(r, "workspaceId")
 	systemID := eh.PathParam(r, "systemId")
 
@@ -79,7 +84,8 @@ func (a *App) postSharedMemoriesQueryHandler(w http.ResponseWriter, r *http.Requ
 
 	_ = workspaceID
 	_ = systemID
-	// TODO: query shared memories for (workspaceID, systemID)
+	_ = req
+	// TODO: query shared memories for (workspaceID, systemId)
 
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.SharedMemoryResponse{})
+	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.SharedMemoryQueryResponse{})
 }
