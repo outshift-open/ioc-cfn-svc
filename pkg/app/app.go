@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,6 +22,25 @@ import (
 
 var log = logger.SubPkg("app")
 
+var (
+	// CfnID is the globally stored CFN identifier returned by the management plane on registration.
+	CfnID string
+	// CfnConfig is the config blob returned by the management plane on registration.
+	// TODO: add lock and config_timestamp check on CfnConfig updates during heartbeat
+	CfnConfig map[string]any
+)
+
+func getOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Errorf("failed to determine outbound IP: %v", err)
+		return "127.0.0.1"
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
+}
+
 func getEnvOrDefault(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
@@ -28,12 +49,12 @@ func getEnvOrDefault(key, defaultVal string) string {
 }
 
 type App struct {
-	buildVersion string
+	buildVersion  string
 	gitCommitSHA  string
 	gitCommitTime string
 	gitBranch     string
-	Cfg          config.Config
-	server       *easyhttp.EasyServer
+	Cfg           config.Config
+	server        *easyhttp.EasyServer
 
 	readyForRequests *atomic.Bool
 	stopChan         chan struct{}
@@ -87,24 +108,25 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
-	cfnID := a.Cfg.CfnID // UUID generated on app startup
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
+	appIP := getOutboundIP()
+	appPort := strings.TrimPrefix(a.server.Addr, ":")
 
 	if mgmtURL == "" {
 		log.Fatalf("MGMT_URL not set")
 	}
 
-	if cfnID == "" || cfnName == "" {
-		log.Fatalf("CFN_ID or CFN_NAME not set")
+	if cfnName == "" || appIP == "" || appPort == "" {
+		log.Fatalf("registration prereqs missing: cfnName=%q appIP=%q appPort=%q", cfnName, appIP, appPort)
 	}
 
 	registerURL := mgmtURL + "/api/cognitive-fabric-nodes/register"
 	log.Infof("registering CFN at %s", registerURL)
 
 	body, _ := json.Marshal(map[string]any{
-		"cfn_id":     cfnID,
-		"cfn_name":   cfnName,
-		"cfn_config": map[string]any{},
+		"cfn_name": cfnName,
+		"app_ip":   appIP,
+		"port":     appPort,
 	})
 
 	client := httpclient.New(30 * time.Second)
@@ -128,18 +150,68 @@ func (a *App) registerOnStartup() {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Fatalf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
 	}
-	log.Infof("CFN registered successfully, response=%v", result)
+
+	// Store cfn_id from response globally
+	id, ok := result["cfn_id"].(string)
+	if !ok || id == "" {
+		log.Fatalf("registration response missing cfn_id")
+	}
+	CfnID = id
+
+	// Store config blob from response globally
+	if cfgBlob, ok := result["config"].(map[string]any); ok {
+		CfnConfig = cfgBlob
+	}
+
+	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s app_ip=%s port=%s config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
 
 	// Start periodic heartbeat
-	go a.startHeartbeat(mgmtURL, cfnID)
+	go a.startHeartbeat(mgmtURL)
+}
+
+// RefreshConfig fetches the latest CFN configuration from the management plane
+// and updates the global CfnConfig.
+func (a *App) RefreshConfig(mgmtURL string) error {
+	cfnURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID
+
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	resp, err := client.Get(ctx, cfnURL, headers)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Errorf("RefreshConfig failed: status=%d response=%v", resp.StatusCode, result)
+		return err
+	}
+
+	if cfgBlob, ok := result["config"].(map[string]any); ok {
+		CfnConfig = cfgBlob
+		log.Infof("CfnConfig refreshed: %v", CfnConfig)
+	} else {
+		log.Warnf("RefreshConfig response missing config key")
+	}
+
+	return nil
 }
 
 // startHeartbeat sends periodic heartbeat to mgmt plane to keep CFN status active.
 // It runs in a goroutine and sends PUT requests at the configured interval (default 29s).
 // The heartbeat stops when the app's stopChan is closed during shutdown.
-func (a *App) startHeartbeat(mgmtURL, cfnID string) {
-	// Build heartbeat endpoint URL
-	heartbeatURL := mgmtURL + "/api/cognitive-fabric-nodes/" + cfnID + "/heartbeat"
+func (a *App) startHeartbeat(mgmtURL string) {
+	// Build heartbeat endpoint URL using the globally stored CfnID
+	heartbeatURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID + "/heartbeat"
 
 	// Get heartbeat interval from env or use default of 29 seconds
 	intervalStr := getEnvOrDefault("HEARTBEAT_INTERVAL_SECONDS", "29")
