@@ -124,9 +124,9 @@ func (a *App) registerOnStartup() {
 	log.Infof("registering CFN at %s", registerURL)
 
 	body, _ := json.Marshal(map[string]any{
-		"cfn_name": cfnName,
-		"app_ip":   appIP,
-		"port":     appPort,
+		"cfn_name":   cfnName,
+		"ip_address": appIP,
+		"port":       appPort,
 	})
 
 	client := httpclient.New(30 * time.Second)
@@ -163,7 +163,7 @@ func (a *App) registerOnStartup() {
 		CfnConfig = cfgBlob
 	}
 
-	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s app_ip=%s port=%s config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
+	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%s config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
 
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
