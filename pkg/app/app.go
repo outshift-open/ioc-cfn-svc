@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -110,14 +111,18 @@ func (a *App) registerOnStartup() {
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
 	appIP := getOutboundIP()
-	appPort := strings.TrimPrefix(a.server.Addr, ":")
+	appPortStr := strings.TrimPrefix(a.server.Addr, ":")
+	appPort, err := strconv.Atoi(appPortStr)
+	if err != nil {
+		log.Fatalf("invalid port %q: %v", appPortStr, err)
+	}
 
 	if mgmtURL == "" {
 		log.Fatalf("MGMT_URL not set")
 	}
 
-	if cfnName == "" || appIP == "" || appPort == "" {
-		log.Fatalf("registration prereqs missing: cfnName=%q appIP=%q appPort=%q", cfnName, appIP, appPort)
+	if cfnName == "" || appIP == "" || appPortStr == "" {
+		log.Fatalf("registration prereqs missing: cfnName=%q appIP=%q appPort=%d", cfnName, appIP, appPort)
 	}
 
 	registerURL := mgmtURL + "/api/cognitive-fabric-nodes/register"
@@ -163,7 +168,7 @@ func (a *App) registerOnStartup() {
 		CfnConfig = cfgBlob
 	}
 
-	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%s config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
+	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
 
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
