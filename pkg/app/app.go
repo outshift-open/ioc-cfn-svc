@@ -27,8 +27,11 @@ var (
 	// CfnID is the globally stored CFN identifier returned by the management plane on registration.
 	CfnID string
 	// CfnConfig is the config blob returned by the management plane on registration.
-	// TODO: add lock and config_timestamp check on CfnConfig updates during heartbeat
 	CfnConfig map[string]any
+	// CfnTimestamp tracks the config timestamp for detecting config changes during heartbeat.
+	CfnTimestamp string
+	// cfnConfigMutex protects concurrent access to CfnConfig and CfnTimestamp.
+	cfnConfigMutex sync.RWMutex
 )
 
 func getOutboundIP() string {
@@ -163,12 +166,18 @@ func (a *App) registerOnStartup() {
 	}
 	CfnID = id
 
-	// Store config blob from response globally
+	// Store config blob and timestamp from response globally
+	cfnConfigMutex.Lock()
 	if cfgBlob, ok := result["config"].(map[string]any); ok {
 		CfnConfig = cfgBlob
+		// Extract and store config_timestamp
+		if timestamp, ok := cfgBlob["config_timestamp"].(string); ok {
+			CfnTimestamp = timestamp
+		}
 	}
+	cfnConfigMutex.Unlock()
 
-	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v", CfnID, cfnName, appIP, appPort, CfnConfig)
+	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v timestamp=%s", CfnID, cfnName, appIP, appPort, CfnConfig, CfnTimestamp)
 
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
@@ -201,9 +210,16 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 		return err
 	}
 
+	cfnConfigMutex.Lock()
+	defer cfnConfigMutex.Unlock()
+
 	if cfgBlob, ok := result["config"].(map[string]any); ok {
 		CfnConfig = cfgBlob
-		log.Infof("CfnConfig refreshed: %v", CfnConfig)
+		// Update timestamp
+		if timestamp, ok := cfgBlob["config_timestamp"].(string); ok {
+			CfnTimestamp = timestamp
+		}
+		log.Infof("CfnConfig refreshed: %v timestamp=%s", CfnConfig, CfnTimestamp)
 	} else {
 		log.Warnf("RefreshConfig response missing config key")
 	}
@@ -249,11 +265,36 @@ func (a *App) startHeartbeat(mgmtURL string) {
 				log.Errorf("heartbeat failed: %v", err)
 				continue
 			}
-			resp.Body.Close()
+
 			if resp.StatusCode == http.StatusOK {
+				// Decode response to check for config changes
+				var result map[string]any
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+					log.Errorf("failed to decode heartbeat response: %v", err)
+					resp.Body.Close()
+					continue
+				}
+				resp.Body.Close()
+
+				// Check if config_timestamp has changed
+				if newTimestamp, ok := result["config_timestamp"].(string); ok {
+					cfnConfigMutex.RLock()
+					currentTimestamp := CfnTimestamp
+					cfnConfigMutex.RUnlock()
+
+					// TODO: perhaps we need to compare timestamps as time.Time instead of string to avoid issues with different formats, timezones, etc. For now we assume it's a simple string that can be compared directly.
+					if newTimestamp != currentTimestamp {
+						log.Infof("config timestamp changed from %s to %s, refreshing config", currentTimestamp, newTimestamp)
+						if err := a.RefreshConfig(mgmtURL); err != nil {
+							log.Errorf("failed to refresh config: %v", err)
+						}
+					}
+				}
+
 				log.Info("heartbeat successful")
 				log.Debugf("heartbeat successful, url=%s, status=%d", heartbeatURL, resp.StatusCode)
 			} else {
+				resp.Body.Close()
 				log.Errorf("heartbeat failed, status=%d", resp.StatusCode)
 			}
 		}
