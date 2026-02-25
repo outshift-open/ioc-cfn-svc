@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
@@ -188,10 +189,10 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 	}
 
 	// Build the URL
-	url := fmt.Sprintf("http://%s:%d", host, int(port))
-	log.Debugf("resolved memory provider URL for agent %s: %s", agentID, url)
+	baseURL := fmt.Sprintf("http://%s:%d", host, int(port))
+	log.Debugf("resolved memory provider URL for agent %s: %s", agentID, baseURL)
 
-	return url, nil
+	return baseURL, nil
 }
 
 // memoryOperationsHandler godoc
@@ -239,11 +240,27 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	// Build full URL by appending path from request to base URL
-	targetURL := memoryProviderBaseURL
+	// Build full URL by properly joining base URL with path and query parameters
+	baseURL, err := url.Parse(memoryProviderBaseURL)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("invalid base URL from config: %v", err),
+		})
+	}
+
+	var targetURL string
 	if req.Payload.HTTPURL != "" {
-		// HTTPURL contains the path (e.g., "/v1/memories/add")
-		targetURL = memoryProviderBaseURL + req.Payload.HTTPURL
+		// HTTPURL contains path with optional query params (e.g., "/v1/memories/add?user_id=123")
+		pathURL, err := url.Parse(req.Payload.HTTPURL)
+		if err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("invalid path/query in http-url: %v", err),
+			})
+		}
+		// Resolve the path relative to base URL
+		targetURL = baseURL.ResolveReference(pathURL).String()
+	} else {
+		targetURL = baseURL.String()
 	}
 
 	if targetURL == "" {
