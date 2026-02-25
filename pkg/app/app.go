@@ -282,8 +282,20 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
 
-					// TODO: perhaps we need to compare timestamps as time.Time instead of string to avoid issues with different formats, timezones, etc. For now we assume it's a simple string that can be compared directly.
-					if newTimestamp != currentTimestamp {
+					// Parse timestamps as time.Time for proper comparison
+					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
+					if err != nil {
+						log.Errorf("failed to parse new timestamp %q: %v", newTimestamp, err)
+						continue
+					}
+
+					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
+					if err != nil {
+						log.Errorf("failed to parse current timestamp %q: %v", currentTimestamp, err)
+						continue
+					}
+
+					if !newTime.Equal(currentTime) {
 						log.Infof("config timestamp changed from %s to %s, refreshing config", currentTimestamp, newTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
