@@ -231,23 +231,24 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	// Get the memory provider URL from synced config
-	memoryProviderURL, err := a.getMemoryProviderURL(workspaceID, masID, agentID)
+	// Get the memory provider base URL from synced config
+	memoryProviderBaseURL, err := a.getMemoryProviderURL(workspaceID, masID, agentID)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
 			"error": fmt.Sprintf("failed to find memory provider config: %v", err),
 		})
 	}
 
-	// Use URL from config if not provided in request
-	targetURL := req.Payload.HTTPURL
-	if targetURL == "" {
-		targetURL = memoryProviderURL
+	// Build full URL by appending path from request to base URL
+	targetURL := memoryProviderBaseURL
+	if req.Payload.HTTPURL != "" {
+		// HTTPURL contains the path (e.g., "/v1/memories/add")
+		targetURL = memoryProviderBaseURL + req.Payload.HTTPURL
 	}
 
 	if targetURL == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "memory provider URL not found in config and not provided in request",
+			"error": "memory provider URL not found in config",
 		})
 	}
 
