@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -207,7 +208,7 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Errorf("RefreshConfig failed: status=%d response=%v", resp.StatusCode, result)
-		return err
+		return fmt.Errorf("RefreshConfig failed: status=%d", resp.StatusCode)
 	}
 
 	cfnConfigMutex.Lock()
