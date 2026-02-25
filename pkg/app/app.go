@@ -35,15 +35,63 @@ var (
 	cfnConfigMutex sync.RWMutex
 )
 
+// getOutboundIP determines the service's outbound IP address by querying network interfaces.
+// It prefers the CFN_IP environment variable if set, then falls back to detecting the first
+// non-loopback IPv4 address from active network interfaces.
 func getOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	// Allow explicit override via environment variable (useful for Docker/K8s)
+	if ip := os.Getenv("CFN_IP"); ip != "" {
+		log.Infof("using CFN_IP from environment: %s", ip)
+		return ip
+	}
+
+	// Query network interfaces and pick the first non-loopback IPv4 address
+	interfaces, err := net.Interfaces()
 	if err != nil {
-		log.Errorf("failed to determine outbound IP: %v", err)
+		log.Errorf("failed to query network interfaces: %v", err)
 		return "127.0.0.1"
 	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
+
+	for _, iface := range interfaces {
+		// Skip down interfaces
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		// Skip loopback
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// Skip if not IPv4 or is loopback
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not IPv4
+			}
+
+			log.Infof("detected service IP from interface %s: %s", iface.Name, ip.String())
+			return ip.String()
+		}
+	}
+
+	log.Warnf("no suitable network interface found, falling back to 127.0.0.1")
+	return "127.0.0.1"
 }
 
 func getEnvOrDefault(key, defaultVal string) string {
@@ -220,7 +268,7 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 		if timestamp, ok := cfgBlob["config_timestamp"].(string); ok {
 			CfnTimestamp = timestamp
 		}
-		log.Infof("CfnConfig refreshed: %v timestamp=%s", CfnConfig, CfnTimestamp)
+		log.Infof("CFN Config refreshed, timestamp=%s", CfnTimestamp)
 	} else {
 		log.Warnf("RefreshConfig response missing config key")
 	}
@@ -283,6 +331,8 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
 
+					log.Infof("heartbeat config_timestamp: current=%s new=%s", currentTimestamp, newTimestamp)
+
 					// Parse timestamps as time.Time for proper comparison
 					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
 					if err != nil {
@@ -298,7 +348,6 @@ func (a *App) startHeartbeat(mgmtURL string) {
 
 					// Refresh config if timestamp has changed
 					if !newTime.Equal(currentTime) {
-						log.Infof("config timestamp changed, refreshing config")
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
