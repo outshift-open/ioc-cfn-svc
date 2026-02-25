@@ -430,10 +430,10 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			masID:       "mas-1",
 			agentID:     "agent-1",
 			expectError: true,
-			errorMsg:    "host or port not found in memory provider config",
+			errorMsg:    "host not found in memory provider config",
 		},
 		{
-			name: "missing port in config",
+			name: "missing port in config for hostname",
 			config: map[string]any{
 				"workspaces": []interface{}{
 					map[string]interface{}{
@@ -461,7 +461,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			masID:       "mas-1",
 			agentID:     "agent-1",
 			expectError: true,
-			errorMsg:    "host or port not found in memory provider config",
+			errorMsg:    "port not found in memory provider config for hostname ioc-mem0",
 		},
 		{
 			name: "missing agentic_memory",
@@ -498,6 +498,131 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			agentID:     "agent-1",
 			expectError: true,
 			errorMsg:    "workspaces not found in config",
+		},
+		{
+			name: "full https URL without port",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "https://example.ngrok.io",
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectedURL: "https://example.ngrok.io",
+			expectError: false,
+		},
+		{
+			name: "full http URL without port",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "http://internal-service.local",
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectedURL: "http://internal-service.local",
+			expectError: false,
+		},
+		{
+			name: "full URL with trailing slash",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "https://example.ngrok.io/",
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectedURL: "https://example.ngrok.io",
+			expectError: false,
+		},
+		{
+			name: "full URL with port in URL",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "https://example.com:9443",
+												"port": float64(8080), // Port in config ignored when full URL provided
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectedURL: "https://example.com:9443",
+			expectError: false,
 		},
 	}
 
