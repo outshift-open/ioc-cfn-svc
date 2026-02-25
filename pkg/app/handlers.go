@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
@@ -183,14 +184,26 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 	}
 
 	host, hostOk := memConfig["host"].(string)
-	port, portOk := memConfig["port"].(float64) // JSON numbers are float64
-	if !hostOk || !portOk {
-		return "", fmt.Errorf("host or port not found in memory provider config")
+	if !hostOk || host == "" {
+		return "", fmt.Errorf("host not found in memory provider config")
 	}
 
-	// Build the URL
-	baseURL := fmt.Sprintf("http://%s:%d", host, int(port))
-	log.Debugf("resolved memory provider URL for agent %s: %s", agentID, baseURL)
+	var baseURL string
+
+	// Check if host already contains a protocol (full URL)
+	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
+		// Host is a full URL (e.g., "https://example.ngrok.io"), use as-is
+		baseURL = strings.TrimSuffix(host, "/") // Remove trailing slash if present
+		log.Debugf("resolved memory provider URL (full URL) for agent %s: %s", agentID, baseURL)
+	} else {
+		// Host is just a hostname (e.g., "localhost", "ioc-mem0"), build URL with port
+		port, portOk := memConfig["port"].(float64) // JSON numbers are float64
+		if !portOk {
+			return "", fmt.Errorf("port not found in memory provider config for hostname %s", host)
+		}
+		baseURL = fmt.Sprintf("http://%s:%d", host, int(port))
+		log.Debugf("resolved memory provider URL (hostname+port) for agent %s: %s", agentID, baseURL)
+	}
 
 	return baseURL, nil
 }
