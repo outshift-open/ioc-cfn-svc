@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
+	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 )
 
 func TestMemoryOperationsHandler(t *testing.T) {
@@ -46,8 +47,17 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}))
 	defer mockMemoryProvider.Close()
 
-	// Create app
-	app := &App{}
+	// Create mem0 client pointing at the mock server
+	mem0Cfg := mem0client.DefaultClientConfig()
+	mem0Cfg.BaseURL = mockMemoryProvider.URL
+	mem0Cfg.APIKey = "test-api-key" // test-only value, not a real credential
+	mem0, err := mem0client.NewClient(mem0Cfg)
+	if err != nil {
+		t.Fatalf("failed to create mem0 client: %v", err)
+	}
+
+	// Create app with the mem0 client
+	app := &App{mem0Client: mem0}
 
 	// Create request payload
 	requestPayload := memoryoperations.MemoryOperationRequest{

@@ -18,6 +18,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
@@ -112,9 +113,10 @@ type App struct {
 	readyForRequests *atomic.Bool
 	stopChan         chan struct{}
 
-	// integrated client
-	db client.Database
-	s3 client.S3
+	// integrated clients
+	db         client.Database
+	s3         client.S3
+	mem0Client *mem0client.Client
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -139,6 +141,34 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	}
 
 	s3 = client.NewMockS3()
+
+	// Initialise the mem0 Agentic Memory Client (optional — runs without it if not configured)
+	var mem0 *mem0client.Client
+	mem0APIKey := os.Getenv("MEM0_API_KEY")
+	if mem0APIKey != "" {
+		mem0Cfg := mem0client.DefaultClientConfig()
+		mem0Cfg.APIKey = mem0APIKey // sourced from environment, never hardcoded
+		if u := os.Getenv("MEM0_BASE_URL"); u != "" {
+			mem0Cfg.BaseURL = u
+		}
+		if orgID := os.Getenv("MEM0_ORG_ID"); orgID != "" {
+			mem0Cfg.OrgID = orgID
+		}
+		if projID := os.Getenv("MEM0_PROJECT_ID"); projID != "" {
+			mem0Cfg.ProjectID = projID
+		}
+
+		var mem0Err error
+		mem0, mem0Err = mem0client.NewClient(mem0Cfg)
+		if mem0Err != nil {
+			log.Warnf("mem0 agentic memory client init failed (memory operations will be unavailable): %v", mem0Err)
+		} else {
+			log.Infof("mem0 agentic memory client initialised successfully")
+		}
+	} else {
+		log.Infof("MEM0_API_KEY not set — agentic memory client disabled")
+	}
+
 	a := &App{
 		buildVersion:     buildVersion,
 		gitCommitSHA:     gitCommitSHA,
@@ -149,6 +179,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		stopChan:         make(chan struct{}),
 		db:               db,
 		s3:               s3,
+		mem0Client:       mem0,
 	}
 
 	rtr := a.initializeRoutes()
