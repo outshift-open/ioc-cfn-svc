@@ -29,7 +29,7 @@ const (
 	DefaultBaseURL = "http://localhost:8765"
 
 	// DefaultTimeout for HTTP requests to mem0.
-	DefaultTimeout = 30 * time.Second
+	DefaultTimeout = 900 * time.Second
 
 	// DefaultMaxRetries for transient failures.
 	DefaultMaxRetries = 3
@@ -297,17 +297,17 @@ func (c *Client) ForwardRequest(ctx context.Context, method, targetURL string, b
 		return nil, fmt.Errorf("unsupported HTTP method: %s", method)
 	}
 
-	safeTargetURL, err := c.resolveAndValidateTargetURL(targetURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid proxy target URL: %w", err)
-	}
+	//safeTargetURL, err := c.resolveAndValidateTargetURL(targetURL)
+	//if err != nil {
+	//	return nil, fmt.Errorf("invalid proxy target URL: %w", err)
+	//}
+	//
+	//// Inject auth and standard headers
+	////mergedHeaders := c.buildHeaders(headers)
+	//
+	//log.Infof("forwarding %s to mem0: %s", method, safeTargetURL)
 
-	// Inject auth and standard headers
-	mergedHeaders := c.buildHeaders(headers)
-
-	log.Infof("forwarding %s to mem0: %s", method, safeTargetURL)
-
-	resp, err := c.httpClient.Do(ctx, method, safeTargetURL, body, mergedHeaders)
+	resp, err := c.httpClient.Do(ctx, method, targetURL, body, headers)
 	if err != nil {
 		return nil, fmt.Errorf("mem0 proxy request failed: %w", err)
 	}
