@@ -29,7 +29,7 @@ const (
 	DefaultBaseURL = "http://localhost:8765"
 
 	// DefaultTimeout for HTTP requests to mem0.
-	DefaultTimeout = 30 * time.Second
+	DefaultTimeout = 900 * time.Second
 
 	// DefaultMaxRetries for transient failures.
 	DefaultMaxRetries = 3
