@@ -277,8 +277,14 @@ func (a *App) startHeartbeat(mgmtURL string) {
 				}
 				resp.Body.Close()
 
+				log.Debugf("heartbeat response: %v", result)
+
 				// Check if config_timestamp has changed
 				if newTimestamp, ok := result["config_timestamp"].(string); ok {
+
+					log.Debugf("heartbeat config_timestamp: new=%s", newTimestamp)
+					log.Debugf("heartbeat config_timestamp: current=%s", CfnTimestamp)
+					log.Debugf("config map: %v", CfnConfig)
 					cfnConfigMutex.RLock()
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
@@ -296,7 +302,7 @@ func (a *App) startHeartbeat(mgmtURL string) {
 						continue
 					}
 
-					if !newTime.Equal(currentTime) {
+					if newTime.After(currentTime) {
 						log.Infof("config timestamp changed from %s to %s, refreshing config", currentTimestamp, newTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
