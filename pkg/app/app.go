@@ -277,14 +277,8 @@ func (a *App) startHeartbeat(mgmtURL string) {
 				}
 				resp.Body.Close()
 
-				log.Debugf("heartbeat response: %v", result)
-
 				// Check if config_timestamp has changed
 				if newTimestamp, ok := result["config_timestamp"].(string); ok {
-
-					log.Debugf("heartbeat config_timestamp: new=%s", newTimestamp)
-					log.Debugf("heartbeat config_timestamp: current=%s", CfnTimestamp)
-					log.Debugf("config map: %v", CfnConfig)
 					cfnConfigMutex.RLock()
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
@@ -292,22 +286,31 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					// Parse timestamps as time.Time for proper comparison
 					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse new timestamp %q: %v", newTimestamp, err)
+						log.Errorf("failed to parse heartbeat timestamp %q: %v", newTimestamp, err)
 						continue
 					}
 
 					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse current timestamp %q: %v", currentTimestamp, err)
+						log.Errorf("failed to parse current config timestamp %q: %v", currentTimestamp, err)
 						continue
 					}
 
+					log.Debugf("timestamp comparison: current=%s, heartbeat=%s", currentTimestamp, newTimestamp)
+
+					// Only refresh if server reports a newer config
 					if newTime.After(currentTime) {
-						log.Infof("config timestamp changed from %s to %s, refreshing config", currentTimestamp, newTimestamp)
+						log.Infof("detected newer config (timestamp changed from %s to %s), refreshing config", currentTimestamp, newTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
+					} else if newTime.Before(currentTime) {
+						log.Warnf("heartbeat returned older timestamp (current=%s, heartbeat=%s) - possible server issue or clock skew", currentTimestamp, newTimestamp)
+					} else {
+						log.Debugf("config timestamp unchanged, skipping refresh")
 					}
+				} else {
+					log.Warnf("heartbeat response missing config_timestamp field")
 				}
 
 				log.Info("heartbeat successful")
