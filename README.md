@@ -131,6 +131,113 @@ curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-sy
 - Memories and relationships accept flexible key-value structures
 - Designed for multi-agent systems to share context and coordinate actions
 
+### Remote Agent Memory Operations
+
+**Execute Memory Operations** - Proxy HTTP requests to remote memory providers for agent-specific memory operations
+
+This endpoint acts as an HTTP proxy that forwards requests to remote memory providers, supporting all HTTP methods (GET, POST, PUT, DELETE, PATCH, etc.).
+
+```bash
+# Example: Create a memory via remote memory provider (POST)
+curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "http-request-type": "POST",
+      "http-url": "/v1/memories",
+      "http-request-body": {
+        "content": "User prefers dark mode",
+        "category": "preferences",
+        "agent-id": "agent-789"
+      },
+      "http-headers": {
+        "Authorization": "Bearer your-token-here",
+        "X-Custom-Header": "custom-value"
+      }
+    }
+  }'
+
+# Response (200 OK):
+# {
+#   "http-status": 201,
+#   "http-headers": {
+#     "Content-Type": "application/json",
+#     "X-Memory-Id": "mem-12345"
+#   },
+#   "http-response-body": {
+#     "status": "success",
+#     "message": "Memory created successfully",
+#     "memory-id": "mem-12345"
+#   }
+# }
+
+# Example: Retrieve memories (GET)
+curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "http-request-type": "GET",
+      "http-url": "/v1/memories?category=preferences",
+      "http-headers": {
+        "Authorization": "Bearer your-token-here"
+      }
+    }
+  }'
+
+# Example: Update a memory (PUT)
+curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "http-request-type": "PUT",
+      "http-url": "/v1/memories/mem-12345",
+      "http-request-body": {
+        "content": "User prefers light mode",
+        "category": "preferences"
+      },
+      "http-headers": {
+        "Authorization": "Bearer your-token-here"
+      }
+    }
+  }'
+
+# Example: Delete a memory (DELETE)
+curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "http-request-type": "DELETE",
+      "http-url": "/v1/memories/mem-12345",
+      "http-headers": {
+        "Authorization": "Bearer your-token-here"
+      }
+    }
+  }'
+```
+
+**Request Body:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `payload.http-request-type` | Yes | HTTP method (POST, GET, PUT, DELETE, PATCH, etc.) |
+| `payload.http-url` | No | Path and query parameters to append to memory provider base URL (e.g., `/v1/memories/add?user_id=123`). If omitted, uses base URL from config. |
+| `payload.http-request-body` | No | JSON payload to send to memory provider |
+| `payload.http-headers` | No | Custom HTTP headers to forward to memory provider |
+| `header` | No | Reserved for future SSTP header |
+
+**Response Format:**
+- `http-status` - HTTP status code from the memory provider
+- `http-headers` - Response headers from the memory provider
+- `http-response-body` - JSON response body from the memory provider
+
+**Notes:**
+- Replace `{workspaceId}`, `{masId}`, and `{agentId}` with actual IDs
+- **URL Auto-Resolution:** The memory provider base URL (host:port) is automatically resolved from the synced CfnConfig based on the workspace/MAS/agent IDs in the path. The `http-url` field should only contain the path and query parameters to append to this base URL.
+- The endpoint always returns HTTP 200 for successful proxying
+- The actual status from the memory provider is in the `http-status` field
+- All request/response bodies are assumed to be JSON
+- Query parameters should be included in the `http-url` field (URL encoded)
+- For detailed examples and documentation, see [docs/memory-operations-api.md](docs/memory-operations-api.md)
+
 ### Log Level Management
 
 **GET /api/internal/diagnostics/loggers** - Get current log levels for ROOT and all packages
