@@ -1,17 +1,12 @@
 package app
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
-	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -153,11 +148,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		}
 	}
 
-	// Create HTTP client with timeout
-	client := httpclient.New(30 * time.Second)
-	ctx := context.Background()
-
-	// Prepare headers
+	// Prepare headers from the envelope
 	headers := make(map[string]string)
 	if req.Payload.HTTPHeaders != nil {
 		headers = req.Payload.HTTPHeaders
@@ -170,52 +161,28 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 
 	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, req.Payload.HTTPURL)
 
-	// Forward the request to the memory provider
-	// TODO: replace this with Agentic Memory Client
-	resp, err := client.Do(ctx, req.Payload.HTTPRequestType, req.Payload.HTTPURL, requestBody, headers)
+	// Forward the request via the Agentic Memory Client (mem0 proxy)
+	if a.mem0Client == nil {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "agentic memory client is not configured",
+		})
+	}
+
+	proxyResp, err := a.mem0Client.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, req.Payload.HTTPURL, requestBody, headers)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
 		})
 	}
-	defer resp.Body.Close()
 
-	// Read the response body
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("failed to read response from memory provider: %v", err),
-		})
-	}
-
-	// Parse the response body as JSON
-	var responseBodyJSON map[string]interface{}
-	if len(responseBody) > 0 {
-		// Try to parse as JSON, but don't fail if it's not valid JSON
-		if err := json.NewDecoder(bytes.NewReader(responseBody)).Decode(&responseBodyJSON); err != nil {
-			// If it's not valid JSON, store it as a string
-			responseBodyJSON = map[string]interface{}{
-				"raw": string(responseBody),
-			}
-		}
-	}
-
-	// Extract response headers
-	responseHeaders := make(map[string]string)
-	for key, values := range resp.Header {
-		if len(values) > 0 {
-			responseHeaders[key] = values[0]
-		}
-	}
-
-	// Build the response
+	// Build the response envelope
 	response := memoryoperations.MemoryOperationResponse{
-		HTTPStatus:       resp.StatusCode,
-		HTTPHeaders:      responseHeaders,
-		HTTPResponseBody: responseBodyJSON,
+		HTTPStatus:       proxyResp.HTTPStatus,
+		HTTPHeaders:      proxyResp.HTTPHeaders,
+		HTTPResponseBody: proxyResp.HTTPResponseBody,
 	}
 
-	log.Infof("memory provider responded with status: %d", resp.StatusCode)
+	log.Infof("memory provider responded with status: %d", proxyResp.HTTPStatus)
 
 	// Return the response with 200 status (the actual HTTP status from the memory provider is in the response body)
 	return eh.RespondWithJSON(w, http.StatusOK, response)
