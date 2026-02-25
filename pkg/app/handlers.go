@@ -92,6 +92,108 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.SharedMemoryQueryResponse{})
 }
 
+// getMemoryProviderURL retrieves the memory provider URL from CfnConfig for a specific agent.
+// It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
+func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
+	cfnConfigMutex.RLock()
+	defer cfnConfigMutex.RUnlock()
+
+	// Navigate to workspaces
+	workspaces, ok := CfnConfig["workspaces"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("workspaces not found in config")
+	}
+
+	// Find the workspace
+	var workspace map[string]interface{}
+	for _, ws := range workspaces {
+		wsMap, ok := ws.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if wsMap["workspace_id"] == workspaceID {
+			workspace = wsMap
+			break
+		}
+	}
+	if workspace == nil {
+		return "", fmt.Errorf("workspace %s not found", workspaceID)
+	}
+
+	// Navigate to multi_agentic_systems
+	masList, ok := workspace["multi_agentic_systems"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("multi_agentic_systems not found in workspace")
+	}
+
+	// Find the MAS
+	var mas map[string]interface{}
+	for _, m := range masList {
+		masMap, ok := m.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if masMap["id"] == masID {
+			mas = masMap
+			break
+		}
+	}
+	if mas == nil {
+		return "", fmt.Errorf("multi-agentic system %s not found", masID)
+	}
+
+	// Navigate to agents
+	agentsList, ok := mas["agents"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("agents not found in multi-agentic system")
+	}
+
+	// Find the agent
+	var agent map[string]interface{}
+	for _, a := range agentsList {
+		agentMap, ok := a.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if agentMap["agent_id"] == agentID {
+			agent = agentMap
+			break
+		}
+	}
+	if agent == nil {
+		return "", fmt.Errorf("agent %s not found", agentID)
+	}
+
+	// Get agentic_memory config
+	agenticMemory, ok := agent["agentic_memory"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("agentic_memory not found for agent")
+	}
+
+	// Check if memory is enabled
+	if enabled, ok := agenticMemory["enabled"].(bool); ok && !enabled {
+		return "", fmt.Errorf("agentic memory is disabled for this agent")
+	}
+
+	// Get config with host and port
+	memConfig, ok := agenticMemory["config"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("config not found in agentic_memory")
+	}
+
+	host, hostOk := memConfig["host"].(string)
+	port, portOk := memConfig["port"].(float64) // JSON numbers are float64
+	if !hostOk || !portOk {
+		return "", fmt.Errorf("host or port not found in memory provider config")
+	}
+
+	// Build the URL
+	url := fmt.Sprintf("http://%s:%d", host, int(port))
+	log.Debugf("resolved memory provider URL for agent %s: %s", agentID, url)
+
+	return url, nil
+}
+
 // memoryOperationsHandler godoc
 // @Summary		Execute memory operations on remote memory provider
 // @Description	Proxies HTTP requests to a remote memory provider for agent memory operations
@@ -129,16 +231,28 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	// TODO: Get the URL from config we synced from Management plane
-	if req.Payload.HTTPURL == "" {
+	// Get the memory provider URL from synced config
+	memoryProviderURL, err := a.getMemoryProviderURL(workspaceID, masID, agentID)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("failed to find memory provider config: %v", err),
+		})
+	}
+
+	// Use URL from config if not provided in request
+	targetURL := req.Payload.HTTPURL
+	if targetURL == "" {
+		targetURL = memoryProviderURL
+	}
+
+	if targetURL == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "http-url is required",
+			"error": "memory provider URL not found in config and not provided in request",
 		})
 	}
 
 	// Marshal the request body if provided
 	var requestBody []byte
-	var err error
 	if req.Payload.HTTPRequestBody != nil && len(req.Payload.HTTPRequestBody) > 0 {
 		requestBody, err = json.Marshal(req.Payload.HTTPRequestBody)
 		if err != nil {
@@ -159,7 +273,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		headers["Content-Type"] = "application/json"
 	}
 
-	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, req.Payload.HTTPURL)
+	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, targetURL)
 
 	// Forward the request via the Agentic Memory Client (mem0 proxy)
 	if a.mem0Client == nil {
@@ -168,7 +282,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	proxyResp, err := a.mem0Client.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, req.Payload.HTTPURL, requestBody, headers)
+	proxyResp, err := a.mem0Client.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, targetURL, requestBody, headers)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
