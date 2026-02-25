@@ -186,3 +186,328 @@ func TestMemoryOperationsHandlerValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMemoryProviderURL(t *testing.T) {
+	// Save original CfnConfig and restore after test
+	originalConfig := CfnConfig
+	defer func() {
+		CfnConfig = originalConfig
+	}()
+
+	tests := []struct {
+		name        string
+		config      map[string]any
+		workspaceID string
+		masID       string
+		agentID     string
+		expectedURL string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "successful extraction with valid config",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "00000000-0000-0000-0000-000000000001",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "e1271823-90ca-4581-86a4-f66a16ee154e",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "default-agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "ioc-mem0",
+												"port": float64(8765),
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "00000000-0000-0000-0000-000000000001",
+			masID:       "e1271823-90ca-4581-86a4-f66a16ee154e",
+			agentID:     "default-agent-1",
+			expectedURL: "http://ioc-mem0:8765",
+			expectError: false,
+		},
+		{
+			name: "multiple workspaces - find correct one",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "wrong-host",
+												"port": float64(9999),
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+					map[string]interface{}{
+						"workspace_id": "ws-2",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-2",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-2",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "correct-host",
+												"port": float64(7777),
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-2",
+			masID:       "mas-2",
+			agentID:     "agent-2",
+			expectedURL: "http://correct-host:7777",
+			expectError: false,
+		},
+		{
+			name: "workspace not found",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+					},
+				},
+			},
+			workspaceID: "non-existent-ws",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "workspace non-existent-ws not found",
+		},
+		{
+			name: "mas not found",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "non-existent-mas",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "multi-agentic system non-existent-mas not found",
+		},
+		{
+			name: "agent not found",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "non-existent-agent",
+			expectError: true,
+			errorMsg:    "agent non-existent-agent not found",
+		},
+		{
+			name: "memory disabled",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "ioc-mem0",
+												"port": float64(8765),
+											},
+											"enabled": false,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "agentic memory is disabled for this agent",
+		},
+		{
+			name: "missing host in config",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"port": float64(8765),
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "host or port not found in memory provider config",
+		},
+		{
+			name: "missing port in config",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"host": "ioc-mem0",
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "host or port not found in memory provider config",
+		},
+		{
+			name: "missing agentic_memory",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "agentic_memory not found for agent",
+		},
+		{
+			name: "no workspaces in config",
+			config: map[string]any{
+				"other_field": "value",
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectError: true,
+			errorMsg:    "workspaces not found in config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up test config
+			cfnConfigMutex.Lock()
+			CfnConfig = tt.config
+			cfnConfigMutex.Unlock()
+
+			// Create app instance
+			app := &App{}
+
+			// Call function
+			url, err := app.getMemoryProviderURL(tt.workspaceID, tt.masID, tt.agentID)
+
+			// Check error expectation
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				} else if err.Error() != tt.errorMsg {
+					t.Errorf("expected error '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if url != tt.expectedURL {
+					t.Errorf("expected URL '%s', got '%s'", tt.expectedURL, url)
+				}
+			}
+		})
+	}
+}
