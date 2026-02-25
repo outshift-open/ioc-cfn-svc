@@ -286,31 +286,23 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					// Parse timestamps as time.Time for proper comparison
 					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse heartbeat timestamp %q: %v", newTimestamp, err)
+						log.Errorf("failed to parse heartbeat timestamp: %v", err)
 						continue
 					}
 
 					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse current config timestamp %q: %v", currentTimestamp, err)
+						log.Errorf("failed to parse current timestamp: %v", err)
 						continue
 					}
 
-					log.Debugf("timestamp comparison: current=%s, heartbeat=%s", currentTimestamp, newTimestamp)
-
-					// Only refresh if server reports a newer config
-					if newTime.After(currentTime) {
-						log.Infof("detected newer config (timestamp changed from %s to %s), refreshing config", currentTimestamp, newTimestamp)
+					// Refresh config if timestamp has changed
+					if !newTime.Equal(currentTime) {
+						log.Infof("config timestamp changed, refreshing config")
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
-					} else if newTime.Before(currentTime) {
-						log.Warnf("heartbeat returned older timestamp (current=%s, heartbeat=%s) - possible server issue or clock skew", currentTimestamp, newTimestamp)
-					} else {
-						log.Debugf("config timestamp unchanged, skipping refresh")
 					}
-				} else {
-					log.Warnf("heartbeat response missing config_timestamp field")
 				}
 
 				log.Info("heartbeat successful")
