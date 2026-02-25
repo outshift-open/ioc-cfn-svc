@@ -144,7 +144,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
   -d '{
     "payload": {
       "http-request-type": "POST",
-      "http-url": "https://memory-provider.example.com/api/memories",
+      "http-url": "/v1/memories",
       "http-request-body": {
         "content": "User prefers dark mode",
         "category": "preferences",
@@ -177,7 +177,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
   -d '{
     "payload": {
       "http-request-type": "GET",
-      "http-url": "https://memory-provider.example.com/api/memories?category=preferences",
+      "http-url": "/v1/memories?category=preferences",
       "http-headers": {
         "Authorization": "Bearer your-token-here"
       }
@@ -190,7 +190,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
   -d '{
     "payload": {
       "http-request-type": "PUT",
-      "http-url": "https://memory-provider.example.com/api/memories/mem-12345",
+      "http-url": "/v1/memories/mem-12345",
       "http-request-body": {
         "content": "User prefers light mode",
         "category": "preferences"
@@ -207,7 +207,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
   -d '{
     "payload": {
       "http-request-type": "DELETE",
-      "http-url": "https://memory-provider.example.com/api/memories/mem-12345",
+      "http-url": "/v1/memories/mem-12345",
       "http-headers": {
         "Authorization": "Bearer your-token-here"
       }
@@ -219,7 +219,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
 | Field | Required | Description |
 |-------|----------|-------------|
 | `payload.http-request-type` | Yes | HTTP method (POST, GET, PUT, DELETE, PATCH, etc.) |
-| `payload.http-url` | Yes | Full URL to memory provider including query parameters (URL encoded) |
+| `payload.http-url` | No | Path and query parameters to append to memory provider base URL (e.g., `/v1/memories/add?user_id=123`). If omitted, uses base URL from config. |
 | `payload.http-request-body` | No | JSON payload to send to memory provider |
 | `payload.http-headers` | No | Custom HTTP headers to forward to memory provider |
 | `header` | No | Reserved for future SSTP header |
@@ -231,6 +231,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
 
 **Notes:**
 - Replace `{workspaceId}`, `{masId}`, and `{agentId}` with actual IDs
+- **URL Auto-Resolution:** The memory provider base URL (host:port) is automatically resolved from the synced CfnConfig based on the workspace/MAS/agent IDs in the path. The `http-url` field should only contain the path and query parameters to append to this base URL.
 - The endpoint always returns HTTP 200 for successful proxying
 - The actual status from the memory provider is in the `http-status` field
 - All request/response bodies are assumed to be JSON

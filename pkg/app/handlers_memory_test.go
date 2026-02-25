@@ -132,11 +132,18 @@ func TestMemoryOperationsHandler(t *testing.T) {
 }
 
 func TestMemoryOperationsHandlerValidation(t *testing.T) {
-	app := &App{}
+	// Save original CfnConfig and restore after test
+	originalConfig := CfnConfig
+	defer func() {
+		cfnConfigMutex.Lock()
+		CfnConfig = originalConfig
+		cfnConfigMutex.Unlock()
+	}()
 
 	tests := []struct {
 		name           string
 		payload        memoryoperations.MemoryOperationRequest
+		setupConfig    func()
 		expectedStatus int
 		expectedError  string
 	}{
@@ -144,26 +151,40 @@ func TestMemoryOperationsHandlerValidation(t *testing.T) {
 			name: "missing http-request-type",
 			payload: memoryoperations.MemoryOperationRequest{
 				Payload: memoryoperations.MemoryOperationPayload{
-					HTTPURL: "http://example.com",
+					HTTPURL: "/v1/memories",
 				},
 			},
+			setupConfig:    func() {},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "http-request-type is required",
 		},
 		{
-			name: "missing http-url",
+			name: "config not found for agent",
 			payload: memoryoperations.MemoryOperationRequest{
 				Payload: memoryoperations.MemoryOperationPayload{
 					HTTPRequestType: http.MethodGet,
+					// No HTTPURL - should try to auto-resolve
 				},
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  "http-url is required",
+			setupConfig: func() {
+				// Set up empty config - agent won't be found
+				cfnConfigMutex.Lock()
+				CfnConfig = map[string]any{
+					"workspaces": []interface{}{},
+				}
+				cfnConfigMutex.Unlock()
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedError:  "failed to find memory provider config: workspace ws-123 not found",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Set up config for this test
+			tt.setupConfig()
+
+			app := &App{}
 			requestBody, _ := json.Marshal(tt.payload)
 			req, _ := http.NewRequest(http.MethodPost, "/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations", bytes.NewReader(requestBody))
 			req.Header.Set("Content-Type", "application/json")

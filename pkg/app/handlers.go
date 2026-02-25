@@ -263,12 +263,6 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		targetURL = baseURL.String()
 	}
 
-	if targetURL == "" {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "memory provider URL not found in config",
-		})
-	}
-
 	// Marshal the request body if provided
 	var requestBody []byte
 	if req.Payload.HTTPRequestBody != nil && len(req.Payload.HTTPRequestBody) > 0 {
