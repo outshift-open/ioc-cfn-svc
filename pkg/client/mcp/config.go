@@ -87,6 +87,7 @@ func echoHandler(ctx context.Context, req *mcp.CallToolRequest, params *EchoPara
 
 // RunServer starts an MCP server with the echo tool.
 func RunServer(cfg ServerConfig) {
+	log := getLogger()
 	server := NewServer(cfg.Name, cfg.Version)
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	if err := ServeHTTP(server, cfg.Addr()); err != nil {
@@ -96,6 +97,8 @@ func RunServer(cfg ServerConfig) {
 
 // RunClient connects to an MCP server and calls a tool.
 func RunClient(cfg ClientConfig) {
+	log := getLogger()
+
 	ctx := context.Background()
 	client := NewClient(cfg.Name, cfg.Version)
 

@@ -5,9 +5,17 @@ import (
 	"net/http"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.uber.org/zap"
 )
 
-var log = logger.SubPkg("app")
+var l *zap.SugaredLogger
+
+func getLogger() *zap.SugaredLogger {
+	if l == nil {
+		l = logger.SubPkg("app")
+	}
+	return l
+}
 
 type Router struct {
 	mux         *http.ServeMux
@@ -89,6 +97,8 @@ type easyHandler func(http.ResponseWriter, *http.Request) (int, error)
 // wrapToEasyHandler wraps a given standard http handler with an error handler
 // that returns a proper error message/status to the caller
 func wrapToEasyHandler(h easyHandler) http.Handler {
+	log := getLogger()
+	
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cw := &cleanResponseWriter{ResponseWriter: w}
 		code, err := h(cw, r)

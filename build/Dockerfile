@@ -7,6 +7,11 @@ ARG GIT_COMMIT_SHA=unknown
 ARG GIT_COMMIT_TIME=unknown
 ARG GIT_BRANCH=unknown
 
+ENV LOG_ENCODING=json
+ENV LOG_LEVEL=info
+ENV SERVICE_NAME=ioc-cfn-svc
+ENV APPLICATION_VERSION=0.1.0
+
 WORKDIR /app
 
 # Copy go mod files first for caching

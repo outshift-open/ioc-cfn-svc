@@ -5,6 +5,8 @@ import (
 )
 
 func (a *App) LongRunningBackgroundJob() {
+	log := getLogger()
+
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
 			log.Errorf("recovered from panic: [%s]", panicErr)
@@ -28,6 +30,8 @@ func (a *App) LongRunningBackgroundJob() {
 }
 
 func (a *App) runLongJob() error {
+	log := getLogger()
+
 	// do something
 	log.Info("running job")
 	return nil

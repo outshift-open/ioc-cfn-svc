@@ -14,6 +14,8 @@ const (
 )
 
 func (a *App) initializeRoutes() http.Handler {
+	log := getLogger()
+
 	rtr := easyhttp.NewRouter()
 
 	// custom middleware - log all incoming requests

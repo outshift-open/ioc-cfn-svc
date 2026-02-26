@@ -40,6 +40,8 @@ type setLoggerRequest struct {
 
 // diagnosticsSetLoggersHandler sets the log level dynamically
 func (a *App) diagnosticsSetLoggersHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
 	var req setLoggerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})

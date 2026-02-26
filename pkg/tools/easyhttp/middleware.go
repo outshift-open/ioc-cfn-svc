@@ -9,6 +9,7 @@ import (
 // panicRecoverMiddleware will recover from a panic within a handler to prevent
 // the server from completely crashing
 func panicRecoverMiddleware(h http.Handler) http.Handler {
+	log := getLogger()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if panicErr := recover(); panicErr != nil {
@@ -23,6 +24,7 @@ func panicRecoverMiddleware(h http.Handler) http.Handler {
 
 // loggingMiddleware will log details for all incoming requests
 func loggingMiddleware(h http.Handler) http.Handler {
+	log := getLogger()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method := r.Method
 		uri := r.RequestURI // r.URL.String()

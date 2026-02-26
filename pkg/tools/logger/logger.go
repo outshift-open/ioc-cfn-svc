@@ -19,7 +19,7 @@ var (
 
 	logEncodingFlag = flag.String(
 		"log_encoding",
-		"console", // default value
+		"json", // default value
 		"log encoding. supported: json, console",
 	)
 
@@ -32,12 +32,12 @@ var (
 	// registeredPackages tracks all packages that called SubPkg
 	registeredPackages = make(map[string]bool)
 	packageLevelMu     sync.RWMutex
+
+	serviceName = os.Getenv("SERVICE_NAME")
+	appVersion  = os.Getenv("APPLICATION_VERSION")
 )
 
-func init() {
-	// the calling package is responsible for first calling flag.Parse()
-	// flag.Parse()
-
+func Init() {
 	parsedLevel, err := zapcore.ParseLevel(*logLevelFlag)
 	if err != nil {
 		panic(err)
@@ -45,7 +45,6 @@ func init() {
 	atomicLevel.SetLevel(parsedLevel)
 
 	switch *logEncodingFlag {
-	//nolint:goconst // allow "json" and "console" strings
 	case "json", "console":
 	default:
 		panic(errors.Errorf("log_encoding %s unsupported", *logEncodingFlag))
@@ -127,7 +126,15 @@ func newLoggerWithLevel(level *zap.AtomicLevel) *zap.Logger {
 
 	// custom configurations
 	config := zap.NewProductionEncoderConfig()
+	// Match Python schema
+	config.TimeKey = "timestamp"
+	config.LevelKey = "level"
+	config.NameKey = "logger"
+	config.MessageKey = "message"
+
+	// Match Python formatting
 	config.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	// high-priority output to stderr, low-priority output to stdout
 	// Lock to make writing to stderr/out concurrently safe
@@ -145,11 +152,23 @@ func newLoggerWithLevel(level *zap.AtomicLevel) *zap.Logger {
 		zapcore.NewCore(encoder, consoleErrors, highPriority),
 		zapcore.NewCore(encoder, consoleDebugging, lowPriority),
 	)
+
+	fields := []zap.Field{}
+
+	if serviceName == "" {
+		serviceName = "ioc-cfn-svc"
+	}
+	fields = append(fields, zap.String("service", serviceName))
+
+	if appVersion == "" {
+		appVersion = "0.1.0"
+	}
+	fields = append(fields, zap.String("version", appVersion))
+
 	return zap.New(core,
 		zap.AddCaller(),
-		//zap.AddCallerSkip(1),
 		zap.AddStacktrace(zapcore.ErrorLevel),
-	)
+	).With(fields...)
 }
 
 func ErrorWrap(f func() error) {

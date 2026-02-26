@@ -6,9 +6,17 @@ import (
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.uber.org/zap"
 )
 
-var log = logger.SubPkg("mcp")
+var l *zap.SugaredLogger
+
+func getLogger() *zap.SugaredLogger {
+	if l == nil {
+		l = logger.SubPkg("mcp")
+	}
+	return l
+}
 
 // NewClient creates an MCP client.
 func NewClient(name, version string) *mcp.Client {
@@ -36,6 +44,8 @@ func CallTool(ctx context.Context, session *mcp.ClientSession, name string, args
 
 // PrintToolResult logs text content from a tool result.
 func PrintToolResult(result *mcp.CallToolResult) {
+	log := getLogger()
+
 	for _, content := range result.Content {
 		if textContent, ok := content.(*mcp.TextContent); ok {
 			log.Infof("%s", textContent.Text)

@@ -9,13 +9,21 @@ import (
 
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.uber.org/zap"
 )
 
 const (
 	DefaultKnowledgeMemorySvcRestEndpoint = "http://localhost:9003"
 )
 
-var log = logger.SubPkg("app")
+var l *zap.SugaredLogger
+
+func getLogger() *zap.SugaredLogger {
+	if l == nil {
+		l = logger.SubPkg("app")
+	}
+	return l
+}
 
 // Client represents a knowledge memory service client that uses schema types
 type Client struct {
@@ -48,6 +56,8 @@ func NewClient(baseURL string) (*Client, error) {
 
 // healthCheck performs a health check against the service
 func (c *Client) healthCheck() error {
+	log := getLogger()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -68,6 +78,8 @@ func (c *Client) healthCheck() error {
 
 // UpsertKnowledgeGraph sends a POST request to upsert knowledge graph data using schema types
 func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
+	log := getLogger()
+
 	// Validate request
 	if err := request.Validate(); err != nil {
 		return nil, fmt.Errorf("request validation failed: %w", err)
@@ -148,6 +160,8 @@ func (c *Client) QueryKnowledgeGraphConcept(ctx context.Context, request *Knowle
 
 // DeleteKnowledgeGraph sends a DELETE request to delete knowledge graph data using schema types
 func (c *Client) DeleteKnowledgeGraph(ctx context.Context, request *KnowledgeGraphDeleteRequest) (*KnowledgeGraphDeleteResponse, error) {
+	log := getLogger()
+
 	// Validate request
 	if err := request.Validate(); err != nil {
 		return nil, fmt.Errorf("request validation failed: %w", err)
@@ -198,6 +212,8 @@ func (c *Client) DeleteKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 
 // executeQuery is a helper method to execute query requests
 func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryRequest, endpoint string) (*KnowledgeGraphQueryResponse, error) {
+	log := getLogger()
+
 	// Marshal to JSON
 	jsonData, err := json.Marshal(request)
 	if err != nil {
@@ -243,6 +259,8 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 
 // prettyPrintJSON logs JSON in a formatted way
 func (c *Client) prettyPrintJSON(data []byte) {
+	log := getLogger()
+
 	var prettyJSON interface{}
 	if err := json.Unmarshal(data, &prettyJSON); err == nil {
 		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {

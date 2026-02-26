@@ -10,6 +10,8 @@ var _ S3 = (*MockS3)(nil)
 type MockS3 struct{}
 
 func NewMockS3() *MockS3 {
+	log := getLogger()
+	
 	log.Warn("creating mock [s3] service")
 	return &MockS3{}
 }

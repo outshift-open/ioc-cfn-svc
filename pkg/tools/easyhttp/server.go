@@ -31,6 +31,8 @@ func (es *EasyServer) Start() error {
 }
 
 func (es *EasyServer) Stop() error {
+	log := getLogger()
+
 	log.Infof("shutting down web server on port [%s]", es.Server.Addr)
 	ctx, cancel := context.WithTimeout(context.Background(), serverTimeout)
 	defer cancel()
