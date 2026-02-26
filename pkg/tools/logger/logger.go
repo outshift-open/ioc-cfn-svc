@@ -85,6 +85,10 @@ type Logger interface {
 
 // Default will return the pre initialized sugared logger
 func Default() *zap.SugaredLogger {
+	if std == nil {
+		panic("logger.Init() must be called before using logger")
+	}
+
 	return std
 }
 
