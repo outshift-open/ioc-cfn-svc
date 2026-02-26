@@ -114,8 +114,8 @@ type App struct {
 	stopChan         chan struct{}
 
 	// integrated clients
-	db            client.Database
-	s3            client.S3
+	db           client.Database
+	s3           client.S3
 	memoryClient *mem0client.ProxyClient
 }
 
@@ -354,6 +354,8 @@ func (a *App) startHeartbeat(mgmtURL string) {
 						log.Errorf("failed to parse local timestamp %q: %v", currentTimestamp, err)
 						continue
 					}
+
+					log.Infof("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
 
 					// Refresh config if server has newer config
 					if newTime.After(currentTime) {
