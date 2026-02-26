@@ -300,14 +300,14 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 
 	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, targetURL)
 
-	// Forward the request via the Agentic Memory Client (mem0 proxy)
-	if a.mem0Client == nil {
+	// Forward the request via the memory proxy client
+	if a.memoryClient == nil {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": "agentic memory client is not configured",
+			"error": "memory proxy client is not configured",
 		})
 	}
 
-	proxyResp, err := a.mem0Client.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, targetURL, requestBody, headers)
+	proxyResp, err := a.memoryClient.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, targetURL, requestBody, headers)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),

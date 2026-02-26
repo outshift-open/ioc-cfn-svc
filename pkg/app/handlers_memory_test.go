@@ -12,6 +12,14 @@ import (
 )
 
 func TestMemoryOperationsHandler(t *testing.T) {
+	// Save original CfnConfig and restore after test
+	originalConfig := CfnConfig
+	defer func() {
+		cfnConfigMutex.Lock()
+		CfnConfig = originalConfig
+		cfnConfigMutex.Unlock()
+	}()
+
 	// Create a mock memory provider server
 	mockMemoryProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request method
@@ -47,23 +55,46 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}))
 	defer mockMemoryProvider.Close()
 
-	// Create mem0 client pointing at the mock server
-	mem0Cfg := mem0client.DefaultClientConfig()
-	mem0Cfg.BaseURL = mockMemoryProvider.URL
-	mem0Cfg.APIKey = "test-api-key" // test-only value, not a real credential
-	mem0, err := mem0client.NewClient(mem0Cfg)
-	if err != nil {
-		t.Fatalf("failed to create mem0 client: %v", err)
+	// Set up CfnConfig to return the mock provider URL
+	cfnConfigMutex.Lock()
+	CfnConfig = map[string]any{
+		"workspaces": []interface{}{
+			map[string]interface{}{
+				"workspace_id": "ws-123",
+				"multi_agentic_systems": []interface{}{
+					map[string]interface{}{
+						"id": "mas-456",
+						"agents": []interface{}{
+							map[string]interface{}{
+								"agent_id": "agent-789",
+								"agentic_memory": map[string]interface{}{
+									"config": map[string]interface{}{
+										"host": mockMemoryProvider.URL,
+									},
+									"enabled": true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
+	cfnConfigMutex.Unlock()
 
-	// Create app with the mem0 client
-	app := &App{mem0Client: mem0}
+	// Create memory proxy client
+	proxyCfg := mem0client.DefaultProxyClientConfig()
+	proxyCfg.APIKey = "test-api-key" // test-only value, not a real credential
+	memoryProxy := mem0client.NewProxyClient(proxyCfg)
 
-	// Create request payload
+	// Create app with the memory proxy client
+	app := &App{memoryClient: memoryProxy}
+
+	// Create request payload (using relative path, handler will resolve full URL from config)
 	requestPayload := memoryoperations.MemoryOperationRequest{
 		Payload: memoryoperations.MemoryOperationPayload{
 			HTTPRequestType: http.MethodPost,
-			HTTPURL:         mockMemoryProvider.URL + "/memories",
+			HTTPURL:         "/memories",
 			HTTPRequestBody: map[string]interface{}{
 				"test-field": "test-data",
 			},
