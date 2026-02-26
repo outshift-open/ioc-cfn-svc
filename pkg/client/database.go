@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
@@ -13,7 +14,17 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
-var log = logger.SubPkg("app")
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
+
+func getLogger() *zap.SugaredLogger {
+	once.Do(func() {
+		l = logger.SubPkg("app")
+	})
+	return l
+}
 
 type Database interface {
 	Close() error
@@ -44,6 +55,7 @@ type MockDatabase struct {
 }
 
 func NewMockDatabase() *MockDatabase {
+	log := getLogger()
 	log.Warn("creating mock [database] service")
 	return &MockDatabase{
 		mockUserStore:     make(map[string]*model.UserType),

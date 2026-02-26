@@ -17,6 +17,8 @@ func NewServer(name, version string) *mcp.Server {
 
 // LoggingMiddleware logs all MCP requests and responses.
 func LoggingMiddleware() mcp.Middleware {
+	log := getLogger()
+
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 			start := time.Now()
@@ -47,6 +49,8 @@ func AddTool[T any](server *mcp.Server, name, description string, handler func(c
 
 // ServeHTTP starts the MCP server over HTTP.
 func ServeHTTP(server *mcp.Server, addr string) error {
+	log := getLogger()
+
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
 	}, nil)

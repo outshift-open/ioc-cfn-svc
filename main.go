@@ -10,6 +10,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"github.com/joho/godotenv"
+	"github.com/namsral/flag"
 )
 
 var buildVersion = "dev"
@@ -17,18 +18,21 @@ var gitCommitSHA = "unknown"
 var gitCommitTime = "unknown"
 var gitBranch = "unknown"
 
-var log = logger.Default()
-
 // @title			Template API
 // @version		1.0
 // @BasePath		/
 func main() {
 	// Load .env file if it exists (ignore error if not found)
 	_ = godotenv.Load()
+	// Parse flags BEFORE logger is used
+	flag.Parse()
+	logger.Init()
+	log := logger.Default()
+	defer log.Sync()
 
 	log.Infof("starting and running service [%s] commit=[%s] time=[%s] branch=[%s]", buildVersion, gitCommitSHA, gitCommitTime, gitBranch)
+
 	config.Log()
-	defer log.Sync()
 
 	a, err := app.New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch)
 	if err != nil {

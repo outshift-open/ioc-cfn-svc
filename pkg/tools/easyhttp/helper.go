@@ -19,7 +19,7 @@ func GetURLPathUUID(r *http.Request, key string) (string, error) {
 
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) (
 	int, error) {
-
+	log := getLogger()
 	response, err := json.Marshal(payload)
 	if err != nil {
 		log.Warnf("error marshaling response to json: %s", err)

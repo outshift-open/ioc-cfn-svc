@@ -5,20 +5,32 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-errors/errors"
+	"go.uber.org/zap"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var (
-	log = logger.SubPkg("request")
+	l    *zap.SugaredLogger
+	once sync.Once
 )
+
+func getLogger() *zap.SugaredLogger {
+	once.Do(func() {
+		l = logger.SubPkg("app")
+	})
+	return l
+}
 
 func DoJSONRequest(method, url string, optHeaders http.Header,
 	payload io.Reader, respPayload interface{}, skipStatusCheck bool) (int,
 	error) {
+
+	log := getLogger()
 
 	headers := http.Header(make(map[string][]string))
 	headers.Add("Content-Type", "application/json")
@@ -86,6 +98,7 @@ const (
 
 func DoRequest(method, url string, headers http.Header, payload io.Reader) (
 	*http.Response, error) {
+	log := getLogger()
 
 	// create a copy of the io reader so that it can be reused on retries
 	var payloadCopyBuf bytes.Buffer

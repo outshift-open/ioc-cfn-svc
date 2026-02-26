@@ -4,14 +4,26 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/namsral/flag"
+	"go.uber.org/zap"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
-var log = logger.SubPkg("config")
+var (
+	l       *zap.SugaredLogger
+	once sync.Once
+)
+
+func getLogger() *zap.SugaredLogger {
+	once.Do(func() {
+		l = logger.SubPkg("app")
+	})
+	return l
+}
 
 var (
 	portFlag             = flag.Int("port", 9002, "port to run app server")
@@ -54,8 +66,8 @@ type Config struct {
 	ServiceName              string
 	OomGracefulExitThreshold float64
 	ExternalServiceURL       string
-	DB  Database
-	IDP IdentityProvider
+	DB                       Database
+	IDP                      IdentityProvider
 }
 
 func Get() *Config {
@@ -93,7 +105,7 @@ func Get() *Config {
 }
 
 func Log() {
-	flag.Parse()
+	log := getLogger()
 	flag.VisitAll(func(f *flag.Flag) {
 		if containsAny(f.Name, "secret", "password", "pswd", "admin", "api_key") {
 			// don't log secrets

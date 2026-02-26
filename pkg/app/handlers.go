@@ -97,6 +97,8 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 // getMemoryProviderURL retrieves the memory provider URL from CfnConfig for a specific agent.
 // It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
 func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
+	log := getLogger()
+
 	cfnConfigMutex.RLock()
 	defer cfnConfigMutex.RUnlock()
 
@@ -223,6 +225,8 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 // @Failure		500			{object}	map[string]string
 // @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations [post]
 func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 	agentID := eh.PathParam(r, "agentId")

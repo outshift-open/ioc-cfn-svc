@@ -21,9 +21,20 @@ import (
 	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.uber.org/zap"
 )
 
-var log = logger.SubPkg("app")
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
+
+func getLogger() *zap.SugaredLogger {
+	once.Do(func() {
+		l = logger.SubPkg("app")
+	})
+	return l
+}
 
 var (
 	// CfnID is the globally stored CFN identifier returned by the management plane on registration.
@@ -40,6 +51,7 @@ var (
 // It prefers the CFN_IP environment variable if set, then falls back to detecting the first
 // non-loopback IPv4 address from active network interfaces.
 func getOutboundIP() string {
+	log := getLogger()
 	// Allow explicit override via environment variable (useful for Docker/K8s)
 	if ip := os.Getenv("CFN_IP"); ip != "" {
 		log.Infof("using CFN_IP from environment: %s", ip)
@@ -121,6 +133,7 @@ type App struct {
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
 	cfg := config.Get()
+	log := getLogger()
 
 	var db client.Database
 	var s3 client.S3
@@ -171,6 +184,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 // registerOnStartup calls home to mgmt plane to register this service.
 func (a *App) registerOnStartup() {
+	log := getLogger()
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 	cfnName := getEnvOrDefault("CFN_NAME", "cfn-local")
 	appIP := getOutboundIP()
@@ -246,6 +260,8 @@ func (a *App) registerOnStartup() {
 // RefreshConfig fetches the latest CFN configuration from the management plane
 // and updates the global CfnConfig.
 func (a *App) RefreshConfig(mgmtURL string) error {
+	log := getLogger()
+
 	cfnURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID
 
 	client := httpclient.New(30 * time.Second)
@@ -291,6 +307,8 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 // It runs in a goroutine and sends PUT requests at the configured interval (default 29s).
 // The heartbeat stops when the app's stopChan is closed during shutdown.
 func (a *App) startHeartbeat(mgmtURL string) {
+	log := getLogger()
+
 	// Build heartbeat endpoint URL using the globally stored CfnID
 	heartbeatURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID + "/heartbeat"
 
@@ -381,6 +399,7 @@ func (a *App) startHeartbeat(mgmtURL string) {
 // Run starts the app and serves on the specified addr. this is synchronous and
 // blocks
 func (a *App) Run() error {
+	log := getLogger()
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	var serverErr error
@@ -405,6 +424,8 @@ func (a *App) Run() error {
 
 // Stop stops the app and closes connections to all resources
 func (a *App) Stop() error {
+	log := getLogger()
+
 	log.Infof("shutting down %s...", a.Cfg.ServiceName)
 	close(a.stopChan)
 	log.Info("- stopping http server")

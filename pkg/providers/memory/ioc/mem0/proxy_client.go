@@ -14,13 +14,25 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.uber.org/zap"
 )
 
-var log = logger.SubPkg("mem0")
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
+
+func getLogger() *zap.SugaredLogger {
+	once.Do(func() {
+		l = logger.SubPkg("mem0")
+	})
+	return l
+}
 
 // ProxyClientConfig holds configuration for the proxy client.
 type ProxyClientConfig struct {
@@ -71,6 +83,8 @@ func NewProxyClient(cfg *ProxyClientConfig) *ProxyClient {
 // ForwardRequest proxies an HTTP request to a memory provider.
 // Used by the handler for multi-tenant routing with dynamic URLs.
 func (c *ProxyClient) ForwardRequest(ctx context.Context, method, targetURL string, body []byte, headers map[string]string) (*ProxyResponse, error) {
+	log := getLogger()
+
 	method = strings.ToUpper(strings.TrimSpace(method))
 
 	// Validate inputs
@@ -148,6 +162,8 @@ func (c *ProxyClient) ForwardRequest(ctx context.Context, method, targetURL stri
 // CreateMemory stores a new memory.
 // POST {baseURL}/api/v1/memories/
 func (c *ProxyClient) CreateMemory(ctx context.Context, baseURL string, req *CreateMemoryRequest) (*CreateMemoryResponse, error) {
+	log := getLogger()
+
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -303,6 +319,8 @@ func (c *ProxyClient) GetStats(ctx context.Context, baseURL, userID string) (*St
 
 // doJSON marshals request, sends it, and unmarshals response.
 func (c *ProxyClient) doJSON(ctx context.Context, method, endpoint string, reqBody, respDest interface{}) error {
+	log := getLogger()
+
 	var bodyBytes []byte
 	var err error
 
