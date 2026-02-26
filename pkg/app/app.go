@@ -114,9 +114,9 @@ type App struct {
 	stopChan         chan struct{}
 
 	// integrated clients
-	db         client.Database
-	s3         client.S3
-	mem0Client *mem0client.Client
+	db           client.Database
+	s3           client.S3
+	memoryClient *mem0client.ProxyClient
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -142,32 +142,12 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	s3 = client.NewMockS3()
 
-	// Initialise the mem0 Agentic Memory Client (optional — runs without it if not configured)
-	var mem0 *mem0client.Client
-	mem0APIKey := os.Getenv("MEM0_API_KEY")
-	if mem0APIKey != "" {
-		mem0Cfg := mem0client.DefaultClientConfig()
-		mem0Cfg.APIKey = mem0APIKey // sourced from environment, never hardcoded
-		if u := os.Getenv("MEM0_BASE_URL"); u != "" {
-			mem0Cfg.BaseURL = u
-		}
-		if orgID := os.Getenv("MEM0_ORG_ID"); orgID != "" {
-			mem0Cfg.OrgID = orgID
-		}
-		if projID := os.Getenv("MEM0_PROJECT_ID"); projID != "" {
-			mem0Cfg.ProjectID = projID
-		}
-
-		var mem0Err error
-		mem0, mem0Err = mem0client.NewClient(mem0Cfg)
-		if mem0Err != nil {
-			log.Warnf("mem0 agentic memory client init failed (memory operations will be unavailable): %v", mem0Err)
-		} else {
-			log.Infof("mem0 agentic memory client initialised successfully")
-		}
-	} else {
-		log.Infof("MEM0_API_KEY not set — agentic memory client disabled")
-	}
+	// Initialise the lightweight memory proxy client (always available)
+	// API key is optional - only needed if memory provider requires authentication
+	proxyCfg := mem0client.DefaultProxyClientConfig()
+	proxyCfg.APIKey = os.Getenv("MEM0_API_KEY") // Optional - empty string is fine
+	memoryProxy := mem0client.NewProxyClient(proxyCfg)
+	log.Infof("memory proxy client initialised (API key: %t)", proxyCfg.APIKey != "")
 
 	a := &App{
 		buildVersion:     buildVersion,
@@ -179,7 +159,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		stopChan:         make(chan struct{}),
 		db:               db,
 		s3:               s3,
-		mem0Client:       mem0,
+		memoryClient:     memoryProxy,
 	}
 
 	rtr := a.initializeRoutes()
@@ -362,26 +342,29 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
 
-					log.Infof("heartbeat config_timestamp: current=%s new=%s", currentTimestamp, newTimestamp)
-
 					// Parse timestamps as time.Time for proper comparison
 					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse heartbeat timestamp: %v", err)
+						log.Errorf("failed to parse mgmt timestamp %q: %v", newTimestamp, err)
 						continue
 					}
 
 					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse current timestamp: %v", err)
+						log.Errorf("failed to parse local timestamp %q: %v", currentTimestamp, err)
 						continue
 					}
 
-					// Refresh config if timestamp has changed
-					if !newTime.Equal(currentTime) {
+					log.Infof("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
+
+					// Refresh config if server has newer config
+					if newTime.After(currentTime) {
+						log.Infof("config update detected: mgmt=%s, local=%s - refreshing", newTimestamp, currentTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
+					} else {
+						log.Debugf("config up-to-date: mgmt=%s, local=%s", newTimestamp, currentTimestamp)
 					}
 				}
 

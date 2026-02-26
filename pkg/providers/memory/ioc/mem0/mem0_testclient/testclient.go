@@ -39,7 +39,7 @@ func main() {
 
 	baseURL := os.Getenv("MEM0_BASE_URL")
 	if baseURL == "" {
-		baseURL = mem0client.DefaultBaseURL
+		baseURL = "http://localhost:8765"
 	}
 
 	userID := os.Getenv("MEM0_USER_ID")
@@ -50,17 +50,11 @@ func main() {
 	fmt.Printf("Endpoint : %s\n", baseURL)
 	fmt.Printf("User ID  : %s\n\n", userID)
 
-	// Create the client — use longer timeout for write ops that involve LLM inference
-	cfg := mem0client.DefaultClientConfig()
-	cfg.BaseURL = baseURL
+	// Create the proxy client
+	cfg := mem0client.DefaultProxyClientConfig()
 	cfg.APIKey = apiKey // sourced from environment, never hardcoded
-	cfg.Timeout = 120 * time.Second
-	cfg.MaxRetries = 1
 
-	client, err := mem0client.NewClient(cfg)
-	if err != nil {
-		log.Fatalf("Failed to create mem0 client: %v", err)
-	}
+	client := mem0client.NewProxyClient(cfg)
 	fmt.Println("Client created successfully ✓")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -68,7 +62,7 @@ func main() {
 
 	// --- 1. Create Memory ---
 	fmt.Println("\n--- 1. Create Memory ---")
-	createResp, err := client.CreateMemory(ctx, &mem0client.CreateMemoryRequest{
+	createResp, err := client.CreateMemory(ctx, baseURL, &mem0client.CreateMemoryRequest{
 		Text:   "I prefer dark mode in all my applications",
 		UserID: userID,
 	})
@@ -89,7 +83,7 @@ func main() {
 
 	// --- 2. List Memories ---
 	fmt.Println("\n--- 2. List Memories ---")
-	listResp, err := client.ListMemories(ctx, &mem0client.ListMemoriesRequest{
+	listResp, err := client.ListMemories(ctx, baseURL, &mem0client.ListMemoriesRequest{
 		UserID: userID,
 	})
 	if err != nil {
@@ -104,7 +98,7 @@ func main() {
 	// --- 3. Get Single Memory ---
 	if memoryID != "" {
 		fmt.Println("\n--- 3. Get Single Memory ---")
-		getResp, err := client.GetMemory(ctx, memoryID)
+		getResp, err := client.GetMemory(ctx, baseURL, memoryID)
 		if err != nil {
 			log.Printf("Get memory failed: %v", err)
 		} else {
@@ -114,7 +108,7 @@ func main() {
 
 	// --- 4. Filter/Search Memories ---
 	fmt.Println("\n--- 4. Filter Memories ---")
-	filterResp, err := client.FilterMemories(ctx, &mem0client.FilterMemoriesRequest{
+	filterResp, err := client.FilterMemories(ctx, baseURL, &mem0client.FilterMemoriesRequest{
 		Query:  "preferences",
 		UserID: userID,
 	})
@@ -129,7 +123,7 @@ func main() {
 
 	// --- 5. Get Categories ---
 	fmt.Println("\n--- 5. Get Categories ---")
-	catResp, err := client.GetCategories(ctx, userID)
+	catResp, err := client.GetCategories(ctx, baseURL, userID)
 	if err != nil {
 		log.Printf("Get categories failed: %v", err)
 	} else {
@@ -142,7 +136,7 @@ func main() {
 	// --- 6. Update Memory ---
 	if memoryID != "" {
 		fmt.Println("\n--- 6. Update Memory ---")
-		updateResp, err := client.UpdateMemory(ctx, memoryID, &mem0client.UpdateMemoryRequest{
+		updateResp, err := client.UpdateMemory(ctx, baseURL, memoryID, &mem0client.UpdateMemoryRequest{
 			MemoryContent: "Strongly prefers dark mode across all applications and IDEs",
 			UserID:        userID,
 		})
@@ -155,15 +149,15 @@ func main() {
 
 	// --- 7. Get Stats ---
 	fmt.Println("\n--- 7. Get Stats ---")
-	statsResp, err := client.GetStats(ctx, userID)
+	statsResp, err := client.GetStats(ctx, baseURL, userID)
 	if err != nil {
 		log.Printf("Get stats failed: %v", err)
 	} else {
 		printJSON("Stats Response", statsResp)
 	}
 
-	// --- 8. ForwardRequest (proxy mode) ---
-	fmt.Println("\n--- 8. ForwardRequest (proxy mode) ---")
+	// --- 8. ForwardRequest (generic proxy mode) ---
+	fmt.Println("\n--- 8. ForwardRequest (generic proxy mode) ---")
 	proxyBody, _ := json.Marshal(map[string]interface{}{
 		"text":    "I like Go programming language",
 		"user_id": userID,
@@ -197,7 +191,7 @@ func main() {
 		idsToDelete = append(idsToDelete, proxyMemoryID)
 	}
 	if len(idsToDelete) > 0 {
-		delResp, err := client.DeleteMemories(ctx, &mem0client.DeleteMemoriesRequest{
+		delResp, err := client.DeleteMemories(ctx, baseURL, &mem0client.DeleteMemoriesRequest{
 			MemoryIDs: idsToDelete,
 			UserID:    userID,
 		})
