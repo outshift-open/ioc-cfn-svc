@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
@@ -21,12 +22,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var l *zap.SugaredLogger
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("mem0")
-	}
+	})
 	return l
 }
 

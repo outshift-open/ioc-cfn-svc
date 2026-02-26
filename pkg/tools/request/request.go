@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-errors/errors"
@@ -13,12 +14,15 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
-var l *zap.SugaredLogger
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("app")
-	}
+	})
 	return l
 }
 

@@ -3,17 +3,21 @@ package easyhttp
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"go.uber.org/zap"
 )
 
-var l *zap.SugaredLogger
+var (
+	l       *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("app")
-	}
+	})
 	return l
 }
 
@@ -98,7 +102,7 @@ type easyHandler func(http.ResponseWriter, *http.Request) (int, error)
 // that returns a proper error message/status to the caller
 func wrapToEasyHandler(h easyHandler) http.Handler {
 	log := getLogger()
-	
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cw := &cleanResponseWriter{ResponseWriter: w}
 		code, err := h(cw, r)

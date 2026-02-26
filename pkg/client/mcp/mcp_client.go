@@ -3,18 +3,22 @@ package mcpclient
 
 import (
 	"context"
+	"sync"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 )
 
-var l *zap.SugaredLogger
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("mcp")
-	}
+	})
 	return l
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
@@ -16,12 +17,15 @@ const (
 	DefaultKnowledgeMemorySvcRestEndpoint = "http://localhost:9003"
 )
 
-var l *zap.SugaredLogger
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("app")
-	}
+	})
 	return l
 }
 

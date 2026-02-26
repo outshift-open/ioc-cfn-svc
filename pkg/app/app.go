@@ -24,12 +24,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var l *zap.SugaredLogger
+var (
+	l    *zap.SugaredLogger
+	once sync.Once
+)
 
 func getLogger() *zap.SugaredLogger {
-	if l == nil {
+	once.Do(func() {
 		l = logger.SubPkg("app")
-	}
+	})
 	return l
 }
 
