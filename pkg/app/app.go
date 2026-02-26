@@ -342,27 +342,27 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					currentTimestamp := CfnTimestamp
 					cfnConfigMutex.RUnlock()
 
-					log.Infof("heartbeat config_timestamp: current=%s new=%s", currentTimestamp, newTimestamp)
-
 					// Parse timestamps as time.Time for proper comparison
 					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse heartbeat timestamp: %v", err)
+						log.Errorf("failed to parse mgmt timestamp %q: %v", newTimestamp, err)
 						continue
 					}
 
 					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
 					if err != nil {
-						log.Errorf("failed to parse current timestamp: %v", err)
+						log.Errorf("failed to parse local timestamp %q: %v", currentTimestamp, err)
 						continue
 					}
 
 					// Refresh config if server has newer config
 					if newTime.After(currentTime) {
-						log.Infof("config update detected, refreshing (current=%s, new=%s)", currentTimestamp, newTimestamp)
+						log.Infof("config update detected: mgmt=%s, local=%s - refreshing", newTimestamp, currentTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
+					} else {
+						log.Debugf("config up-to-date: mgmt=%s, local=%s", newTimestamp, currentTimestamp)
 					}
 				}
 
