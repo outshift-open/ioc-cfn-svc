@@ -70,9 +70,9 @@ type ExtractionDataRecord struct {
 
 // ExtractionRequest is the request body for POST /api/knowledge-mgmt/extraction.
 type ExtractionRequest struct {
-	Header    Header             `json:"header"`
-	RequestID string             `json:"request_id,omitempty"`
-	Payload   ExtractionPayload  `json:"payload"`
+	Header    Header            `json:"header"`
+	RequestID string            `json:"request_id"`
+	Payload   ExtractionPayload `json:"payload"`
 }
 
 // ReasoningEvidencePayloadMetadata describes the type of reasoning query.
@@ -84,7 +84,7 @@ type ReasoningEvidencePayloadMetadata struct {
 type ReasoningEvidencePayload struct {
 	Metadata          ReasoningEvidencePayloadMetadata `json:"metadata,omitempty"`
 	Intent            string                           `json:"intent"`
-	AdditionalContext []interface{}                     `json:"additional_context,omitempty"`
+	AdditionalContext []interface{}                    `json:"additional_context,omitempty"`
 }
 
 // ReasoningEvidenceRequest is the request body for POST /api/knowledge-mgmt/reasoning/evidence.
@@ -102,9 +102,9 @@ type SemanticNegotiationPayload struct {
 
 // SemanticNegotiationRequest is the request body for POST /api/semantic-negotiation.
 type SemanticNegotiationRequest struct {
-	Header    Header                       `json:"header"`
-	RequestID string                       `json:"request_id,omitempty"`
-	Payload   SemanticNegotiationPayload   `json:"payload"`
+	Header    Header                     `json:"header"`
+	RequestID string                     `json:"request_id,omitempty"`
+	Payload   SemanticNegotiationPayload `json:"payload"`
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ type ReasonerCognitionResponse struct {
 	Header     Header                   `json:"header"`
 	ResponseID string                   `json:"response_id"`
 	Error      *ErrorDetail             `json:"error,omitempty"`
-	Records    []map[string]interface{} `json:"records,omitempty"`  // List of TKFKnowledgeRecord (TODO: define struct)
+	Records    []map[string]interface{} `json:"records,omitempty"` // List of TKFKnowledgeRecord (TODO: define struct)
 	Metadata   map[string]interface{}   `json:"metadata,omitempty"`
 }
 

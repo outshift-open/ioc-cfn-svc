@@ -16,6 +16,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,9 +31,9 @@ func RunTestClient(baseURL string) {
 	client := New(baseURL, 30*time.Second)
 	ctx := context.Background()
 
-	testSendExtraction(ctx, client)
+	//testSendExtraction(ctx, client)
 	testSendReasoningEvidence(ctx, client)
-	testSendSemanticNegotiation(ctx, client)
+	//testSendSemanticNegotiation(ctx, client)
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +50,7 @@ func testSendExtraction(ctx context.Context, client *Client) {
 			MASID:       "sample-mas-id",
 			AgentID:     "sample-agent-id",
 		},
+		RequestID: uuid.New().String(),
 		Payload: ExtractionPayload{
 			Metadata: ExtractionPayloadMetadata{
 				Format: "observe-sdk-otel",
@@ -88,6 +91,7 @@ func testSendReasoningEvidence(ctx context.Context, client *Client) {
 			MASID:       "sample-mas-id",
 			AgentID:     "sample-agent-id",
 		},
+		RequestID: uuid.New().String(),
 		Payload: ReasoningEvidencePayload{
 			Metadata: ReasoningEvidencePayloadMetadata{
 				QueryType: "Semantic Graph Traversal",
