@@ -357,8 +357,9 @@ func (a *App) startHeartbeat(mgmtURL string) {
 						continue
 					}
 
-					// Refresh config if timestamp has changed
-					if !newTime.Equal(currentTime) {
+					// Refresh config if server has newer config
+					if newTime.After(currentTime) {
+						log.Infof("config update detected, refreshing (current=%s, new=%s)", currentTimestamp, newTimestamp)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
