@@ -167,7 +167,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")
 	log.Infof("knowledge memory service URL: %s", knowledgeMemURL)
-	knoeledgeMemCient, err := iocmemoryprovider.NewClient(knowledgeMemURL)
+	knowledgeMemClient, err := iocmemoryprovider.NewClient(knowledgeMemURL)
 	if err != nil {
 		log.Fatalf("Failed to create knowledge memory client: %v", err)
 	}
@@ -183,7 +183,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		db:                    db,
 		s3:                    s3,
 		memoryClient:          memoryProxy,
-		knowledgeMemSvcClient: knoeledgeMemCient,
+		knowledgeMemSvcClient: knowledgeMemClient,
 	}
 
 	rtr := a.initializeRoutes()
