@@ -3,12 +3,13 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -26,72 +27,284 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 	})
 }
 
+// TODO: replace the hardcoded concepts with data returned by the Cognition Agent(s)
+func mockConcepts() []iocmemoryprovider.Concept {
+	return []iocmemoryprovider.Concept{
+		{
+			ID:          "923e4567-e89b-12d3-a456-426614174000",
+			Name:        "New Test Artificial Intelligence",
+			Description: stringPtr("The simulation of human intelligence processes by machines"),
+			Attributes: map[string]interface{}{
+				"category":     "Technology",
+				"founded_year": 1956,
+			},
+			Embeddings: &iocmemoryprovider.EmbeddingConfig{
+				Name: "text-embedding-ada-002",
+				Data: []float64{0.1, 0.2, 0.3, 0.4, 0.5},
+			},
+		},
+		{
+			ID:          "923e4567-e89b-12d3-a456-426614174001",
+			Name:        "New Machine Learning",
+			Description: stringPtr("A subset of AI that enables systems to learn from data"),
+			Attributes: map[string]interface{}{
+				"category":     "Computer Science",
+				"parent_field": "AI",
+			},
+			Embeddings: &iocmemoryprovider.EmbeddingConfig{
+				Name: "text-embedding-ada-002",
+				Data: []float64{0.2, 0.3, 0.4, 0.5, 0.6},
+			},
+		},
+		{
+			ID:          "923e4567-e89b-12d3-a456-426614174002",
+			Name:        "Deep Learning",
+			Description: stringPtr("A subset of ML using neural networks with multiple layers"),
+			Attributes: map[string]interface{}{
+				"category":     "Neural networks",
+				"parent_field": "Machine Learning",
+			},
+			Embeddings: &iocmemoryprovider.EmbeddingConfig{
+				Name: "text-embedding-ada-002",
+				Data: []float64{0.3, 0.4, 0.5, 0.6, 0.7},
+			},
+		},
+	}
+}
+
+// TODO: replace the hardcoded relations with data returned by the Cognition Agent(s)
+func mockRelations() []iocmemoryprovider.Relation {
+	return []iocmemoryprovider.Relation{
+		{
+			ID:       "823e4567-e89b-12d3-a456-426614174000",
+			Relation: "HAS_A_SUBFIELD",
+			NodeIDs: []string{
+				"923e4567-e89b-12d3-a456-426614174000",
+				"923e4567-e89b-12d3-a456-426614174001",
+			},
+			Attributes: map[string]interface{}{
+				"since":    1956,
+				"strength": 0.9,
+			},
+			Embeddings: &iocmemoryprovider.EmbeddingConfig{
+				Name: "relation-embedding",
+				Data: []float64{0.15, 0.25, 0.35, 0.45, 0.55},
+			},
+		},
+		{
+			ID:       "723e4567-e89b-12d3-a456-426614174000",
+			Relation: "HAS_SUBFIELD",
+			NodeIDs: []string{
+				"923e4567-e89b-12d3-a456-426614174001",
+				"923e4567-e89b-12d3-a456-426614174002",
+			},
+			Attributes: map[string]interface{}{
+				"since":    1980,
+				"strength": 0.95,
+			},
+		},
+		{
+			ID:       "623e4567-e89b-12d3-a456-426614174000",
+			Relation: "RELATED_TO",
+			NodeIDs: []string{
+				"923e4567-e89b-12d3-a456-426614174000",
+				"923e4567-e89b-12d3-a456-426614174002",
+			},
+			Attributes: map[string]interface{}{
+				"relationship": "hierarchical",
+				"direct":       "False",
+			},
+		},
+	}
+
+}
+
+func resolveRecords(payload *iocmemoryprovider.KnowledgeGraphStoreRequest) *iocmemoryprovider.Records {
+	if payload != nil && payload.Records != nil {
+		if len(payload.Records.Concepts) > 0 || len(payload.Records.Relations) > 0 {
+			return payload.Records
+		}
+	}
+
+	return &iocmemoryprovider.Records{
+		Concepts:  mockConcepts(),
+		Relations: mockRelations(),
+	}
+}
+
 // upsertSharedMemoriesHandler godoc
-// @Summary		Upsert shared memories
-// @Description	Upserts shared memory entries for a given workspace and multi-agentic system
-// @Tags			shared-memories
-// @Accept		json
-// @Produce		json
-// @Param		workspaceId	path		string								true	"Workspace ID"
-// @Param		systemId		path		string								true	"Multi-Agentic System ID"
-// @Param		body			body		sharedmemory.SharedMemoryUpsertRequest	true	"Upsert request"
-// @Success		201				{object}	sharedmemory.SharedMemoryUpsertResponse
-// @Failure		400				{object}	map[string]string
-// @Failure		500				{object}	map[string]string
-// @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories [post]
+//
+// @Summary     Upsert shared memories.
+// @Description Upserts shared memory entries (concepts and relations) for a given workspace and multi-agentic system.
+//
+//	**Note:** The request payload and response structure are still **TBD** and subject to change.
+//	Current schemas reflect a provisional contract and may be updated as the Cognition Agent
+//	integration is finalized.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       masId       path string true "Multi-Agentic System ID"
+// @Param       body        body iocmemoryprovider.KnowledgeGraphStoreRequest false "Upsert request (currently ignored; hard-coded data is used)"
+//
+// @Success     201 {object} iocmemoryprovider.KnowledgeGraphStoreResponse "Shared memories successfully upserted"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
 func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	// TODO: validate workspaceId and systemId path params
-	//workspaceID := eh.PathParam(r, "workspaceId")
-	//systemID := eh.PathParam(r, "systemId")
+	log := getLogger()
+	ctx := r.Context()
 
-	var req sharedmemory.SharedMemoryUpsertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid JSON body",
-		})
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	log.Infof(
+		"Upserting shared memories | workspace=%s mas=%s",
+		workspaceID, masID,
+	)
+
+	var payload iocmemoryprovider.KnowledgeGraphStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
 	}
 
-	// TODO: persist shared memory for (workspaceID, systemID)
-	// For now, return a lightweight mock response
+	req := iocmemoryprovider.NewKnowledgeGraphStoreRequest()
+	req.WkspID = &workspaceID
+	req.MasID = &masID
+	req.ForceReplace = true
 
-	response := sharedmemory.SharedMemoryUpsertResponse{
-		Status:  "success",
-		Message: "shared memories upserted successfully",
+	req.Records = &iocmemoryprovider.Records{
+		Concepts:  mockConcepts(),
+		Relations: mockRelations(),
 	}
 
-	return eh.RespondWithJSON(w, http.StatusCreated, response)
+	// Use payload concepts/relations if provided, else mocks
+	req.Records = resolveRecords(&payload)
+
+	resp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, req)
+	if err != nil {
+		log.Errorf(
+			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
+			workspaceID, masID, err,
+		)
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": "failed to upsert shared memories"},
+		)
+	}
+
+	return eh.RespondWithJSON(w, http.StatusCreated, resp)
+}
+
+// resolveQueryRecords uses request payload if the concept IDs aren't empty, otherwise it falls back to hardcoded IDs
+func resolveQueryRecords(
+	payload *iocmemoryprovider.KnowledgeGraphQueryRequest,
+) iocmemoryprovider.QueryRecords {
+
+	if payload != nil && len(payload.Records.Concepts) > 0 {
+		return payload.Records
+	}
+
+	// Fallback to hardcoded node ids
+	return iocmemoryprovider.QueryRecords{
+		Concepts: []iocmemoryprovider.ConceptRecord{
+			{ID: "923e4567-e89b-12d3-a456-426614174000"},
+			{ID: "923e4567-e89b-12d3-a456-426614174001"},
+		},
+	}
 }
 
 // fetchSharedMemoriesHandler godoc
-// @Summary		Fetch shared memories
-// @Description	Fetches shared memory entries for a given workspace and multi-agentic system
-// @Tags			shared-memories
-// @Accept		json
-// @Produce		json
-// @Param		workspaceId	path		string								true	"Workspace ID"
-// @Param		systemId		path		string								true	"Multi-Agentic System ID"
-// @Param		body			body		sharedmemory.SharedMemoryQueryRequest	true	"Query request"
-// @Success		200				{object}	sharedmemory.SharedMemoryQueryResponse
-// @Failure		400				{object}	map[string]string
-// @Failure		500				{object}	map[string]string
-// @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query [post]
-func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	workspaceID := eh.PathParam(r, "workspaceId")
-	systemID := eh.PathParam(r, "systemId")
+//
+// @Summary     Fetch shared memories
+// @Description Queries shared memories for a given workspace and multi-agentic system using a graph path query.
+//
+//	**Note:** The request payload and response structure are still **TBD** and subject to change.
+//	Current schemas reflect a provisional contract and may be updated as the Cognition Agent
+//	integration is finalized.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       masId       path string true "Multi-Agentic System ID"
+//
 
-	var req sharedmemory.SharedMemoryQueryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid JSON body",
-		})
+// @Success     200 {object} iocmemoryprovider.KnowledgeGraphStoreResponse "Query executed successfully"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
+func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	log.Infof(
+		"Fetching shared memories | workspace=%s mas=%s",
+		workspaceID, masID,
+	)
+
+	var payload iocmemoryprovider.KnowledgeGraphQueryRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
 	}
 
-	_ = workspaceID
-	_ = systemID
-	_ = req
-	// TODO: query shared memories for (workspaceID, systemId)
+	// Default criteria (can be overridden later)
+	useDirection := false
+	criteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+		iocmemoryprovider.QueryTypePath,
+		nil, // unlimited depth
+		&useDirection,
+	)
 
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.SharedMemoryQueryResponse{})
+	req := iocmemoryprovider.NewKnowledgeGraphQueryRequest(criteria)
+	req.WkspID = &workspaceID
+	req.MasID = &masID
+	// Use payload records if provided
+	req.Records = resolveQueryRecords(&payload)
+
+	resp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphPath(ctx, req)
+	if err != nil {
+		log.Errorf(
+			"QueryKnowledgeGraphPath failed | workspace=%s mas=%s err=%v",
+			workspaceID, masID, err,
+		)
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": "failed to fetch shared memories"},
+		)
+	}
+
+	log.Infof(
+		"Query succeeded | status=%s records=%d",
+		resp.Status,
+		len(resp.Records),
+	)
+
+	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 
 // getMemoryProviderURL retrieves the memory provider URL from CfnConfig for a specific agent.
@@ -329,4 +542,9 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 
 	// Return the response with 200 status (the actual HTTP status from the memory provider is in the response body)
 	return eh.RespondWithJSON(w, http.StatusOK, response)
+}
+
+// stringPtr is a helper function to get a pointer to a string
+func stringPtr(s string) *string {
+	return &s
 }

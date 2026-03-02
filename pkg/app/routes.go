@@ -36,8 +36,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
 
 	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories", a.upsertSharedMemoriesHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query", a.fetchSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.upsertSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
