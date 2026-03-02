@@ -321,7 +321,7 @@
                         "required": true
                     },
                     {
-                        "description": "Upsert request (currently ignored; hard-coded data is used)",
+                        "description": "Upsert request",
                         "name": "body",
                         "in": "body",
                         "schema": {
@@ -359,6 +359,41 @@
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query": {
             "post": {
+                "description": "Queries shared memories for a given workspace and multi-agentic system using a graph path query.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shared-memories"
+                ],
+                "summary": "Fetch shared memories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Upsert request",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Query executed successfully",

@@ -395,7 +395,7 @@ paths:
         name: masId
         required: true
         type: string
-      - description: Upsert request (currently ignored; hard-coded data is used)
+      - description: Upsert request
         in: body
         name: body
         schema:
@@ -424,6 +424,28 @@ paths:
       - shared-memories
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query:
     post:
+      consumes:
+      - application/json
+      description: Queries shared memories for a given workspace and multi-agentic
+        system using a graph path query.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Upsert request
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest'
+      produces:
+      - application/json
       responses:
         "200":
           description: Query executed successfully
@@ -441,4 +463,7 @@ paths:
             additionalProperties:
               type: string
             type: object
+      summary: Fetch shared memories
+      tags:
+      - shared-memories
 swagger: "2.0"
