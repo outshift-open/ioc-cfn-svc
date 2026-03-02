@@ -345,6 +345,8 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 	cfnConfigMutex.RLock()
 	defer cfnConfigMutex.RUnlock()
 
+	log.Infof("Config snapshot for resolving memory provider URL: %v", CfnConfig)
+
 	// Navigate to workspaces
 	workspaces, ok := CfnConfig["workspaces"].([]interface{})
 	if !ok {
