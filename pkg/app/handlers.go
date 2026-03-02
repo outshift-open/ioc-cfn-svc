@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -271,10 +272,40 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Default criteria (can be overridden later)
+	queryType := iocmemoryprovider.QueryTypePath // default
+
+	if payload.QueryCriteria != nil && payload.QueryCriteria.QueryType != "" {
+		queryType = strings.ToLower(payload.QueryCriteria.QueryType)
+	}
+
+	queryFns := map[string]func(
+		context.Context,
+		*iocmemoryprovider.KnowledgeGraphQueryRequest,
+	) (*iocmemoryprovider.KnowledgeGraphQueryResponse, error){
+		iocmemoryprovider.QueryTypePath:      a.knowledgeMemSvcClient.QueryKnowledgeGraphPath,
+		iocmemoryprovider.QueryTypeNeighbour: a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor,
+		iocmemoryprovider.QueryTypeConcept:   a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept,
+	}
+
+	queryFn, ok := queryFns[queryType]
+	if !ok {
+		return eh.RespondWithJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]string{
+				"error": fmt.Sprintf(
+					"invalid query_type, valid values are: %s, %s, %s",
+					iocmemoryprovider.QueryTypePath,
+					iocmemoryprovider.QueryTypeNeighbour,
+					iocmemoryprovider.QueryTypeConcept,
+				),
+			},
+		)
+	}
+
 	useDirection := false
 	criteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-		iocmemoryprovider.QueryTypePath,
+		queryType,
 		nil, // unlimited depth
 		&useDirection,
 	)
@@ -282,19 +313,18 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	req := iocmemoryprovider.NewKnowledgeGraphQueryRequest(criteria)
 	req.WkspID = &workspaceID
 	req.MasID = &masID
-	// Use payload records if provided
 	req.Records = resolveQueryRecords(&payload)
 
-	resp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphPath(ctx, req)
+	resp, err := queryFn(ctx, req)
 	if err != nil {
 		log.Errorf(
-			"QueryKnowledgeGraphPath failed | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
+			"Knowledge graph query failed | type=%s workspace=%s mas=%s err=%v",
+			queryType, workspaceID, masID, err,
 		)
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "failed to fetch shared memories"},
+			map[string]string{"error": fmt.Sprintf("failed to fetch shared memories, %v", err.Error())},
 		)
 	}
 
