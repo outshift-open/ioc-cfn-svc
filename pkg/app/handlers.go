@@ -148,7 +148,7 @@ func resolveRecords(payload *iocmemoryprovider.KnowledgeGraphStoreRequest) *iocm
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body iocmemoryprovider.KnowledgeGraphStoreRequest false "Upsert request (currently ignored; hard-coded data is used)"
+// @Param       body        body iocmemoryprovider.KnowledgeGraphStoreRequest false "Upsert request"
 //
 // @Success     201 {object} iocmemoryprovider.KnowledgeGraphStoreResponse "Shared memories successfully upserted"
 // @Failure     400 {object} map[string]string "Invalid request"
@@ -241,8 +241,8 @@ func resolveQueryRecords(
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
+// @Param       body        body iocmemoryprovider.KnowledgeGraphStoreRequest false "Fetch request"
 //
-
 // @Success     200 {object} iocmemoryprovider.KnowledgeGraphStoreResponse "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
