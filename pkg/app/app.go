@@ -18,6 +18,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
@@ -129,6 +130,8 @@ type App struct {
 	db           client.Database
 	s3           client.S3
 	memoryClient *mem0client.ProxyClient
+
+	knowledgeMemSvcClient *iocmemoryprovider.Client
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -162,17 +165,25 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	memoryProxy := mem0client.NewProxyClient(proxyCfg)
 	log.Infof("memory proxy client initialised (API key: %t)", proxyCfg.APIKey != "")
 
+	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")
+	log.Infof("knowledge memory service URL: %s", knowledgeMemURL)
+	knoeledgeMemCient, err := iocmemoryprovider.NewClient(knowledgeMemURL)
+	if err != nil {
+		log.Fatalf("Failed to create knowledge memory client: %v", err)
+	}
+
 	a := &App{
-		buildVersion:     buildVersion,
-		gitCommitSHA:     gitCommitSHA,
-		gitCommitTime:    gitCommitTime,
-		gitBranch:        gitBranch,
-		Cfg:              *cfg,
-		readyForRequests: &atomic.Bool{},
-		stopChan:         make(chan struct{}),
-		db:               db,
-		s3:               s3,
-		memoryClient:     memoryProxy,
+		buildVersion:          buildVersion,
+		gitCommitSHA:          gitCommitSHA,
+		gitCommitTime:         gitCommitTime,
+		gitBranch:             gitBranch,
+		Cfg:                   *cfg,
+		readyForRequests:      &atomic.Bool{},
+		stopChan:              make(chan struct{}),
+		db:                    db,
+		s3:                    s3,
+		memoryClient:          memoryProxy,
+		knowledgeMemSvcClient: knoeledgeMemCient,
 	}
 
 	rtr := a.initializeRoutes()
