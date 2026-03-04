@@ -1,9 +1,9 @@
-# Cognitive Agent Client
+# cognition agent Client
 
-Go client for the **Cognitive Agents API** with built-in retries and exponential backoff.
+Go client for the **cognition agents API** with built-in retries and exponential backoff.
 
 > **Note:** API endpoint paths and Go struct fields/JSON tags in this package may change
-> as the upstream Cognitive Agents API evolves. Update structs and paths when the API
+> as the upstream cognition agents API evolves. Update structs and paths when the API
 > contract is modified.
 
 ---
@@ -11,7 +11,7 @@ Go client for the **Cognitive Agents API** with built-in retries and exponential
 ## Overview
 
 ```
-Your App  ──▶  cognitiveagentclient.Client  ──▶  httpclient.Client  ──▶  Cognitive Agents Service
+Your App  ──▶  cognitionagentclient.Client  ──▶  httpclient.Client  ──▶  cognition agents Service
 ```
 
 | Endpoint                                        | Method                  | Description                                           |
@@ -25,17 +25,17 @@ Your App  ──▶  cognitiveagentclient.Client  ──▶  httpclient.Client  
 ## Quick Start
 
 ```go
-import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitiveagentclient"
+import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 
-client := cognitiveagentclient.New("http://localhost:8000", 30*time.Second)
+client := cognitionagentclient.New("http://localhost:8000", 30*time.Second)
 
-resp, err := client.SendExtraction(ctx, &cognitiveagentclient.ExtractionRequest{
-    Header: cognitiveagentclient.Header{
+resp, err := client.SendExtraction(ctx, &cognitionagentclient.ExtractionRequest{
+    Header: cognitionagentclient.Header{
         WorkspaceID: "ws-001",
         MASID:       "mas-001",
     },
-    Payload: cognitiveagentclient.ExtractionPayload{
-        Metadata: cognitiveagentclient.ExtractionPayloadMetadata{Format: "observe-sdk-otel"},
+    Payload: cognitionagentclient.ExtractionPayload{
+        Metadata: cognitionagentclient.ExtractionPayloadMetadata{Format: "observe-sdk-otel"},
         Data:     records,
     },
 })
@@ -44,7 +44,7 @@ resp, err := client.SendExtraction(ctx, &cognitiveagentclient.ExtractionRequest{
 ## Smoke Test
 
 ```go
-cognitiveagentclient.RunTestClient("http://localhost:8000")
+cognitionagentclient.RunTestClient("http://localhost:8000")
 ```
 
 ---
@@ -52,11 +52,11 @@ cognitiveagentclient.RunTestClient("http://localhost:8000")
 ## Files
 
 | File                      | Description                                    |
-| ------------------------- | ---------------------------------------------- |
-| `cognitiveagentclient.go` | Client, request/response types, and API methods |
+|---------------------------| ---------------------------------------------- |
+| `cognitionagentclient.go` | Client, request/response types, and API methods |
 | `testclient.go`           | Smoke-test helper with sample data              |
 | `README.md`               | This document                                   |
 
 ## TODO
 
-- [ ] Add audit CRUD operations for cognitive agent API calls.
+- [ ] Add audit CRUD operations for cognition agent API calls.

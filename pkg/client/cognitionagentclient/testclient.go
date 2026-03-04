@@ -1,15 +1,15 @@
-package cognitiveagentclient
+package cognitionagentclient
 
 // RunTestClient is a smoke-test helper that sends sample requests to the
-// Cognitive Agent API endpoints and prints the responses to stdout.
+// cognition agent API endpoints and prints the responses to stdout.
 //
 // Usage (from anywhere in the codebase):
 //
-//   import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitiveagentclient"
+//   import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 //
-//   cognitiveagentclient.RunTestClient("http://localhost:8000")
+//   cognitionagentclient.RunTestClient("http://localhost:8000")
 //
-// Set the base URL to the running Cognitive Agent service address.
+// Set the base URL to the running cognition agent service address.
 
 import (
 	"context"
@@ -24,9 +24,9 @@ import (
 // Entry point
 // ---------------------------------------------------------------------------
 
-// RunTestClient exercises all cognitive agent API endpoints.
+// RunTestClient exercises all cognition agent API endpoints.
 func RunTestClient(baseURL string) {
-	fmt.Printf("Cognitive Agent Test Client — base URL: %s\n\n", baseURL)
+	fmt.Printf("cognition agent Test Client — base URL: %s\n\n", baseURL)
 
 	client := New(baseURL, 30*time.Second)
 	ctx := context.Background()

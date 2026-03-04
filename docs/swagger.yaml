@@ -52,17 +52,17 @@ definitions:
       resource_type:
         type: string
     type: object
-  cognitiveagents.ConceptsSearchRequest:
+  cognitionagents.ConceptsSearchRequest:
     properties:
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
     type: object
-  cognitiveagents.ConceptsSearchResponse:
+  cognitionagents.ConceptsSearchResponse:
     properties:
       error:
-        $ref: '#/definitions/cognitiveagents.ErrorDetail'
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       response_id:
         type: string
       results:
@@ -71,7 +71,7 @@ definitions:
           type: object
         type: array
     type: object
-  cognitiveagents.ErrorDetail:
+  cognitionagents.ErrorDetail:
     properties:
       detail:
         additionalProperties: true
@@ -79,7 +79,7 @@ definitions:
       message:
         type: string
     type: object
-  cognitiveagents.Header:
+  cognitionagents.Header:
     properties:
       agent_id:
         description: Optional
@@ -91,21 +91,21 @@ definitions:
         description: Mandatory
         type: string
     type: object
-  cognitiveagents.MemoryCreateRequest:
+  cognitionagents.MemoryCreateRequest:
     properties:
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
     type: object
-  cognitiveagents.MemoryCreateResponse:
+  cognitionagents.MemoryCreateResponse:
     properties:
       error:
-        $ref: '#/definitions/cognitiveagents.ErrorDetail'
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       response_id:
         type: string
     type: object
-  cognitiveagents.MemorySearchRequest:
+  cognitionagents.MemorySearchRequest:
     properties:
       embeding:
         description: Kept as "embeding" per API spec
@@ -113,7 +113,7 @@ definitions:
           type: number
         type: array
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       k:
         type: integer
       queries:
@@ -121,20 +121,20 @@ definitions:
           type: string
         type: array
     type: object
-  cognitiveagents.MemorySearchResponse:
+  cognitionagents.MemorySearchResponse:
     properties:
       error:
-        $ref: '#/definitions/cognitiveagents.ErrorDetail'
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       response_id:
         type: string
       results:
         items:
-          $ref: '#/definitions/cognitiveagents.QueryResult'
+          $ref: '#/definitions/cognitionagents.QueryResult'
         type: array
     type: object
-  cognitiveagents.PathEdge:
+  cognitionagents.PathEdge:
     properties:
       from_id:
         type: string
@@ -147,11 +147,11 @@ definitions:
       to_name:
         type: string
     type: object
-  cognitiveagents.PathResult:
+  cognitionagents.PathResult:
     properties:
       edges:
         items:
-          $ref: '#/definitions/cognitiveagents.PathEdge'
+          $ref: '#/definitions/cognitionagents.PathEdge'
         type: array
       node_ids:
         items:
@@ -162,7 +162,7 @@ definitions:
       symbolic:
         type: string
     type: object
-  cognitiveagents.PathsSearchPayload:
+  cognitionagents.PathsSearchPayload:
     properties:
       from_id:
         type: string
@@ -175,27 +175,27 @@ definitions:
       to_id:
         type: string
     type: object
-  cognitiveagents.PathsSearchRequest:
+  cognitionagents.PathsSearchRequest:
     properties:
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       payload:
-        $ref: '#/definitions/cognitiveagents.PathsSearchPayload'
+        $ref: '#/definitions/cognitionagents.PathsSearchPayload'
     type: object
-  cognitiveagents.PathsSearchResponse:
+  cognitionagents.PathsSearchResponse:
     properties:
       error:
-        $ref: '#/definitions/cognitiveagents.ErrorDetail'
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
       header:
-        $ref: '#/definitions/cognitiveagents.Header'
+        $ref: '#/definitions/cognitionagents.Header'
       paths:
         items:
-          $ref: '#/definitions/cognitiveagents.PathResult'
+          $ref: '#/definitions/cognitionagents.PathResult'
         type: array
       response_id:
         type: string
     type: object
-  cognitiveagents.QueryResult:
+  cognitionagents.QueryResult:
     properties:
       hits:
         items:
@@ -343,7 +343,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new memory record for a cognitive agent
+      description: Creates a new memory record for a cognition agent
       parameters:
       - description: CFN ID
         in: path
@@ -355,30 +355,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/cognitiveagents.MemoryCreateRequest'
+          $ref: '#/definitions/cognitionagents.MemoryCreateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/cognitiveagents.MemoryCreateResponse'
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/cognitiveagents.MemoryCreateResponse'
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/cognitiveagents.MemoryCreateResponse'
-      summary: Create cognitive agent memory
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
+      summary: Create cognition agent memory
       tags:
       - cognitive-agents
   /api/cfn/{cfnId}/memory/concepts/search:
     post:
       consumes:
       - application/json
-      description: Searches memory concepts for a cognitive agent
+      description: Searches memory concepts for a cognition agent
       parameters:
       - description: CFN ID
         in: path
@@ -390,30 +390,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/cognitiveagents.ConceptsSearchRequest'
+          $ref: '#/definitions/cognitionagents.ConceptsSearchRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/cognitiveagents.ConceptsSearchResponse'
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/cognitiveagents.ConceptsSearchResponse'
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/cognitiveagents.ConceptsSearchResponse'
-      summary: Search cognitive agent memory concepts
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
+      summary: Search cognition agent memory concepts
       tags:
       - cognitive-agents
   /api/cfn/{cfnId}/memory/paths/search:
     post:
       consumes:
       - application/json
-      description: Searches for paths between two nodes in cognitive agent memory
+      description: Searches for paths between two nodes in cognition agent memory
       parameters:
       - description: CFN ID
         in: path
@@ -425,22 +425,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/cognitiveagents.PathsSearchRequest'
+          $ref: '#/definitions/cognitionagents.PathsSearchRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/cognitiveagents.PathsSearchResponse'
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/cognitiveagents.PathsSearchResponse'
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/cognitiveagents.PathsSearchResponse'
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
       summary: Search memory paths
       tags:
       - cognitive-agents
@@ -448,7 +448,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Searches cognitive agent memory with natural-language queries and
+      description: Searches cognition agent memory with natural-language queries and
         embeddings
       parameters:
       - description: CFN ID
@@ -461,23 +461,23 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/cognitiveagents.MemorySearchRequest'
+          $ref: '#/definitions/cognitionagents.MemorySearchRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/cognitiveagents.MemorySearchResponse'
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/cognitiveagents.MemorySearchResponse'
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/cognitiveagents.MemorySearchResponse'
-      summary: Search cognitive agent memory
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
+      summary: Search cognition agent memory
       tags:
       - cognitive-agents
   /api/internal/audit-events:

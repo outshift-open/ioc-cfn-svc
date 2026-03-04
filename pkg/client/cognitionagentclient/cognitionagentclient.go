@@ -1,4 +1,4 @@
-// Package cognitiveagentclient provides a client for the Cognitive Agents API.
+// Package cognitionagentclient provides a client for the cognition agents API.
 //
 // It supports the following endpoints:
 //   - POST /api/knowledge-mgmt/extraction          — ingest agent telemetry data and extract knowledge.
@@ -8,11 +8,11 @@
 // The client wraps httpclient.Client for retries and exponential backoff.
 //
 // NOTE: The Go struct fields / JSON tags in this package may change as the
-// upstream Cognitive Agents API evolves. Update the structs and paths here
+// upstream cognition agents API evolves. Update the structs and paths here
 // when the API contract is modified.
 //
-// TODO: Add audit CRUD operations for cognitive agent API calls.
-package cognitiveagentclient
+// TODO: Add audit CRUD operations for cognition agent API calls.
+package cognitionagentclient
 
 import (
 	"context"
@@ -170,14 +170,14 @@ type Meta struct {
 // Client
 // ---------------------------------------------------------------------------
 
-// Client is a client for the Cognitive Agents API.
+// Client is a client for the cognition agents API.
 // It wraps an httpclient.Client and a base URL for the target service.
 type Client struct {
 	httpClient *httpclient.Client
 	baseURL    string
 }
 
-// New creates a new cognitive agent client with the given base URL and timeout.
+// New creates a new cognition agent client with the given base URL and timeout.
 // The underlying HTTP client uses default retry settings (3 retries, exponential backoff).
 func New(baseURL string, timeout time.Duration) *Client {
 	return &Client{
@@ -186,7 +186,7 @@ func New(baseURL string, timeout time.Duration) *Client {
 	}
 }
 
-// NewWithHTTPClient creates a new cognitive agent client with a pre-configured
+// NewWithHTTPClient creates a new cognition agent client with a pre-configured
 // httpclient.Client. Use this when you need custom retry or timeout settings.
 func NewWithHTTPClient(baseURL string, httpClient *httpclient.Client) *Client {
 	return &Client{

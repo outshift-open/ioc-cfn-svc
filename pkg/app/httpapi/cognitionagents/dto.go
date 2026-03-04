@@ -1,7 +1,7 @@
-// Package cognitiveagents provides DTOs for the Cognitive Agents API handler.
+// Package cognitiveagents provides DTOs for the cognition agents API handler.
 //
 // NOTE: Struct fields and JSON tags may change as the API evolves.
-package cognitiveagents
+package cognitionagents
 
 // Header carries routing context for CFN requests and responses.
 type Header struct {
@@ -39,9 +39,9 @@ type ConceptsSearchRequest struct {
 // ConceptsSearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/concepts/search.
 // TODO: Define fields once the response contract (TKFKnowledgeRecord) is finalized.
 type ConceptsSearchResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
+	Header     Header                   `json:"header"`
+	ResponseID string                   `json:"response_id"`
+	Error      *ErrorDetail             `json:"error,omitempty"`
 	Results    []map[string]interface{} `json:"results,omitempty"`
 }
 
@@ -70,10 +70,10 @@ type PathEdge struct {
 
 // PathResult represents a single path between two nodes.
 type PathResult struct {
-	NodeIDs    []string `json:"node_ids"`
+	NodeIDs    []string   `json:"node_ids"`
 	Edges      []PathEdge `json:"edges"`
-	PathLength int      `json:"path_length"`
-	Symbolic   string   `json:"symbolic"`
+	PathLength int        `json:"path_length"`
+	Symbolic   string     `json:"symbolic"`
 }
 
 // PathsSearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/paths/search.
@@ -94,9 +94,9 @@ type MemorySearchRequest struct {
 
 // MemorySearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/search.
 type MemorySearchResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
+	Header     Header        `json:"header"`
+	ResponseID string        `json:"response_id"`
+	Error      *ErrorDetail  `json:"error,omitempty"`
 	Results    []QueryResult `json:"results,omitempty"`
 }
 

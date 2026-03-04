@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitiveagents"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionagents"
 )
 
-var validHeader = cognitiveagents.Header{
+var validHeader = cognitionagents.Header{
 	WorkspaceID: "ws-456",
 	MASID:       "mas-123",
 	AgentID:     "agent-42",
@@ -24,17 +24,17 @@ var validHeader = cognitiveagents.Header{
 
 func TestMemoryCreateHandler_Success(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.MemoryCreateRequest{Header: validHeader}
+	body := cognitionagents.MemoryCreateRequest{Header: validHeader}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, err := app.cognitiveAgentsMemoryCreateHandler(rr, req)
+	code, err := app.cognitionAgentsMemoryCreateHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, code)
 
-	var resp cognitiveagents.MemoryCreateResponse
+	var resp cognitionagents.MemoryCreateResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, validHeader.WorkspaceID, resp.Header.WorkspaceID)
 	assert.Equal(t, validHeader.MASID, resp.Header.MASID)
@@ -44,16 +44,16 @@ func TestMemoryCreateHandler_Success(t *testing.T) {
 
 func TestMemoryCreateHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.MemoryCreateRequest{Header: cognitiveagents.Header{}}
+	body := cognitionagents.MemoryCreateRequest{Header: cognitionagents.Header{}}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsMemoryCreateHandler(rr, req)
+	code, _ := app.cognitionAgentsMemoryCreateHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.MemoryCreateResponse
+	var resp cognitionagents.MemoryCreateResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "workspace_id and mas_id are mandatory", resp.Error.Message)
@@ -64,10 +64,10 @@ func TestMemoryCreateHandler_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsMemoryCreateHandler(rr, req)
+	code, _ := app.cognitionAgentsMemoryCreateHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.MemoryCreateResponse
+	var resp cognitionagents.MemoryCreateResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "invalid JSON body", resp.Error.Message)
@@ -77,7 +77,7 @@ func TestMemoryCreateHandler_InvalidJSON(t *testing.T) {
 
 func TestMemorySearchHandler_Success(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.MemorySearchRequest{
+	body := cognitionagents.MemorySearchRequest{
 		Header:    validHeader,
 		Queries:   []string{"I am interested in inexpensive restaurant", "best coffee nearby"},
 		Embedding: []float64{23, 45, 6},
@@ -88,11 +88,11 @@ func TestMemorySearchHandler_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, err := app.cognitiveAgentsMemorySearchHandler(rr, req)
+	code, err := app.cognitionAgentsMemorySearchHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp cognitiveagents.MemorySearchResponse
+	var resp cognitionagents.MemorySearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, validHeader.WorkspaceID, resp.Header.WorkspaceID)
 	assert.NotEmpty(t, resp.ResponseID)
@@ -106,8 +106,8 @@ func TestMemorySearchHandler_Success(t *testing.T) {
 
 func TestMemorySearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.MemorySearchRequest{
-		Header:  cognitiveagents.Header{},
+	body := cognitionagents.MemorySearchRequest{
+		Header:  cognitionagents.Header{},
 		Queries: []string{"test"},
 	}
 	b, _ := json.Marshal(body)
@@ -115,10 +115,10 @@ func TestMemorySearchHandler_MissingHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsMemorySearchHandler(rr, req)
+	code, _ := app.cognitionAgentsMemorySearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.MemorySearchResponse
+	var resp cognitionagents.MemorySearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "workspace_id and mas_id are mandatory", resp.Error.Message)
@@ -129,10 +129,10 @@ func TestMemorySearchHandler_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsMemorySearchHandler(rr, req)
+	code, _ := app.cognitionAgentsMemorySearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.MemorySearchResponse
+	var resp cognitionagents.MemorySearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "invalid JSON body", resp.Error.Message)
@@ -142,17 +142,17 @@ func TestMemorySearchHandler_InvalidJSON(t *testing.T) {
 
 func TestConceptsSearchHandler_Success(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.ConceptsSearchRequest{Header: validHeader}
+	body := cognitionagents.ConceptsSearchRequest{Header: validHeader}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, err := app.cognitiveAgentsConceptsSearchHandler(rr, req)
+	code, err := app.cognitionAgentsConceptsSearchHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp cognitiveagents.ConceptsSearchResponse
+	var resp cognitionagents.ConceptsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, validHeader.WorkspaceID, resp.Header.WorkspaceID)
 	assert.NotEmpty(t, resp.ResponseID)
@@ -162,16 +162,16 @@ func TestConceptsSearchHandler_Success(t *testing.T) {
 
 func TestConceptsSearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.ConceptsSearchRequest{Header: cognitiveagents.Header{}}
+	body := cognitionagents.ConceptsSearchRequest{Header: cognitionagents.Header{}}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsConceptsSearchHandler(rr, req)
+	code, _ := app.cognitionAgentsConceptsSearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.ConceptsSearchResponse
+	var resp cognitionagents.ConceptsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "workspace_id and mas_id are mandatory", resp.Error.Message)
@@ -182,10 +182,10 @@ func TestConceptsSearchHandler_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsConceptsSearchHandler(rr, req)
+	code, _ := app.cognitionAgentsConceptsSearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.ConceptsSearchResponse
+	var resp cognitionagents.ConceptsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "invalid JSON body", resp.Error.Message)
@@ -195,9 +195,9 @@ func TestConceptsSearchHandler_InvalidJSON(t *testing.T) {
 
 func TestPathsSearchHandler_Success(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.PathsSearchRequest{
+	body := cognitionagents.PathsSearchRequest{
 		Header: validHeader,
-		Payload: cognitiveagents.PathsSearchPayload{
+		Payload: cognitionagents.PathsSearchPayload{
 			FromID:    "id-A",
 			ToID:      "id-B",
 			MaxDepth:  3,
@@ -209,11 +209,11 @@ func TestPathsSearchHandler_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, err := app.cognitiveAgentsPathsSearchHandler(rr, req)
+	code, err := app.cognitionagentsPathsSearchHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp cognitiveagents.PathsSearchResponse
+	var resp cognitionagents.PathsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, validHeader.WorkspaceID, resp.Header.WorkspaceID)
 	assert.NotEmpty(t, resp.ResponseID)
@@ -223,9 +223,9 @@ func TestPathsSearchHandler_Success(t *testing.T) {
 
 func TestPathsSearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.PathsSearchRequest{
-		Header: cognitiveagents.Header{},
-		Payload: cognitiveagents.PathsSearchPayload{
+	body := cognitionagents.PathsSearchRequest{
+		Header: cognitionagents.Header{},
+		Payload: cognitionagents.PathsSearchPayload{
 			FromID: "id-A",
 			ToID:   "id-B",
 		},
@@ -235,10 +235,10 @@ func TestPathsSearchHandler_MissingHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsPathsSearchHandler(rr, req)
+	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.PathsSearchResponse
+	var resp cognitionagents.PathsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "workspace_id and mas_id are mandatory", resp.Error.Message)
@@ -246,19 +246,19 @@ func TestPathsSearchHandler_MissingHeader(t *testing.T) {
 
 func TestPathsSearchHandler_MissingPayloadIDs(t *testing.T) {
 	app := &App{}
-	body := cognitiveagents.PathsSearchRequest{
+	body := cognitionagents.PathsSearchRequest{
 		Header:  validHeader,
-		Payload: cognitiveagents.PathsSearchPayload{},
+		Payload: cognitionagents.PathsSearchPayload{},
 	}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsPathsSearchHandler(rr, req)
+	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.PathsSearchResponse
+	var resp cognitionagents.PathsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "from_id and to_id are mandatory", resp.Error.Message)
@@ -269,12 +269,11 @@ func TestPathsSearchHandler_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
-	code, _ := app.cognitiveAgentsPathsSearchHandler(rr, req)
+	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	var resp cognitiveagents.PathsSearchResponse
+	var resp cognitionagents.PathsSearchResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.NotNil(t, resp.Error)
 	assert.Equal(t, "invalid JSON body", resp.Error.Message)
 }
-
