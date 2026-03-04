@@ -165,7 +165,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	memoryCfg.MaxRetries = 0
 	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
 	memoryProxyClient := httpclient.NewWithConfig(memoryCfg)
-	memoryAPIKey := os.Getenv("MEM0_API_KEY")
+	memoryAPIKey := os.Getenv("MEMORY_PROVIDER_API_KEY")
 	log.Infof("memory proxy HTTP client initialised (API key configured: %t)", memoryAPIKey != "")
 
 	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")

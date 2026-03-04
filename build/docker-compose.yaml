@@ -27,7 +27,7 @@ services:
       DB_USER: ${DB_USER:-postgresUser}
       DB_PASSWORD: ${DB_PASSWORD:-postgresPW}
       DB_SSL_MODE: ${DB_SSL_MODE:-disable}
-      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEMORY_PROVIDER_API_KEY: ${MEMORY_PROVIDER_API_KEY:-}
 
 networks:
   default:
