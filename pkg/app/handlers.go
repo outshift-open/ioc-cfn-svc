@@ -337,15 +337,9 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 
-// memoryProviderInfo holds the resolved endpoint and provider type for an agent's memory.
-type memoryProviderInfo struct {
-	baseURL      string
-	providerType string // ProviderMem0, ProviderGraphiti, etc.
-}
-
-// getMemoryProviderInfo retrieves the memory provider URL and provider type from CfnConfig.
+// getMemoryProviderURL retrieves the memory provider base URL from CfnConfig for a specific agent.
 // It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
-func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memoryProviderInfo, error) {
+func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
 	log := getLogger()
 
 	cfnConfigMutex.RLock()
@@ -356,7 +350,7 @@ func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memory
 	// Navigate to workspaces
 	workspaces, ok := CfnConfig["workspaces"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("workspaces not found in config")
+		return "", fmt.Errorf("workspaces not found in config")
 	}
 
 	// Find the workspace
@@ -372,13 +366,13 @@ func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memory
 		}
 	}
 	if workspace == nil {
-		return nil, fmt.Errorf("workspace %s not found", workspaceID)
+		return "", fmt.Errorf("workspace %s not found", workspaceID)
 	}
 
 	// Navigate to multi_agentic_systems
 	masList, ok := workspace["multi_agentic_systems"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("multi_agentic_systems not found in workspace")
+		return "", fmt.Errorf("multi_agentic_systems not found in workspace")
 	}
 
 	// Find the MAS
@@ -394,13 +388,13 @@ func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memory
 		}
 	}
 	if mas == nil {
-		return nil, fmt.Errorf("multi-agentic system %s not found", masID)
+		return "", fmt.Errorf("multi-agentic system %s not found", masID)
 	}
 
 	// Navigate to agents
 	agentsList, ok := mas["agents"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("agents not found in multi-agentic system")
+		return "", fmt.Errorf("agents not found in multi-agentic system")
 	}
 
 	// Find the agent
@@ -416,35 +410,29 @@ func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memory
 		}
 	}
 	if agent == nil {
-		return nil, fmt.Errorf("agent %s not found", agentID)
+		return "", fmt.Errorf("agent %s not found", agentID)
 	}
 
 	// Get agentic_memory config
 	agenticMemory, ok := agent["agentic_memory"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("agentic_memory not found for agent")
+		return "", fmt.Errorf("agentic_memory not found for agent")
 	}
 
 	// Check if memory is enabled
 	if enabled, ok := agenticMemory["enabled"].(bool); ok && !enabled {
-		return nil, fmt.Errorf("agentic memory is disabled for this agent")
-	}
-
-	// Determine provider type from management plane config (default: mem0 for backward compatibility)
-	providerType := ProviderMem0
-	if p, ok := agenticMemory["memory_provider_name"].(string); ok && p != "" {
-		providerType = p
+		return "", fmt.Errorf("agentic memory is disabled for this agent")
 	}
 
 	// Get config with host and port
 	memConfig, ok := agenticMemory["config"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("config not found in agentic_memory")
+		return "", fmt.Errorf("config not found in agentic_memory")
 	}
 
 	host, hostOk := memConfig["host"].(string)
 	if !hostOk || host == "" {
-		return nil, fmt.Errorf("host not found in memory provider config")
+		return "", fmt.Errorf("host not found in memory provider config")
 	}
 
 	var baseURL string
@@ -458,26 +446,13 @@ func (a *App) getMemoryProviderInfo(workspaceID, masID, agentID string) (*memory
 		// Host is just a hostname (e.g., "localhost", "ioc-mem0"), build URL with port
 		port, portOk := memConfig["port"].(float64) // JSON numbers are float64
 		if !portOk {
-			return nil, fmt.Errorf("port not found in memory provider config for hostname %s", host)
+			return "", fmt.Errorf("port not found in memory provider config for hostname %s", host)
 		}
 		baseURL = fmt.Sprintf("http://%s:%d", host, int(port))
 		log.Debugf("resolved memory provider URL (hostname+port) for agent %s: %s", agentID, baseURL)
 	}
 
-	return &memoryProviderInfo{
-		baseURL:      baseURL,
-		providerType: providerType,
-	}, nil
-}
-
-// getMemoryProviderURL is a convenience wrapper that returns only the URL.
-// Used by shared-memory handlers that don't need the provider type.
-func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
-	info, err := a.getMemoryProviderInfo(workspaceID, masID, agentID)
-	if err != nil {
-		return "", err
-	}
-	return info.baseURL, nil
+	return baseURL, nil
 }
 
 // memoryOperationsHandler godoc
@@ -501,10 +476,9 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	masID := eh.PathParam(r, "masId")
 	agentID := eh.PathParam(r, "agentId")
 
-	// Log path parameters for debugging
 	log.Debugf("memory operation request: workspaceId=%s, masId=%s, agentId=%s", workspaceID, masID, agentID)
 
-	// Parse the request body
+	// Parse the request envelope
 	var req memoryoperations.MemoryOperationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
@@ -512,30 +486,27 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	// Validate required fields
 	if req.Payload.HTTPRequestType == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "http-request-type is required",
 		})
 	}
 
-	// Resolve memory provider info from config (URL + provider type).
-	providerInfo, providerErr := a.getMemoryProviderInfo(workspaceID, masID, agentID)
-
-	// If http-url is a full URL, use it directly (useful for development/testing).
+	// Resolve the target URL.
+	// If http-url is already a full URL, use it directly (useful for dev/testing).
 	// Otherwise, resolve the base URL from CfnConfig and join with the relative path.
 	var targetURL string
 	if req.Payload.HTTPURL != "" && (strings.HasPrefix(req.Payload.HTTPURL, "http://") || strings.HasPrefix(req.Payload.HTTPURL, "https://")) {
 		targetURL = req.Payload.HTTPURL
-		log.Infof("using full URL from request: %s", targetURL)
 	} else {
-		if providerErr != nil {
+		memoryProviderBaseURL, err := a.getMemoryProviderURL(workspaceID, masID, agentID)
+		if err != nil {
 			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
-				"error": fmt.Sprintf("failed to find memory provider config: %v", providerErr),
+				"error": fmt.Sprintf("failed to find memory provider config: %v", err),
 			})
 		}
 
-		baseURL, err := url.Parse(providerInfo.baseURL)
+		baseURL, err := url.Parse(memoryProviderBaseURL)
 		if err != nil {
 			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
 				"error": fmt.Sprintf("invalid base URL from config: %v", err),
@@ -555,12 +526,6 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		}
 	}
 
-	// Determine the provider type (from config, or default to mem0)
-	providerType := ProviderMem0
-	if providerInfo != nil {
-		providerType = providerInfo.providerType
-	}
-
 	// Marshal the request body if provided
 	var requestBody []byte
 	if req.Payload.HTTPRequestBody != nil && len(req.Payload.HTTPRequestBody) > 0 {
@@ -573,45 +538,67 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		}
 	}
 
-	// Prepare headers from the envelope
+	// Prepare headers — strip any user-supplied Authorization (security)
 	headers := make(map[string]string)
 	if req.Payload.HTTPHeaders != nil {
-		headers = req.Payload.HTTPHeaders
+		for k, v := range req.Payload.HTTPHeaders {
+			headers[k] = v
+		}
 	}
+	delete(headers, "Authorization")
 
-	// Ensure Content-Type is set for requests with body
 	if requestBody != nil && headers["Content-Type"] == "" {
 		headers["Content-Type"] = "application/json"
 	}
 
-	log.Infof("forwarding %s request to memory provider (%s): %s", req.Payload.HTTPRequestType, providerType, targetURL)
+	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, targetURL)
 
-	// Look up the forwarder for this provider type
-	forwarder, ok := a.memoryForwarders[providerType]
-	if !ok {
+	// Forward the request via the generic proxy client
+	if a.memoryProxyClient == nil {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": fmt.Sprintf("no memory forwarder configured for provider %q", providerType),
+			"error": "memory proxy client is not configured",
 		})
 	}
 
-	proxyResp, err := forwarder.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, targetURL, requestBody, headers)
+	resp, err := a.memoryProxyClient.Do(r.Context(), strings.ToUpper(req.Payload.HTTPRequestType), targetURL, requestBody, headers)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
 		})
 	}
+	defer resp.Body.Close()
 
-	// Build the response envelope
-	response := memoryoperations.MemoryOperationResponse{
-		HTTPStatus:       proxyResp.HTTPStatus,
-		HTTPHeaders:      proxyResp.HTTPHeaders,
-		HTTPResponseBody: proxyResp.HTTPResponseBody,
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to read memory provider response: %v", err),
+		})
 	}
 
-	log.Infof("memory provider responded with status: %d", proxyResp.HTTPStatus)
+	log.Infof("memory provider responded with status: %d", resp.StatusCode)
 
-	// Return the response with 200 status (the actual HTTP status from the memory provider is in the response body)
-	return eh.RespondWithJSON(w, http.StatusOK, response)
+	// Parse JSON response body
+	var respJSON map[string]interface{}
+	if len(respBody) > 0 {
+		if err := json.Unmarshal(respBody, &respJSON); err != nil {
+			respJSON = map[string]interface{}{"raw": string(respBody)}
+		}
+	}
+
+	// Extract response headers
+	respHeaders := make(map[string]string)
+	for k, vals := range resp.Header {
+		if len(vals) > 0 {
+			respHeaders[k] = vals[0]
+		}
+	}
+
+	// Build and return the response envelope
+	return eh.RespondWithJSON(w, http.StatusOK, memoryoperations.MemoryOperationResponse{
+		HTTPStatus:       resp.StatusCode,
+		HTTPHeaders:      respHeaders,
+		HTTPResponseBody: respJSON,
+	})
 }
 
 // stringPtr is a helper function to get a pointer to a string

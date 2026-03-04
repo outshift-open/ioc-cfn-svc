@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
-	graphiticlient "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/graphiti"
-	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 )
 
 func TestMemoryOperationsHandler(t *testing.T) {
@@ -83,16 +83,13 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}
 	cfnConfigMutex.Unlock()
 
-	// Create memory proxy client
-	proxyCfg := mem0client.DefaultProxyClientConfig()
-	proxyCfg.APIKey = "test-api-key" // test-only value, not a real credential
-	memoryProxy := mem0client.NewProxyClient(proxyCfg)
-
-	// Create app with the memory forwarders
+	// Create app with generic memory proxy client
 	app := &App{
-		memoryForwarders: map[string]memoryForwarder{
-			ProviderMem0: &mem0Forwarder{client: memoryProxy},
-		},
+		memoryProxyClient: httpclient.NewWithConfig(&httpclient.Config{
+			Timeout:       5 * time.Minute,
+			MaxRetries:    0,
+			RetryableFunc: func(resp *http.Response, err error) bool { return false },
+		}),
 	}
 
 	// Create request payload (using relative path, handler will resolve full URL from config)
@@ -167,7 +164,7 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}
 }
 
-func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
+func TestMemoryOperationsHandlerNoAuthInjected(t *testing.T) {
 	// Save original CfnConfig and restore after test
 	originalConfig := CfnConfig
 	defer func() {
@@ -176,11 +173,10 @@ func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
 		cfnConfigMutex.Unlock()
 	}()
 
-	// Create a mock Graphiti server
-	mockGraphitiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify no Authorization header is injected
+	// Create a mock server that verifies no Authorization header is injected
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); auth != "" {
-			t.Errorf("expected no Authorization header for graphiti, got '%s'", auth)
+			t.Errorf("expected no Authorization header, got '%s'", auth)
 		}
 
 		if r.Method != http.MethodPost {
@@ -193,14 +189,14 @@ func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
 			"facts": []interface{}{
 				map[string]interface{}{
 					"uuid": "fact-001",
-					"fact": "test fact from graphiti",
+					"fact": "test fact",
 				},
 			},
 		})
 	}))
-	defer mockGraphitiServer.Close()
+	defer mockServer.Close()
 
-	// Set up CfnConfig with graphiti provider
+	// Set up CfnConfig
 	cfnConfigMutex.Lock()
 	CfnConfig = map[string]any{
 		"workspaces": []interface{}{
@@ -211,11 +207,10 @@ func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
 						"id": "mas-456",
 						"agents": []interface{}{
 							map[string]interface{}{
-								"agent_id": "agent-graphiti",
+								"agent_id": "agent-1",
 								"agentic_memory": map[string]interface{}{
-									"memory_provider_name": "graphiti",
 									"config": map[string]interface{}{
-										"host": mockGraphitiServer.URL,
+										"host": mockServer.URL,
 									},
 									"enabled": true,
 								},
@@ -228,12 +223,12 @@ func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
 	}
 	cfnConfigMutex.Unlock()
 
-	// Create app with both forwarders
-	graphitiProxy := graphiticlient.NewProxyClient(nil)
 	app := &App{
-		memoryForwarders: map[string]memoryForwarder{
-			ProviderGraphiti: &graphitiForwarder{client: graphitiProxy},
-		},
+		memoryProxyClient: httpclient.NewWithConfig(&httpclient.Config{
+			Timeout:       5 * time.Minute,
+			MaxRetries:    0,
+			RetryableFunc: func(resp *http.Response, err error) bool { return false },
+		}),
 	}
 
 	requestPayload := memoryoperations.MemoryOperationRequest{
@@ -252,14 +247,14 @@ func TestMemoryOperationsHandlerGraphiti(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-graphiti/memory-operations", bytes.NewReader(requestBody))
+	req, err := http.NewRequest(http.MethodPost, "/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-1/memory-operations", bytes.NewReader(requestBody))
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.SetPathValue("workspaceId", "ws-123")
 	req.SetPathValue("masId", "mas-456")
-	req.SetPathValue("agentId", "agent-graphiti")
+	req.SetPathValue("agentId", "agent-1")
 
 	rr := httptest.NewRecorder()
 	statusCode, err := app.memoryOperationsHandler(rr, req)
@@ -808,129 +803,3 @@ func TestGetMemoryProviderURL(t *testing.T) {
 	}
 }
 
-func TestGetMemoryProviderInfo(t *testing.T) {
-	originalConfig := CfnConfig
-	defer func() {
-		cfnConfigMutex.Lock()
-		CfnConfig = originalConfig
-		cfnConfigMutex.Unlock()
-	}()
-
-	tests := []struct {
-		name             string
-		config           map[string]any
-		expectedURL      string
-		expectedProvider string
-	}{
-		{
-			name: "defaults to mem0 when provider not specified",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "ioc-mem0",
-												"port": float64(8765),
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedURL:      "http://ioc-mem0:8765",
-			expectedProvider: ProviderMem0,
-		},
-		{
-			name: "returns graphiti when provider is graphiti",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"memory_provider_name": "graphiti",
-											"config": map[string]interface{}{
-												"host": "ioc-graphiti",
-												"port": float64(8000),
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedURL:      "http://ioc-graphiti:8000",
-			expectedProvider: ProviderGraphiti,
-		},
-		{
-			name: "explicit mem0 provider",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"memory_provider_name": "mem0",
-											"config": map[string]interface{}{
-												"host": "ioc-mem0",
-												"port": float64(8765),
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedURL:      "http://ioc-mem0:8765",
-			expectedProvider: ProviderMem0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfnConfigMutex.Lock()
-			CfnConfig = tt.config
-			cfnConfigMutex.Unlock()
-
-			app := &App{}
-			info, err := app.getMemoryProviderInfo("ws-1", "mas-1", "agent-1")
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if info.baseURL != tt.expectedURL {
-				t.Errorf("expected URL '%s', got '%s'", tt.expectedURL, info.baseURL)
-			}
-			if info.providerType != tt.expectedProvider {
-				t.Errorf("expected provider '%s', got '%s'", tt.expectedProvider, info.providerType)
-			}
-		})
-	}
-}

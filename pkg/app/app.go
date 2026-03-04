@@ -19,8 +19,6 @@ import (
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
-	graphiticlient "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/graphiti"
-	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"go.uber.org/zap"
@@ -130,7 +128,7 @@ type App struct {
 	// integrated clients
 	db               client.Database
 	s3               client.S3
-	memoryForwarders map[string]memoryForwarder
+	memoryProxyClient *httpclient.Client
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
 }
@@ -159,19 +157,14 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	s3 = client.NewMockS3()
 
-	// Initialise memory provider forwarders (mem0 + graphiti)
-	mem0Cfg := mem0client.DefaultProxyClientConfig()
-	mem0Cfg.APIKey = os.Getenv("MEM0_API_KEY") // Optional - empty string is fine
-	mem0Proxy := mem0client.NewProxyClient(mem0Cfg)
-	log.Infof("mem0 proxy client initialised (API key: %t)", mem0Cfg.APIKey != "")
-
-	graphitiProxy := graphiticlient.NewProxyClient(nil)
-	log.Infof("graphiti proxy client initialised")
-
-	memForwarders := map[string]memoryForwarder{
-		ProviderMem0:     &mem0Forwarder{client: mem0Proxy},
-		ProviderGraphiti: &graphitiForwarder{client: graphitiProxy},
-	}
+	// Initialise generic HTTP client for memory provider proxying.
+	// 5-minute timeout (memory operations involve LLM calls), no retries (prevents duplicate POSTs).
+	memoryCfg := httpclient.DefaultConfig()
+	memoryCfg.Timeout = 5 * time.Minute
+	memoryCfg.MaxRetries = 0
+	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
+	memoryProxyClient := httpclient.NewWithConfig(memoryCfg)
+	log.Infof("memory proxy HTTP client initialised")
 
 	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")
 	log.Infof("knowledge memory service URL: %s", knowledgeMemURL)
@@ -190,7 +183,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		stopChan:              make(chan struct{}),
 		db:                    db,
 		s3:                    s3,
-		memoryForwarders:      memForwarders,
+		memoryProxyClient:     memoryProxyClient,
 		knowledgeMemSvcClient: knowledgeMemClient,
 	}
 
