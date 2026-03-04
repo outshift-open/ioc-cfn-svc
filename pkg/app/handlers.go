@@ -547,6 +547,11 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	}
 	delete(headers, "Authorization")
 
+	// Inject server-configured API key for authentication
+	if a.memoryAPIKey != "" {
+		headers["Authorization"] = "Token " + a.memoryAPIKey
+	}
+
 	if requestBody != nil && headers["Content-Type"] == "" {
 		headers["Content-Type"] = "application/json"
 	}

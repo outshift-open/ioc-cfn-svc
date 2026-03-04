@@ -129,6 +129,7 @@ type App struct {
 	db               client.Database
 	s3               client.S3
 	memoryProxyClient *httpclient.Client
+	memoryAPIKey      string
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
 }
@@ -164,7 +165,8 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	memoryCfg.MaxRetries = 0
 	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
 	memoryProxyClient := httpclient.NewWithConfig(memoryCfg)
-	log.Infof("memory proxy HTTP client initialised")
+	memoryAPIKey := os.Getenv("MEM0_API_KEY")
+	log.Infof("memory proxy HTTP client initialised (API key configured: %t)", memoryAPIKey != "")
 
 	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")
 	log.Infof("knowledge memory service URL: %s", knowledgeMemURL)
@@ -184,6 +186,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		db:                    db,
 		s3:                    s3,
 		memoryProxyClient:     memoryProxyClient,
+		memoryAPIKey:          memoryAPIKey,
 		knowledgeMemSvcClient: knowledgeMemClient,
 	}
 

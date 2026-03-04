@@ -336,7 +336,6 @@ func (c *ProxyClient) doJSON(ctx context.Context, method, endpoint string, reqBo
 	if bodyBytes != nil {
 		headers["Content-Type"] = "application/json"
 	}
-	// Only set Authorization if we have an API key (typed methods always use config auth)
 	if c.cfg.APIKey != "" {
 		headers["Authorization"] = "Token " + c.cfg.APIKey
 	}
