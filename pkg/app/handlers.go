@@ -241,9 +241,9 @@ func resolveQueryRecords(
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body iocmemoryprovider.KnowledgeGraphStoreRequest false "Fetch request"
+// @Param       body        body iocmemoryprovider.KnowledgeGraphQueryRequest false "Query request"
 //
-// @Success     200 {object} iocmemoryprovider.KnowledgeGraphStoreResponse "Query executed successfully"
+// @Success     200 {object} iocmemoryprovider.KnowledgeGraphQueryResponse "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //

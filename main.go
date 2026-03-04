@@ -18,9 +18,10 @@ var gitCommitSHA = "unknown"
 var gitCommitTime = "unknown"
 var gitBranch = "unknown"
 
-// @title			Template API
+// @title		CFN Service API
 // @version		1.0
-// @BasePath		/
+// @description	IoC Cognitive Fabric Node service — shared memory routing, memory operations proxy, and audit trail.
+// @BasePath	/
 func main() {
 	// Load .env file if it exists (ignore error if not found)
 	_ = godotenv.Load()
