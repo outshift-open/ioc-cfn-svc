@@ -31,7 +31,7 @@ func RunTestClient(baseURL string) {
 	client := New(baseURL, 30*time.Second)
 	ctx := context.Background()
 
-	//testSendExtraction(ctx, client)
+	testSendExtraction(ctx, client)
 	testSendReasoningEvidence(ctx, client)
 	//testSendSemanticNegotiation(ctx, client)
 }
