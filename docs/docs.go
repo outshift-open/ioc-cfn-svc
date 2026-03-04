@@ -394,11 +394,11 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Fetch request",
+                        "description": "Query request",
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryRequest"
                         }
                     }
                 ],
@@ -406,7 +406,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Query executed successfully",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse"
+                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponse"
                         }
                     },
                     "400": {
@@ -538,6 +538,14 @@ const docTemplate = `{
                 }
             }
         },
+        "iocmemoryprovider.ConceptRecord": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "iocmemoryprovider.EmbeddingConfig": {
             "type": "object",
             "properties": {
@@ -549,6 +557,80 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "iocmemoryprovider.KnowledgeGraphQueryCriteria": {
+            "type": "object",
+            "properties": {
+                "depth": {
+                    "type": "integer"
+                },
+                "query_type": {
+                    "type": "string"
+                },
+                "use_direction": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "iocmemoryprovider.KnowledgeGraphQueryRequest": {
+            "type": "object",
+            "properties": {
+                "mas_id": {
+                    "type": "string"
+                },
+                "memory_type": {
+                    "type": "string"
+                },
+                "query_criteria": {
+                    "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryCriteria"
+                },
+                "records": {
+                    "$ref": "#/definitions/iocmemoryprovider.QueryRecords"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "wksp_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "iocmemoryprovider.KnowledgeGraphQueryResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
+                    }
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
+                }
+            }
+        },
+        "iocmemoryprovider.KnowledgeGraphQueryResponseRecord": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.Concept"
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.Relation"
+                    }
                 }
             }
         },
@@ -586,6 +668,17 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
+                }
+            }
+        },
+        "iocmemoryprovider.QueryRecords": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.ConceptRecord"
+                    }
                 }
             }
         },
@@ -711,8 +804,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Template API",
-	Description:      "",
+	Title:            "CFN Service API",
+	Description:      "IoC Cognitive Fabric Node service — shared memory routing, memory operations proxy, and audit trail.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
