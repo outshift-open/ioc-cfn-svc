@@ -1,4 +1,4 @@
-// Package cognitiveagents provides DTOs for the cognition agents API handler.
+// Package cognitionagents provides DTOs for the cognition agents API handler.
 //
 // NOTE: Struct fields and JSON tags may change as the API evolves.
 package cognitionagents

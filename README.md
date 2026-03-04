@@ -240,7 +240,7 @@ curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/m
 =======
 ### cognition agents Memory API
 
-**POST /api/memory/** — Query cognition agent memory using natural-language queries and embeddings. Returns ranked hits per query. See `pkg/app/httpapi/cognitiveagents/` for DTOs.
+**POST /api/memory/** — Query cognition agent memory using natural-language queries and embeddings. Returns ranked hits per query. See `pkg/app/httpapi/cognitionagents/` for DTOs.
 
 > **Note:** API route and structs may change as core logic is implemented.
 
@@ -570,11 +570,11 @@ main.go             # Entry point
 pkg/
   app/              # Routes, handlers, startup registration
     httpapi/
-      cognitiveagents/  # DTOs for cognition agents memory API
+      cognitionagents/  # DTOs for cognition agents memory API
       sharedmemory/     # DTOs for shared memory API
   audit/            # Audit logging
   client/
-    cognitiveagentclient/  # Client for external cognition agents API
+    cognitionagentclient/  # Client for external cognition agents API
     http/           # Robust HTTP client with retries
     mcp/            # MCP client/server implementation
   config/           # Configuration
