@@ -18,7 +18,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Create cognition agent memory",
                 "parameters": [
@@ -71,7 +71,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search cognition agent memory concepts",
                 "parameters": [
@@ -124,7 +124,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search memory paths",
                 "parameters": [
@@ -177,7 +177,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search cognition agent memory",
                 "parameters": [

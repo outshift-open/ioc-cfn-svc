@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Create cognition agent memory",
                 "parameters": [
@@ -78,7 +78,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search cognition agent memory concepts",
                 "parameters": [
@@ -131,7 +131,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search memory paths",
                 "parameters": [
@@ -184,7 +184,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "cognitive-agents"
+                    "cognition-agents"
                 ],
                 "summary": "Search cognition agent memory",
                 "parameters": [

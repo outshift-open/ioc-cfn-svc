@@ -435,7 +435,7 @@ paths:
             $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
       summary: Create cognition agent memory
       tags:
-      - cognitive-agents
+      - cognition-agents
   /api/cfn/{cfnId}/memory/concepts/search:
     post:
       consumes:
@@ -470,7 +470,7 @@ paths:
             $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
       summary: Search cognition agent memory concepts
       tags:
-      - cognitive-agents
+      - cognition-agents
   /api/cfn/{cfnId}/memory/paths/search:
     post:
       consumes:
@@ -505,7 +505,7 @@ paths:
             $ref: '#/definitions/cognitionagents.PathsSearchResponse'
       summary: Search memory paths
       tags:
-      - cognitive-agents
+      - cognition-agents
   /api/cfn/{cfnId}/memory/search:
     post:
       consumes:
@@ -541,7 +541,7 @@ paths:
             $ref: '#/definitions/cognitionagents.MemorySearchResponse'
       summary: Search cognition agent memory
       tags:
-      - cognitive-agents
+      - cognition-agents
   /api/internal/audit-events:
     get:
       description: Returns audit events with optional resource_type and audit_type
