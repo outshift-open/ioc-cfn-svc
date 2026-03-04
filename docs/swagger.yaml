@@ -70,6 +70,11 @@ definitions:
           type: string
         type: array
     type: object
+  iocmemoryprovider.ConceptRecord:
+    properties:
+      id:
+        type: string
+    type: object
   iocmemoryprovider.EmbeddingConfig:
     properties:
       data:
@@ -78,6 +83,54 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  iocmemoryprovider.KnowledgeGraphQueryCriteria:
+    properties:
+      depth:
+        type: integer
+      query_type:
+        type: string
+      use_direction:
+        type: boolean
+    type: object
+  iocmemoryprovider.KnowledgeGraphQueryRequest:
+    properties:
+      mas_id:
+        type: string
+      memory_type:
+        type: string
+      query_criteria:
+        $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryCriteria'
+      records:
+        $ref: '#/definitions/iocmemoryprovider.QueryRecords'
+      request_id:
+        type: string
+      wksp_id:
+        type: string
+    type: object
+  iocmemoryprovider.KnowledgeGraphQueryResponse:
+    properties:
+      message:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord'
+        type: array
+      request_id:
+        type: string
+      status:
+        $ref: '#/definitions/iocmemoryprovider.ResponseStatus'
+    type: object
+  iocmemoryprovider.KnowledgeGraphQueryResponseRecord:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.Concept'
+        type: array
+      relationships:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.Relation'
+        type: array
     type: object
   iocmemoryprovider.KnowledgeGraphStoreRequest:
     properties:
@@ -102,6 +155,13 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/iocmemoryprovider.ResponseStatus'
+    type: object
+  iocmemoryprovider.QueryRecords:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.ConceptRecord'
+        type: array
     type: object
   iocmemoryprovider.Records:
     properties:
@@ -183,7 +243,9 @@ definitions:
     type: object
 info:
   contact: {}
-  title: Template API
+  description: IoC Cognitive Fabric Node service — shared memory routing, memory operations
+    proxy, and audit trail.
+  title: CFN Service API
   version: "1.0"
 paths:
   /api/internal/audit-events:
@@ -439,18 +501,18 @@ paths:
         name: masId
         required: true
         type: string
-      - description: Fetch request
+      - description: Query request
         in: body
         name: body
         schema:
-          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest'
+          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Query executed successfully
           schema:
-            $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse'
+            $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponse'
         "400":
           description: Invalid request
           schema:
