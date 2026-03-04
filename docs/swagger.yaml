@@ -52,6 +52,159 @@ definitions:
       resource_type:
         type: string
     type: object
+  cognitionagents.ConceptsSearchRequest:
+    properties:
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+    type: object
+  cognitionagents.ConceptsSearchResponse:
+    properties:
+      error:
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      response_id:
+        type: string
+      results:
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+    type: object
+  cognitionagents.ErrorDetail:
+    properties:
+      detail:
+        additionalProperties: true
+        type: object
+      message:
+        type: string
+    type: object
+  cognitionagents.Header:
+    properties:
+      agent_id:
+        description: Optional
+        type: string
+      mas_id:
+        description: Mandatory
+        type: string
+      workspace_id:
+        description: Mandatory
+        type: string
+    type: object
+  cognitionagents.MemoryCreateRequest:
+    properties:
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+    type: object
+  cognitionagents.MemoryCreateResponse:
+    properties:
+      error:
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      response_id:
+        type: string
+    type: object
+  cognitionagents.MemorySearchRequest:
+    properties:
+      embeding:
+        description: Kept as "embeding" per API spec
+        items:
+          type: number
+        type: array
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      k:
+        type: integer
+      queries:
+        items:
+          type: string
+        type: array
+    type: object
+  cognitionagents.MemorySearchResponse:
+    properties:
+      error:
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      response_id:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/cognitionagents.QueryResult'
+        type: array
+    type: object
+  cognitionagents.PathEdge:
+    properties:
+      from_id:
+        type: string
+      from_name:
+        type: string
+      relation:
+        type: string
+      to_id:
+        type: string
+      to_name:
+        type: string
+    type: object
+  cognitionagents.PathResult:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/cognitionagents.PathEdge'
+        type: array
+      node_ids:
+        items:
+          type: string
+        type: array
+      path_length:
+        type: integer
+      symbolic:
+        type: string
+    type: object
+  cognitionagents.PathsSearchPayload:
+    properties:
+      from_id:
+        type: string
+      max_depth:
+        type: integer
+      relations:
+        items:
+          type: string
+        type: array
+      to_id:
+        type: string
+    type: object
+  cognitionagents.PathsSearchRequest:
+    properties:
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      payload:
+        $ref: '#/definitions/cognitionagents.PathsSearchPayload'
+    type: object
+  cognitionagents.PathsSearchResponse:
+    properties:
+      error:
+        $ref: '#/definitions/cognitionagents.ErrorDetail'
+      header:
+        $ref: '#/definitions/cognitionagents.Header'
+      paths:
+        items:
+          $ref: '#/definitions/cognitionagents.PathResult'
+        type: array
+      response_id:
+        type: string
+    type: object
+  cognitionagents.QueryResult:
+    properties:
+      hits:
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      query:
+        type: string
+    type: object
   iocmemoryprovider.Concept:
     properties:
       attributes:
@@ -248,6 +401,147 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/cfn/{cfnId}/memory:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new memory record for a cognition agent
+      parameters:
+      - description: CFN ID
+        in: path
+        name: cfnId
+        required: true
+        type: string
+      - description: Memory create request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionagents.MemoryCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/cognitionagents.MemoryCreateResponse'
+      summary: Create cognition agent memory
+      tags:
+      - cognition-agents
+  /api/cfn/{cfnId}/memory/concepts/search:
+    post:
+      consumes:
+      - application/json
+      description: Searches memory concepts for a cognition agent
+      parameters:
+      - description: CFN ID
+        in: path
+        name: cfnId
+        required: true
+        type: string
+      - description: Concepts search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionagents.ConceptsSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/cognitionagents.ConceptsSearchResponse'
+      summary: Search cognition agent memory concepts
+      tags:
+      - cognition-agents
+  /api/cfn/{cfnId}/memory/paths/search:
+    post:
+      consumes:
+      - application/json
+      description: Searches for paths between two nodes in cognition agent memory
+      parameters:
+      - description: CFN ID
+        in: path
+        name: cfnId
+        required: true
+        type: string
+      - description: Paths search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionagents.PathsSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/cognitionagents.PathsSearchResponse'
+      summary: Search memory paths
+      tags:
+      - cognition-agents
+  /api/cfn/{cfnId}/memory/search:
+    post:
+      consumes:
+      - application/json
+      description: Searches cognition agent memory with natural-language queries and
+        embeddings
+      parameters:
+      - description: CFN ID
+        in: path
+        name: cfnId
+        required: true
+        type: string
+      - description: Memory search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionagents.MemorySearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/cognitionagents.MemorySearchResponse'
+      summary: Search cognition agent memory
+      tags:
+      - cognition-agents
   /api/internal/audit-events:
     get:
       description: Returns audit events with optional resource_type and audit_type

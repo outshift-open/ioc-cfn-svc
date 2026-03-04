@@ -15,6 +15,218 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/cfn/{cfnId}/memory": {
+            "post": {
+                "description": "Creates a new memory record for a cognition agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Create cognition agent memory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Memory create request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/concepts/search": {
+            "post": {
+                "description": "Searches memory concepts for a cognition agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search cognition agent memory concepts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concepts search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/paths/search": {
+            "post": {
+                "description": "Searches for paths between two nodes in cognition agent memory",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search memory paths",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Paths search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/search": {
+            "post": {
+                "description": "Searches cognition agent memory with natural-language queries and embeddings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search cognition agent memory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Memory search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/audit-events": {
             "get": {
                 "description": "Returns audit events with optional resource_type and audit_type query filters",
@@ -507,6 +719,239 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resource_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.ConceptsSearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                }
+            }
+        },
+        "cognitionagents.ConceptsSearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                }
+            }
+        },
+        "cognitionagents.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "Optional",
+                    "type": "string"
+                },
+                "mas_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.MemoryCreateRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                }
+            }
+        },
+        "cognitionagents.MemoryCreateResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.MemorySearchRequest": {
+            "type": "object",
+            "properties": {
+                "embeding": {
+                    "description": "Kept as \"embeding\" per API spec",
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "k": {
+                    "type": "integer"
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "cognitionagents.MemorySearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.QueryResult"
+                    }
+                }
+            }
+        },
+        "cognitionagents.PathEdge": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "relation": {
+                    "type": "string"
+                },
+                "to_id": {
+                    "type": "string"
+                },
+                "to_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathResult": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.PathEdge"
+                    }
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_length": {
+                    "type": "integer"
+                },
+                "symbolic": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchPayload": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "max_depth": {
+                    "type": "integer"
+                },
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "to_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "payload": {
+                    "$ref": "#/definitions/cognitionagents.PathsSearchPayload"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/cognitionagents.Header"
+                },
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.PathResult"
+                    }
+                },
+                "response_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.QueryResult": {
+            "type": "object",
+            "properties": {
+                "hits": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "query": {
                     "type": "string"
                 }
             }
