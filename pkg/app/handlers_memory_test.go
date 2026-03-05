@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 )
 
@@ -87,8 +88,8 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	proxyCfg.APIKey = "test-api-key" // test-only value, not a real credential
 	memoryProxy := mem0client.NewProxyClient(proxyCfg)
 
-	// Create app with the memory proxy client
-	app := &App{memoryClient: memoryProxy}
+	// Create app with the memory proxy client and mock database
+	app := &App{memoryClient: memoryProxy, db: client.NewMockDatabase()}
 
 	// Create request payload (using relative path, handler will resolve full URL from config)
 	requestPayload := memoryoperations.MemoryOperationRequest{

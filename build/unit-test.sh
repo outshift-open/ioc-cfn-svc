@@ -1,6 +1,9 @@
-#!/bin/bash -e
+#!/bin/bash
 # Run unit tests with coverage
+set -o pipefail
 go test -v -count=1 -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt
+TEST_EXIT=$?
+set +o pipefail
 
 # Print test summary
 echo ""
@@ -18,3 +21,6 @@ go tool cover -func=coverage.out | tail -1
 
 # Cleanup
 rm -f test-output.txt coverage.out
+
+# Exit with the test result so CI sees red on failure
+exit $TEST_EXIT
