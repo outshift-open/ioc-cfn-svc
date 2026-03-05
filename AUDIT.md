@@ -177,6 +177,40 @@ Uses SQLite in-memory DB via GORM. Covers:
 
 Tests HTTP handlers using `MockDatabase`.
 
+## Handler Audit Trails
+
+Each handler emits a **start** audit event before the operation and an **end** audit event on success or failure. All audit information is stored as JSON in the `audit_information` field.
+
+### Upsert Shared Memories (`upsertSharedMemoriesHandler`)
+
+| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
+|-------|--------------|------------|---------------------|--------------------------|-------------------|
+| Start | `MAS` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"STARTED"}` |
+| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"SUCCESS"}` |
+| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+
+### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
+
+| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
+|-------|--------------|------------|---------------------|--------------------------|-------------------|
+| Start | `MAS` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"STARTED"}` |
+| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"SUCCESS"}` |
+| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+
+### Memory Operations (`memoryOperationsHandler`)
+
+| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
+|-------|--------------|------------|---------------------|--------------------------|-------------------|
+| Start | `MAS-AGENT` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"STARTED"}` |
+| Success | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"SUCCESS","http_status":"..."}` |
+| Failure | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"FAILED","error":"..."}` |
+
+### Common Fields
+
+- **`OperationID`**: Random UUID linking start/end events for the same request (TBD — will be replaced with trace/correlation ID)
+- **`CreatedBy` / `LastModifiedBy`**: Currently `uuid.Nil` (placeholder)
+- **`AuditExtraInformation`**: Set to the error message string on failure events; absent on start/success
+
 ## Key Design Decisions
 
 1. **Immutability**: No update endpoint exists. Events are append-only (delete is internal-only).
