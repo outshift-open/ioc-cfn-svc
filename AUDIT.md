@@ -39,7 +39,7 @@ pkg/client/database/database.go — Real (Postgres) Database implementation
 
 | Constant | Value |
 |----------|-------|
-| `ResourceTypeCognitiveEngine` | `COGNITIVE_ENGINE` |
+| `ResourceTypeCognitionEngine` | `COGNITION_ENGINE` |
 | `ResourceTypePolicyEnforcer` | `POLICY_ENFORCER` |
 | `ResourceTypeMemoryProvider` | `MEMORY_PROVIDER` |
 | `ResourceTypeMAS` | `MAS` |
@@ -58,6 +58,7 @@ pkg/client/database/database.go — Real (Postgres) Database implementation
 | `AuditTypeResourcePruned` | `RESOURCE_PRUNED` |
 | `AuditTypeKnowledgeIngestion` | `KNOWLEDGE_INGESTION` |
 | `AuditTypeKnowledgeQuery` | `KNOWLEDGE_QUERY` |
+| `AuditTypeMemoryOperation` | `MEMORY_OPERATION` |
 
 Both enums are validated on create and list operations. Invalid values return an error with the list of valid options.
 

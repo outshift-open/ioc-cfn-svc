@@ -686,19 +686,15 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	// TODO: operationID is currently a random UUID; replace with a consistent request ID
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
-	auditType := httpMethodToAuditType(req.Payload.HTTPRequestType)
-
 	// Audit: start of memory operation
 	startAuditInfo, _ := json.Marshal(map[string]string{
-		"status":            "STARTED",
-		"http_request_type": req.Payload.HTTPRequestType,
-		"http_url":          req.Payload.HTTPURL,
+		"status": "STARTED",
 	})
 	startAudit := &audit.Audit{
 		OperationID:        &operationID,
 		ResourceType:       audit.ResourceTypeMASAgent,
 		ResourceIdentifier: masID,
-		AuditType:          auditType,
+		AuditType:          audit.AuditTypeMemoryOperation,
 		// TODO: AuditResourceIdentifier may change to a different identifier if required.
 		AuditResourceIdentifier: agentID,
 		AuditInformation:        datatypes.JSON(startAuditInfo),
@@ -714,16 +710,14 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		// Audit: end of memory operation (failure - client not configured)
 		errMsg := "memory proxy client is not configured"
 		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status":            "FAILED",
-			"http_request_type": req.Payload.HTTPRequestType,
-			"http_url":          req.Payload.HTTPURL,
-			"error":             errMsg,
+			"status": "FAILED",
+			"error":  errMsg,
 		})
 		endAudit := &audit.Audit{
 			OperationID:        &operationID,
 			ResourceType:       audit.ResourceTypeMemoryProvider,
 			ResourceIdentifier: masID,
-			AuditType:          auditType,
+			AuditType:          audit.AuditTypeMemoryOperation,
 			// TODO: AuditResourceIdentifier may change to a different identifier if required.
 			AuditResourceIdentifier: agentID,
 			AuditInformation:        datatypes.JSON(endAuditInfo),
@@ -745,16 +739,14 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		// Audit: end of memory operation (failure)
 		errMsg := err.Error()
 		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status":            "FAILED",
-			"http_request_type": req.Payload.HTTPRequestType,
-			"http_url":          req.Payload.HTTPURL,
-			"error":             errMsg,
+			"status": "FAILED",
+			"error":  errMsg,
 		})
 		endAudit := &audit.Audit{
 			OperationID:        &operationID,
 			ResourceType:       audit.ResourceTypeMemoryProvider,
 			ResourceIdentifier: masID,
-			AuditType:          auditType,
+			AuditType:          audit.AuditTypeMemoryOperation,
 			// TODO: AuditResourceIdentifier may change to a different identifier if required.
 			AuditResourceIdentifier: agentID,
 			AuditInformation:        datatypes.JSON(endAuditInfo),
@@ -782,16 +774,14 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 
 	// Audit: end of memory operation (success)
 	endAuditInfo, _ := json.Marshal(map[string]string{
-		"status":            "SUCCESS",
-		"http_request_type": req.Payload.HTTPRequestType,
-		"http_url":          req.Payload.HTTPURL,
-		"http_status":       fmt.Sprintf("%d", proxyResp.HTTPStatus),
+		"status":      "SUCCESS",
+		"http_status": fmt.Sprintf("%d", proxyResp.HTTPStatus),
 	})
 	endAudit := &audit.Audit{
 		OperationID:        &operationID,
 		ResourceType:       audit.ResourceTypeMemoryProvider,
 		ResourceIdentifier: masID,
-		AuditType:          auditType,
+		AuditType:          audit.AuditTypeMemoryOperation,
 		// TODO: AuditResourceIdentifier may change to a different identifier if required.
 		AuditResourceIdentifier: agentID,
 		AuditInformation:        datatypes.JSON(endAuditInfo),
@@ -806,23 +796,6 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
-// httpMethodToAuditType maps an HTTP method to the most suitable audit type.
-func httpMethodToAuditType(method string) string {
-	switch strings.ToUpper(method) {
-	case "POST":
-		return audit.AuditTypeResourceCreated
-	case "PUT":
-		return audit.AuditTypeResourceUpdated
-	case "PATCH":
-		return audit.AuditTypeResourceUpdated
-	case "DELETE":
-		return audit.AuditTypeResourceDeleted
-	case "GET":
-		return audit.AuditTypeKnowledgeQuery
-	default:
-		return audit.AuditTypeResourceUpdated
-	}
-}
 
 // stringPtr is a helper function to get a pointer to a string
 func stringPtr(s string) *string {
