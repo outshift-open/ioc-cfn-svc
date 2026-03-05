@@ -12,7 +12,7 @@ import (
 
 // ResourceType enum values
 const (
-	ResourceTypeCognitiveEngine = "COGNITIVE_ENGINE"
+	ResourceTypeCognitionEngine = "COGNITION_ENGINE"
 	ResourceTypePolicyEnforcer  = "POLICY_ENFORCER"
 	ResourceTypeMemoryProvider  = "MEMORY_PROVIDER"
 	ResourceTypeMAS             = "MAS"
@@ -30,10 +30,11 @@ const (
 	AuditTypeResourcePruned     = "RESOURCE_PRUNED"
 	AuditTypeKnowledgeIngestion = "KNOWLEDGE_INGESTION"
 	AuditTypeKnowledgeQuery     = "KNOWLEDGE_QUERY"
+	AuditTypeMemoryOperation    = "MEMORY_OPERATION"
 )
 
 var validResourceTypes = map[string]bool{
-	ResourceTypeCognitiveEngine: true,
+	ResourceTypeCognitionEngine: true,
 	ResourceTypePolicyEnforcer:  true,
 	ResourceTypeMemoryProvider:  true,
 	ResourceTypeMAS:             true,
@@ -50,6 +51,7 @@ var validAuditTypes = map[string]bool{
 	AuditTypeResourcePruned:     true,
 	AuditTypeKnowledgeIngestion: true,
 	AuditTypeKnowledgeQuery:     true,
+	AuditTypeMemoryOperation:    true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.

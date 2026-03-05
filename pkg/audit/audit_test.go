@@ -34,7 +34,7 @@ func TestCreateAuditEvent(t *testing.T) {
 	extra := "SUCCESS"
 	a := &Audit{
 		OperationID:             &opID,
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-456",
 		AuditType:               AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-456",
@@ -84,7 +84,7 @@ func TestListAuditEvents_NoFilters(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		a := &Audit{
-			ResourceType:            ResourceTypeCognitiveEngine,
+			ResourceType:            ResourceTypeCognitionEngine,
 			ResourceIdentifier:      "ce-1",
 			AuditType:               AuditTypeResourceCreated,
 			AuditResourceIdentifier: "ce-1",
@@ -103,7 +103,7 @@ func TestListAuditEvents_FilterByResourceType(t *testing.T) {
 	db := setupTestDB(t)
 
 	a1 := &Audit{
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -131,7 +131,7 @@ func TestListAuditEvents_FilterByAuditType(t *testing.T) {
 	db := setupTestDB(t)
 
 	a1 := &Audit{
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -139,7 +139,7 @@ func TestListAuditEvents_FilterByAuditType(t *testing.T) {
 		LastModifiedBy:          uuid.New(),
 	}
 	a2 := &Audit{
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               AuditTypeResourceDeleted,
 		AuditResourceIdentifier: "ce-1",
@@ -159,7 +159,7 @@ func TestListAuditEvents_FilterByBoth(t *testing.T) {
 	db := setupTestDB(t)
 
 	a1 := &Audit{
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -197,7 +197,7 @@ func TestDeleteAuditEventByID(t *testing.T) {
 	db := setupTestDB(t)
 
 	a := &Audit{
-		ResourceType:            ResourceTypeCognitiveEngine,
+		ResourceType:            ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -222,7 +222,7 @@ func TestDeleteAuditEventByID_NotFound(t *testing.T) {
 }
 
 func TestEnumConstants(t *testing.T) {
-	assert.Equal(t, "COGNITIVE_ENGINE", ResourceTypeCognitiveEngine)
+	assert.Equal(t, "COGNITION_ENGINE", ResourceTypeCognitionEngine)
 	assert.Equal(t, "POLICY_ENFORCER", ResourceTypePolicyEnforcer)
 	assert.Equal(t, "MEMORY_PROVIDER", ResourceTypeMemoryProvider)
 	assert.Equal(t, "MAS", ResourceTypeMAS)
@@ -237,4 +237,5 @@ func TestEnumConstants(t *testing.T) {
 	assert.Equal(t, "RESOURCE_PRUNED", AuditTypeResourcePruned)
 	assert.Equal(t, "KNOWLEDGE_INGESTION", AuditTypeKnowledgeIngestion)
 	assert.Equal(t, "KNOWLEDGE_QUERY", AuditTypeKnowledgeQuery)
+	assert.Equal(t, "MEMORY_OPERATION", AuditTypeMemoryOperation)
 }
