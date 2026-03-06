@@ -384,7 +384,7 @@ func (a *App) startHeartbeat(mgmtURL string) {
 						continue
 					}
 
-					log.Infof("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
+					log.Debugf("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
 
 					// Refresh config if server has newer config
 					if newTime.After(currentTime) {
@@ -397,7 +397,6 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					}
 				}
 
-				log.Info("heartbeat successful")
 				log.Debugf("heartbeat successful, url=%s, status=%d", heartbeatURL, resp.StatusCode)
 			} else {
 				resp.Body.Close()
