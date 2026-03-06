@@ -8,11 +8,13 @@ import (
 	"net/http"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 func jsonEscapeString(s string) string {
@@ -207,17 +209,81 @@ func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request
 		Records:      TransformExtractionResponseToRecords(extractionResp),
 	}
 
+	// TODO: operationID is currently a random UUID; replace with a consistent request ID
+	// (e.g. trace ID or correlation ID from the incoming request) once available.
+	operationID := uuid.New().String()
+
+	// Audit: start of knowledge ingestion
+	startAuditInfo, _ := json.Marshal(map[string]string{
+		"status": "STARTED",
+	})
+	startAudit := &audit.Audit{
+		OperationID:        &operationID,
+		ResourceType:       audit.ResourceTypeMAS,
+		ResourceIdentifier: masID,
+		AuditType:          audit.AuditTypeKnowledgeIngestion,
+		// TODO: AuditResourceIdentifier may change to a different identifier if required.
+		AuditResourceIdentifier: masID,
+		AuditInformation:        datatypes.JSON(startAuditInfo),
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if err := a.db.CreateAuditEvent(startAudit); err != nil {
+		log.Errorf("failed to create start audit event: %v", err)
+	}
+
 	knowledgeGraphResp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
 	if err != nil {
 		log.Errorf(
 			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
 			workspaceID, masID, err,
 		)
+		// Audit: end of knowledge ingestion (failure)
+		errMsg := err.Error()
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		endAudit := &audit.Audit{
+			OperationID:        &operationID,
+			ResourceType:       audit.ResourceTypeMemoryProvider,
+			ResourceIdentifier: masID,
+			AuditType:          audit.AuditTypeKnowledgeIngestion,
+			// TODO: AuditResourceIdentifier may change to a different identifier if required.
+			AuditResourceIdentifier: masID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create end audit event: %v", auditErr)
+		}
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
 			map[string]string{"error": fmt.Sprintf("failed to upsert shared memories, error: %v", err)},
 		)
+	}
+
+	// Audit: end of knowledge ingestion (success)
+	endAuditInfo, _ := json.Marshal(map[string]string{
+		"status": "SUCCESS",
+	})
+	endAudit := &audit.Audit{
+		OperationID:        &operationID,
+		ResourceType:       audit.ResourceTypeMemoryProvider,
+		ResourceIdentifier: masID,
+		AuditType:          audit.AuditTypeKnowledgeIngestion,
+		// TODO: AuditResourceIdentifier may change to a different identifier if required.
+		AuditResourceIdentifier: masID,
+		AuditInformation:        datatypes.JSON(endAuditInfo),
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+		log.Errorf("failed to create end audit event: %v", auditErr)
 	}
 
 	resp := &sharedmemory.UpsertResponse{
@@ -317,6 +383,29 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("reasoner response: %+v", reasonerResp)
 
+	// TODO: operationID is currently a random UUID; replace with a consistent request ID
+	// (e.g. trace ID or correlation ID from the incoming request) once available.
+	operationID := uuid.New().String()
+
+	// Audit: start of knowledge query
+	startAuditInfo, _ := json.Marshal(map[string]string{
+		"status": "STARTED",
+	})
+	startAudit := &audit.Audit{
+		OperationID:        &operationID,
+		ResourceType:       audit.ResourceTypeMAS,
+		ResourceIdentifier: masID,
+		AuditType:          audit.AuditTypeKnowledgeQuery,
+		// TODO: AuditResourceIdentifier may change to a different identifier if required.
+		AuditResourceIdentifier: masID,
+		AuditInformation:        datatypes.JSON(startAuditInfo),
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if err := a.db.CreateAuditEvent(startAudit); err != nil {
+		log.Errorf("failed to create start audit event: %v", err)
+	}
+
 	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphQueryRequest{
 		RequestID: *requestId,
 		WkspID:    &workspaceID,
@@ -343,11 +432,53 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			"Knowledge graph query failed | type=%s workspace=%s mas=%s err=%v",
 			iocmemoryprovider.QueryTypeConcept, workspaceID, masID, err,
 		)
+
+		// Audit: end of knowledge query (failure)
+		errMsg := err.Error()
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		endAudit := &audit.Audit{
+			OperationID:        &operationID,
+			ResourceType:       audit.ResourceTypeMemoryProvider,
+			ResourceIdentifier: masID,
+			AuditType:          audit.AuditTypeKnowledgeQuery,
+			// TODO: AuditResourceIdentifier may change to a different identifier if required.
+			AuditResourceIdentifier: masID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create end audit event: %v", auditErr)
+		}
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
 			map[string]string{"error": fmt.Sprintf("failed to fetch shared memories: %v", err)},
 		)
+	}
+
+	// Audit: end of knowledge query (success)
+	endAuditInfo, _ := json.Marshal(map[string]string{
+		"status": "SUCCESS",
+	})
+	endAudit := &audit.Audit{
+		OperationID:        &operationID,
+		ResourceType:       audit.ResourceTypeMemoryProvider,
+		ResourceIdentifier: masID,
+		AuditType:          audit.AuditTypeKnowledgeQuery,
+		// TODO: AuditResourceIdentifier may change to a different identifier if required.
+		AuditResourceIdentifier: masID,
+		AuditInformation:        datatypes.JSON(endAuditInfo),
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+		log.Errorf("failed to create end audit event: %v", auditErr)
 	}
 
 	resp := sharedmemory.QueryResponse{
