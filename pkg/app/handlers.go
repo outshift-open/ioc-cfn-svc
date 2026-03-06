@@ -1,10 +1,10 @@
 package app
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -32,7 +31,25 @@ func (a *App) getCfnDummyHandler(w http.ResponseWriter, r *http.Request) (int, e
 	})
 }
 
-// getMemoryProviderURL retrieves the memory provider URL from CfnConfig for a specific agent.
+// memoryProviderConfig holds the resolved memory provider configuration for an agent.
+type memoryProviderConfig struct {
+	baseURL      string
+	providerName string
+	auth         *memoryProviderAuth // nil when type="none" or auth absent
+}
+
+// memoryProviderAuth holds auth credentials parsed from the management plane config.
+type memoryProviderAuth struct {
+	authType    string // "none", "token", "bearer", "basic", "custom"
+	apiKey      string // for "token"
+	accessToken string // for "bearer"
+	username    string // for "basic"
+	password    string // for "basic"
+	headerName  string // for "custom"
+	headerValue string // for "custom"
+}
+
+// getMemoryProviderConfig retrieves the full memory provider config (URL + auth) from CfnConfig for a specific agent.
 // It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
 func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memoryProviderConfig, error) {
 	log := getLogger()
