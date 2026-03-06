@@ -20,7 +20,6 @@ import (
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
-	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 	"go.uber.org/zap"
@@ -128,9 +127,9 @@ type App struct {
 	stopChan         chan struct{}
 
 	// integrated clients
-	db           client.Database
-	s3           client.S3
-	memoryClient *mem0client.ProxyClient
+	db                client.Database
+	s3                client.S3
+	memoryProxyClient *httpclient.Client
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
 	cognitionAgentsClient *cognitionagentclient.Client
@@ -160,12 +159,15 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	s3 = client.NewMockS3()
 
-	// Initialise the lightweight memory proxy client (always available)
-	// API key is optional - only needed if memory provider requires authentication
-	proxyCfg := mem0client.DefaultProxyClientConfig()
-	proxyCfg.APIKey = os.Getenv("MEM0_API_KEY") // Optional - empty string is fine
-	memoryProxy := mem0client.NewProxyClient(proxyCfg)
-	log.Infof("memory proxy client initialised (API key: %t)", proxyCfg.APIKey != "")
+	// Initialise generic HTTP client for memory provider proxying.
+	// 5-minute timeout (memory operations involve LLM calls), no retries (prevents duplicate POSTs).
+	// Auth credentials come from management plane config per-agent, not env vars.
+	memoryCfg := httpclient.DefaultConfig()
+	memoryCfg.Timeout = 5 * time.Minute
+	memoryCfg.MaxRetries = 0
+	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
+	memoryProxyClient := httpclient.NewWithConfig(memoryCfg)
+	log.Infof("memory proxy HTTP client initialised")
 
 	knowledgeMemURL := getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003")
 	log.Infof("knowledge memory service URL: %s", knowledgeMemURL)
@@ -188,7 +190,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		stopChan:              make(chan struct{}),
 		db:                    db,
 		s3:                    s3,
-		memoryClient:          memoryProxy,
+		memoryProxyClient:     memoryProxyClient,
 		knowledgeMemSvcClient: knowledgeMemClient,
 		cognitionAgentsClient: cognitionAgentsClient,
 	}
@@ -391,7 +393,7 @@ func (a *App) startHeartbeat(mgmtURL string) {
 						continue
 					}
 
-					log.Infof("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
+					log.Debugf("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
 
 					// Refresh config if server has newer config
 					if newTime.After(currentTime) {
@@ -404,7 +406,6 @@ func (a *App) startHeartbeat(mgmtURL string) {
 					}
 				}
 
-				log.Info("heartbeat successful")
 				log.Debugf("heartbeat successful, url=%s, status=%d", heartbeatURL, resp.StatusCode)
 			} else {
 				resp.Body.Close()

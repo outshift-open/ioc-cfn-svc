@@ -303,7 +303,7 @@ curl -X POST http://localhost:9002/api/internal/audit-events \
   -H "Content-Type: application/json" \
   -d '{
     "operation_id": "op-12345",
-    "resource_type": "COGNITIVE_ENGINE",
+    "resource_type": "COGNITION_ENGINE",
     "resource_identifier": "ce-123",
     "audit_type": "RESOURCE_CREATED",
     "audit_resource_identifier": "ce-123",
@@ -320,9 +320,9 @@ Response: `200 OK`
 **Request Body:**
 | Field | Required | Description |
 |-------|----------|-------------|
-| `resource_type` | Yes | `COGNITIVE_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
+| `resource_type` | Yes | `COGNITION_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
 | `resource_identifier` | Yes | Identifier of the resource |
-| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY` |
+| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY`, `MEMORY_OPERATION` |
 | `audit_resource_identifier` | Yes | Identifier of the audited resource |
 | `operation_id` | No(TBD will change) | Optional operation correlation ID |
 | `audit_information` | No | Optional JSON object with additional details |
@@ -341,7 +341,7 @@ curl http://localhost:9002/api/internal/audit-events
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "operation_id": "op-12345",
-    "resource_type": "COGNITIVE_ENGINE",
+    "resource_type": "COGNITION_ENGINE",
     "resource_identifier": "engine-123",
     "audit_type": "RESOURCE_CREATED",
     "audit_resource_identifier": "cognitive-engine-456",
@@ -354,14 +354,14 @@ curl http://localhost:9002/api/internal/audit-events
 ]
 
 # Filter by resource_type
-curl "http://localhost:9002/api/internal/audit-events?resource_type=COGNITIVE_ENGINE"
+curl "http://localhost:9002/api/internal/audit-events?resource_type=COGNITION_ENGINE"
 
 # Response:
 [
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "operation_id": "op-12345",
-    "resource_type": "COGNITIVE_ENGINE",
+    "resource_type": "COGNITION_ENGINE",
     "resource_identifier": "engine-123",
     "audit_type": "RESOURCE_CREATED",
     "audit_resource_identifier": "cognitive-engine-456",
@@ -423,7 +423,7 @@ curl http://localhost:9002/api/internal/audit-events/<event-id>
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "operation_id": "op-12345",
-  "resource_type": "COGNITIVE_ENGINE",
+  "resource_type": "COGNITION_ENGINE",
   "resource_identifier": "ce-123",
   "audit_type": "RESOURCE_CREATED",
   "audit_resource_identifier": "ce-123",

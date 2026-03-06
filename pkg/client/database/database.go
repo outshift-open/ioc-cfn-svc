@@ -35,6 +35,7 @@ func New(cfg config.Database) (*Database, error) {
 		return nil, errors.New(err)
 	}
 
+	// TODO: Configure connection pool settings (MaxOpenConns, MaxIdleConns, ConnMaxLifetime, ConnMaxIdleTime) to avoid default GORM/database/sql pool defaults if needed.
 	return &Database{DB: gdb}, nil
 }
 

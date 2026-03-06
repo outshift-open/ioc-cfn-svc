@@ -26,7 +26,7 @@ func TestCreateAuditEventHandler(t *testing.T) {
 	app := newTestApp()
 
 	body := audit.CreateAuditEventRequest{
-		ResourceType:            audit.ResourceTypeCognitiveEngine,
+		ResourceType:            audit.ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-123",
 		AuditType:               audit.AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-123",
@@ -63,7 +63,7 @@ func TestCreateAuditEventHandler_MissingRequiredFields(t *testing.T) {
 	app := newTestApp()
 
 	body := audit.CreateAuditEventRequest{
-		ResourceType: audit.ResourceTypeCognitiveEngine,
+		ResourceType: audit.ResourceTypeCognitionEngine,
 		// missing resource_identifier, audit_type, audit_resource_identifier
 	}
 	b, _ := json.Marshal(body)
@@ -131,7 +131,7 @@ func TestListAuditEventsHandler(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		e := &audit.Audit{
-			ResourceType:            audit.ResourceTypeCognitiveEngine,
+			ResourceType:            audit.ResourceTypeCognitionEngine,
 			ResourceIdentifier:      "ce-1",
 			AuditType:               audit.AuditTypeResourceCreated,
 			AuditResourceIdentifier: "ce-1",
@@ -157,7 +157,7 @@ func TestListAuditEventsHandler_WithFilters(t *testing.T) {
 	app := newTestApp()
 
 	e1 := &audit.Audit{
-		ResourceType:            audit.ResourceTypeCognitiveEngine,
+		ResourceType:            audit.ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               audit.AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -192,7 +192,7 @@ func TestDeleteAuditEventHandler(t *testing.T) {
 	app := newTestApp()
 
 	event := &audit.Audit{
-		ResourceType:            audit.ResourceTypeCognitiveEngine,
+		ResourceType:            audit.ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-1",
 		AuditType:               audit.AuditTypeResourceCreated,
 		AuditResourceIdentifier: "ce-1",
@@ -270,7 +270,7 @@ func TestCreateAuditEventHandler_InvalidAuditType(t *testing.T) {
 	app := newTestApp()
 
 	body := audit.CreateAuditEventRequest{
-		ResourceType:            audit.ResourceTypeCognitiveEngine,
+		ResourceType:            audit.ResourceTypeCognitionEngine,
 		ResourceIdentifier:      "ce-123",
 		AuditType:               "INVALID_AUDIT",
 		AuditResourceIdentifier: "ce-123",
