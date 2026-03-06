@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -471,20 +472,38 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 
-// getMemoryProviderURL retrieves the memory provider URL from CfnConfig for a specific agent.
+// memoryProviderConfig holds the resolved memory provider configuration for an agent.
+type memoryProviderConfig struct {
+	baseURL      string
+	providerName string
+	auth         *memoryProviderAuth // nil when type="none" or auth absent
+}
+
+// memoryProviderAuth holds auth credentials parsed from the management plane config.
+type memoryProviderAuth struct {
+	authType    string // "none", "token", "bearer", "basic", "custom"
+	apiKey      string // for "token"
+	accessToken string // for "bearer"
+	username    string // for "basic"
+	password    string // for "basic"
+	headerName  string // for "custom"
+	headerValue string // for "custom"
+}
+
+// getMemoryProviderConfig retrieves the full memory provider config (URL + auth) from CfnConfig for a specific agent.
 // It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
-func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
+func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memoryProviderConfig, error) {
 	log := getLogger()
 
 	cfnConfigMutex.RLock()
 	defer cfnConfigMutex.RUnlock()
 
-	log.Infof("Config snapshot for resolving memory provider URL: %v", CfnConfig)
+	log.Debugf("resolving memory provider config for ws=%s mas=%s agent=%s", workspaceID, masID, agentID)
 
 	// Navigate to workspaces
 	workspaces, ok := CfnConfig["workspaces"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("workspaces not found in config")
+		return nil, fmt.Errorf("workspaces not found in config")
 	}
 
 	// Find the workspace
@@ -500,13 +519,13 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 		}
 	}
 	if workspace == nil {
-		return "", fmt.Errorf("workspace %s not found", workspaceID)
+		return nil, fmt.Errorf("workspace %s not found", workspaceID)
 	}
 
 	// Navigate to multi_agentic_systems
 	masList, ok := workspace["multi_agentic_systems"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("multi_agentic_systems not found in workspace")
+		return nil, fmt.Errorf("multi_agentic_systems not found in workspace")
 	}
 
 	// Find the MAS
@@ -522,13 +541,13 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 		}
 	}
 	if mas == nil {
-		return "", fmt.Errorf("multi-agentic system %s not found", masID)
+		return nil, fmt.Errorf("multi-agentic system %s not found", masID)
 	}
 
 	// Navigate to agents
 	agentsList, ok := mas["agents"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("agents not found in multi-agentic system")
+		return nil, fmt.Errorf("agents not found in multi-agentic system")
 	}
 
 	// Find the agent
@@ -544,49 +563,122 @@ func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, 
 		}
 	}
 	if agent == nil {
-		return "", fmt.Errorf("agent %s not found", agentID)
+		return nil, fmt.Errorf("agent %s not found", agentID)
 	}
 
 	// Get agentic_memory config
 	agenticMemory, ok := agent["agentic_memory"].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("agentic_memory not found for agent")
+		return nil, fmt.Errorf("agentic_memory not found for agent")
 	}
 
 	// Check if memory is enabled
 	if enabled, ok := agenticMemory["enabled"].(bool); ok && !enabled {
-		return "", fmt.Errorf("agentic memory is disabled for this agent")
+		return nil, fmt.Errorf("agentic memory is disabled for this agent")
 	}
 
-	// Get config with host and port
+	// Get config
 	memConfig, ok := agenticMemory["config"].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("config not found in agentic_memory")
+		return nil, fmt.Errorf("config not found in agentic_memory")
 	}
 
-	host, hostOk := memConfig["host"].(string)
-	if !hostOk || host == "" {
-		return "", fmt.Errorf("host not found in memory provider config")
+	// Read URL (new format from management plane)
+	baseURL, urlOk := memConfig["url"].(string)
+	if !urlOk || baseURL == "" {
+		return nil, fmt.Errorf("url not found in memory provider config")
 	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
 
-	var baseURL string
+	// Read memory_provider_name
+	providerName, _ := agenticMemory["memory_provider_name"].(string)
 
-	// Check if host already contains a protocol (full URL)
-	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
-		// Host is a full URL (e.g., "https://example.ngrok.io"), use as-is
-		baseURL = strings.TrimSuffix(host, "/") // Remove trailing slash if present
-		log.Debugf("resolved memory provider URL (full URL) for agent %s: %s", agentID, baseURL)
-	} else {
-		// Host is just a hostname (e.g., "localhost", "ioc-mem0"), build URL with port
-		port, portOk := memConfig["port"].(float64) // JSON numbers are float64
-		if !portOk {
-			return "", fmt.Errorf("port not found in memory provider config for hostname %s", host)
+	// Parse auth from config
+	var auth *memoryProviderAuth
+	if authMap, ok := memConfig["auth"].(map[string]interface{}); ok {
+		authType, _ := authMap["type"].(string)
+		if authType != "" && authType != "none" {
+			auth = &memoryProviderAuth{authType: authType}
+			if creds, ok := authMap["credentials"].(map[string]interface{}); ok {
+				auth.apiKey, _ = creds["api_key"].(string)
+				auth.accessToken, _ = creds["access_token"].(string)
+				auth.username, _ = creds["username"].(string)
+				auth.password, _ = creds["password"].(string)
+				auth.headerName, _ = creds["header_name"].(string)
+				auth.headerValue, _ = creds["header_value"].(string)
+			} else {
+				log.Warnf("auth type is %q but credentials block is missing", authType)
+			}
 		}
-		baseURL = fmt.Sprintf("http://%s:%d", host, int(port))
-		log.Debugf("resolved memory provider URL (hostname+port) for agent %s: %s", agentID, baseURL)
 	}
 
-	return baseURL, nil
+	log.Debugf("resolved memory provider for agent %s: url=%s provider=%s authType=%s",
+		agentID, baseURL, providerName, func() string {
+			if auth != nil {
+				return auth.authType
+			}
+			return "none"
+		}())
+
+	return &memoryProviderConfig{
+		baseURL:      baseURL,
+		providerName: providerName,
+		auth:         auth,
+	}, nil
+}
+
+// getMemoryProviderURL is a convenience wrapper that returns just the base URL.
+func (a *App) getMemoryProviderURL(workspaceID, masID, agentID string) (string, error) {
+	cfg, err := a.getMemoryProviderConfig(workspaceID, masID, agentID)
+	if err != nil {
+		return "", err
+	}
+	return cfg.baseURL, nil
+}
+
+// injectAuthHeaders sets the appropriate Authorization header based on the provider auth config.
+// It always strips any user-provided Authorization header first (security).
+func injectAuthHeaders(headers map[string]string, auth *memoryProviderAuth) {
+	log := getLogger()
+
+	// SECURITY: Always strip any user-provided Authorization header
+	delete(headers, "Authorization")
+
+	if auth == nil {
+		return
+	}
+
+	switch auth.authType {
+	case "token":
+		if auth.apiKey == "" {
+			log.Warnf("auth type is 'token' but api_key is empty, skipping auth")
+			return
+		}
+		headers["Authorization"] = "Token " + auth.apiKey
+	case "bearer":
+		if auth.accessToken == "" {
+			log.Warnf("auth type is 'bearer' but access_token is empty, skipping auth")
+			return
+		}
+		headers["Authorization"] = "Bearer " + auth.accessToken
+	case "basic":
+		if auth.username == "" || auth.password == "" {
+			log.Warnf("auth type is 'basic' but username/password is empty, skipping auth")
+			return
+		}
+		encoded := base64.StdEncoding.EncodeToString([]byte(auth.username + ":" + auth.password))
+		headers["Authorization"] = "Basic " + encoded
+	case "custom":
+		if auth.headerName == "" || auth.headerValue == "" {
+			log.Warnf("auth type is 'custom' but header_name/header_value is empty, skipping auth")
+			return
+		}
+		headers[auth.headerName] = auth.headerValue
+	case "none", "":
+		// No auth needed
+	default:
+		log.Warnf("unknown auth type %q, skipping auth", auth.authType)
+	}
 }
 
 // memoryOperationsHandler godoc
@@ -628,8 +720,8 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	// Get the memory provider base URL from synced config
-	memoryProviderBaseURL, err := a.getMemoryProviderURL(workspaceID, masID, agentID)
+	// Get the memory provider config (URL + auth) from synced config
+	providerCfg, err := a.getMemoryProviderConfig(workspaceID, masID, agentID)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
 			"error": fmt.Sprintf("failed to find memory provider config: %v", err),
@@ -637,7 +729,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	}
 
 	// Build full URL by properly joining base URL with path and query parameters
-	baseURL, err := url.Parse(memoryProviderBaseURL)
+	baseURL, err := url.Parse(providerCfg.baseURL)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("invalid base URL from config: %v", err),
@@ -681,6 +773,9 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		headers["Content-Type"] = "application/json"
 	}
 
+	// Inject auth headers from management plane config
+	injectAuthHeaders(headers, providerCfg.auth)
+
 	log.Infof("forwarding %s request to memory provider: %s", req.Payload.HTTPRequestType, targetURL)
 
 	// TODO: operationID is currently a random UUID; replace with a consistent request ID
@@ -706,7 +801,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	}
 
 	// Forward the request via the memory proxy client
-	if a.memoryClient == nil {
+	if a.memoryProxyClient == nil {
 		// Audit: end of memory operation (failure - client not configured)
 		errMsg := "memory proxy client is not configured"
 		endAuditInfo, _ := json.Marshal(map[string]string{
@@ -734,7 +829,8 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		})
 	}
 
-	proxyResp, err := a.memoryClient.ForwardRequest(r.Context(), req.Payload.HTTPRequestType, targetURL, requestBody, headers)
+	method := strings.ToUpper(strings.TrimSpace(req.Payload.HTTPRequestType))
+	proxyResp, err := a.memoryProxyClient.Do(r.Context(), method, targetURL, requestBody, headers)
 	if err != nil {
 		// Audit: end of memory operation (failure)
 		errMsg := err.Error()
@@ -762,20 +858,63 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
 		})
 	}
+	defer proxyResp.Body.Close()
+
+	// Read and parse response body
+	respBody, err := io.ReadAll(proxyResp.Body)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to read memory provider response: %v", err)
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		endAudit := &audit.Audit{
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMemoryProvider,
+			ResourceIdentifier:      masID,
+			AuditType:               audit.AuditTypeMemoryOperation,
+			AuditResourceIdentifier: agentID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create end audit event: %v", auditErr)
+		}
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": errMsg,
+		})
+	}
+
+	var respJSON map[string]interface{}
+	if len(respBody) > 0 {
+		if err := json.Unmarshal(respBody, &respJSON); err != nil {
+			respJSON = map[string]interface{}{"raw": string(respBody)}
+		}
+	}
+
+	// Extract response headers (take first value)
+	respHeaders := make(map[string]string)
+	for k, vals := range proxyResp.Header {
+		if len(vals) > 0 {
+			respHeaders[k] = vals[0]
+		}
+	}
 
 	// Build the response envelope
 	response := memoryoperations.MemoryOperationResponse{
-		HTTPStatus:       proxyResp.HTTPStatus,
-		HTTPHeaders:      proxyResp.HTTPHeaders,
-		HTTPResponseBody: proxyResp.HTTPResponseBody,
+		HTTPStatus:       proxyResp.StatusCode,
+		HTTPHeaders:      respHeaders,
+		HTTPResponseBody: respJSON,
 	}
 
-	log.Infof("memory provider responded with status: %d", proxyResp.HTTPStatus)
+	log.Infof("memory provider responded with status: %d", proxyResp.StatusCode)
 
 	// Audit: end of memory operation (success)
 	endAuditInfo, _ := json.Marshal(map[string]string{
 		"status":      "SUCCESS",
-		"http_status": fmt.Sprintf("%d", proxyResp.HTTPStatus),
+		"http_status": fmt.Sprintf("%d", proxyResp.StatusCode),
 	})
 	endAudit := &audit.Audit{
 		OperationID:        &operationID,

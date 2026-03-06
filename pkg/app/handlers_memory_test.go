@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/memoryoperations"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
-	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 )
 
 func TestMemoryOperationsHandler(t *testing.T) {
@@ -28,9 +29,14 @@ func TestMemoryOperationsHandler(t *testing.T) {
 			t.Errorf("expected POST method, got %s", r.Method)
 		}
 
-		// Verify headers
+		// Verify custom header
 		if r.Header.Get("X-Custom-Header") != "test-value" {
 			t.Errorf("expected X-Custom-Header to be 'test-value', got '%s'", r.Header.Get("X-Custom-Header"))
+		}
+
+		// Verify auth header was injected from config
+		if r.Header.Get("Authorization") != "Token test-api-key" {
+			t.Errorf("expected Authorization 'Token test-api-key', got '%s'", r.Header.Get("Authorization"))
 		}
 
 		// Parse request body
@@ -56,7 +62,7 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}))
 	defer mockMemoryProvider.Close()
 
-	// Set up CfnConfig to return the mock provider URL
+	// Set up CfnConfig to return the mock provider URL with token auth
 	cfnConfigMutex.Lock()
 	CfnConfig = map[string]any{
 		"workspaces": []interface{}{
@@ -70,9 +76,16 @@ func TestMemoryOperationsHandler(t *testing.T) {
 								"agent_id": "agent-789",
 								"agentic_memory": map[string]interface{}{
 									"config": map[string]interface{}{
-										"host": mockMemoryProvider.URL,
+										"url": mockMemoryProvider.URL,
+										"auth": map[string]interface{}{
+											"type": "token",
+											"credentials": map[string]interface{}{
+												"api_key": "test-api-key",
+											},
+										},
 									},
-									"enabled": true,
+									"enabled":              true,
+									"memory_provider_name": "mem0",
 								},
 							},
 						},
@@ -83,13 +96,15 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}
 	cfnConfigMutex.Unlock()
 
-	// Create memory proxy client
-	proxyCfg := mem0client.DefaultProxyClientConfig()
-	proxyCfg.APIKey = "test-api-key" // test-only value, not a real credential
-	memoryProxy := mem0client.NewProxyClient(proxyCfg)
+	// Create generic memory proxy client (same config as app.go)
+	memoryCfg := httpclient.DefaultConfig()
+	memoryCfg.Timeout = 5 * time.Minute
+	memoryCfg.MaxRetries = 0
+	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
+	memoryProxy := httpclient.NewWithConfig(memoryCfg)
 
 	// Create app with the memory proxy client and mock database
-	app := &App{memoryClient: memoryProxy, db: client.NewMockDatabase()}
+	app := &App{memoryProxyClient: memoryProxy, db: client.NewMockDatabase()}
 
 	// Create request payload (using relative path, handler will resolve full URL from config)
 	requestPayload := memoryoperations.MemoryOperationRequest{
@@ -240,7 +255,7 @@ func TestMemoryOperationsHandlerValidation(t *testing.T) {
 	}
 }
 
-func TestGetMemoryProviderURL(t *testing.T) {
+func TestGetMemoryProviderConfig(t *testing.T) {
 	// Save original CfnConfig and restore after test
 	originalConfig := CfnConfig
 	defer func() {
@@ -248,17 +263,19 @@ func TestGetMemoryProviderURL(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name        string
-		config      map[string]any
-		workspaceID string
-		masID       string
-		agentID     string
-		expectedURL string
-		expectError bool
-		errorMsg    string
+		name             string
+		config           map[string]any
+		workspaceID      string
+		masID            string
+		agentID          string
+		expectedURL      string
+		expectedProvider string
+		expectedAuthType string
+		expectError      bool
+		errorMsg         string
 	}{
 		{
-			name: "successful extraction with valid config",
+			name: "successful extraction with url and token auth",
 			config: map[string]any{
 				"workspaces": []interface{}{
 					map[string]interface{}{
@@ -271,8 +288,84 @@ func TestGetMemoryProviderURL(t *testing.T) {
 										"agent_id": "default-agent-1",
 										"agentic_memory": map[string]interface{}{
 											"config": map[string]interface{}{
-												"host": "ioc-mem0",
-												"port": float64(8765),
+												"url": "https://api.mem0.ai",
+												"auth": map[string]interface{}{
+													"type": "token",
+													"credentials": map[string]interface{}{
+														"api_key": "m0-xxx",
+													},
+												},
+											},
+											"enabled":              true,
+											"memory_provider_name": "mem0",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID:      "00000000-0000-0000-0000-000000000001",
+			masID:            "e1271823-90ca-4581-86a4-f66a16ee154e",
+			agentID:          "default-agent-1",
+			expectedURL:      "https://api.mem0.ai",
+			expectedProvider: "mem0",
+			expectedAuthType: "token",
+			expectError:      false,
+		},
+		{
+			name: "url with no auth (self-hosted)",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"url": "http://ioc-mem0:8765",
+												"auth": map[string]interface{}{
+													"type": "none",
+												},
+											},
+											"enabled":              true,
+											"memory_provider_name": "mem0",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID:      "ws-1",
+			masID:            "mas-1",
+			agentID:          "agent-1",
+			expectedURL:      "http://ioc-mem0:8765",
+			expectedProvider: "mem0",
+			expectedAuthType: "",
+			expectError:      false,
+		},
+		{
+			name: "url with no auth block at all",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"url": "http://localhost:8765",
 											},
 											"enabled": true,
 										},
@@ -283,11 +376,12 @@ func TestGetMemoryProviderURL(t *testing.T) {
 					},
 				},
 			},
-			workspaceID: "00000000-0000-0000-0000-000000000001",
-			masID:       "e1271823-90ca-4581-86a4-f66a16ee154e",
-			agentID:     "default-agent-1",
-			expectedURL: "http://ioc-mem0:8765",
-			expectError: false,
+			workspaceID:      "ws-1",
+			masID:            "mas-1",
+			agentID:          "agent-1",
+			expectedURL:      "http://localhost:8765",
+			expectedAuthType: "",
+			expectError:      false,
 		},
 		{
 			name: "multiple workspaces - find correct one",
@@ -303,8 +397,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 										"agent_id": "agent-1",
 										"agentic_memory": map[string]interface{}{
 											"config": map[string]interface{}{
-												"host": "wrong-host",
-												"port": float64(9999),
+												"url": "http://wrong-host:9999",
 											},
 											"enabled": true,
 										},
@@ -323,8 +416,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 										"agent_id": "agent-2",
 										"agentic_memory": map[string]interface{}{
 											"config": map[string]interface{}{
-												"host": "correct-host",
-												"port": float64(7777),
+												"url": "http://correct-host:7777",
 											},
 											"enabled": true,
 										},
@@ -340,6 +432,77 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			agentID:     "agent-2",
 			expectedURL: "http://correct-host:7777",
 			expectError: false,
+		},
+		{
+			name: "url with trailing slash stripped",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"url": "https://api.mem0.ai/",
+											},
+											"enabled": true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID: "ws-1",
+			masID:       "mas-1",
+			agentID:     "agent-1",
+			expectedURL: "https://api.mem0.ai",
+			expectError: false,
+		},
+		{
+			name: "bearer auth type",
+			config: map[string]any{
+				"workspaces": []interface{}{
+					map[string]interface{}{
+						"workspace_id": "ws-1",
+						"multi_agentic_systems": []interface{}{
+							map[string]interface{}{
+								"id": "mas-1",
+								"agents": []interface{}{
+									map[string]interface{}{
+										"agent_id": "agent-1",
+										"agentic_memory": map[string]interface{}{
+											"config": map[string]interface{}{
+												"url": "https://api.getzep.com",
+												"auth": map[string]interface{}{
+													"type": "bearer",
+													"credentials": map[string]interface{}{
+														"access_token": "zep-xxx",
+													},
+												},
+											},
+											"enabled":              true,
+											"memory_provider_name": "zep",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			workspaceID:      "ws-1",
+			masID:            "mas-1",
+			agentID:          "agent-1",
+			expectedURL:      "https://api.getzep.com",
+			expectedProvider: "zep",
+			expectedAuthType: "bearer",
+			expectError:      false,
 		},
 		{
 			name: "workspace not found",
@@ -415,8 +578,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 										"agent_id": "agent-1",
 										"agentic_memory": map[string]interface{}{
 											"config": map[string]interface{}{
-												"host": "ioc-mem0",
-												"port": float64(8765),
+												"url": "http://ioc-mem0:8765",
 											},
 											"enabled": false,
 										},
@@ -434,7 +596,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			errorMsg:    "agentic memory is disabled for this agent",
 		},
 		{
-			name: "missing host in config",
+			name: "missing url in config",
 			config: map[string]any{
 				"workspaces": []interface{}{
 					map[string]interface{}{
@@ -447,7 +609,9 @@ func TestGetMemoryProviderURL(t *testing.T) {
 										"agent_id": "agent-1",
 										"agentic_memory": map[string]interface{}{
 											"config": map[string]interface{}{
-												"port": float64(8765),
+												"auth": map[string]interface{}{
+													"type": "none",
+												},
 											},
 											"enabled": true,
 										},
@@ -462,38 +626,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			masID:       "mas-1",
 			agentID:     "agent-1",
 			expectError: true,
-			errorMsg:    "host not found in memory provider config",
-		},
-		{
-			name: "missing port in config for hostname",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "ioc-mem0",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			workspaceID: "ws-1",
-			masID:       "mas-1",
-			agentID:     "agent-1",
-			expectError: true,
-			errorMsg:    "port not found in memory provider config for hostname ioc-mem0",
+			errorMsg:    "url not found in memory provider config",
 		},
 		{
 			name: "missing agentic_memory",
@@ -531,131 +664,6 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			expectError: true,
 			errorMsg:    "workspaces not found in config",
 		},
-		{
-			name: "full https URL without port",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "https://example.ngrok.io",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			workspaceID: "ws-1",
-			masID:       "mas-1",
-			agentID:     "agent-1",
-			expectedURL: "https://example.ngrok.io",
-			expectError: false,
-		},
-		{
-			name: "full http URL without port",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "http://internal-service.local",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			workspaceID: "ws-1",
-			masID:       "mas-1",
-			agentID:     "agent-1",
-			expectedURL: "http://internal-service.local",
-			expectError: false,
-		},
-		{
-			name: "full URL with trailing slash",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "https://example.ngrok.io/",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			workspaceID: "ws-1",
-			masID:       "mas-1",
-			agentID:     "agent-1",
-			expectedURL: "https://example.ngrok.io",
-			expectError: false,
-		},
-		{
-			name: "full URL with port in URL",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"host": "https://example.com:9443",
-												"port": float64(8080), // Port in config ignored when full URL provided
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			workspaceID: "ws-1",
-			masID:       "mas-1",
-			agentID:     "agent-1",
-			expectedURL: "https://example.com:9443",
-			expectError: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -669,7 +677,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 			app := &App{}
 
 			// Call function
-			url, err := app.getMemoryProviderURL(tt.workspaceID, tt.masID, tt.agentID)
+			cfg, err := app.getMemoryProviderConfig(tt.workspaceID, tt.masID, tt.agentID)
 
 			// Check error expectation
 			if tt.expectError {
@@ -682,10 +690,297 @@ func TestGetMemoryProviderURL(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				if url != tt.expectedURL {
-					t.Errorf("expected URL '%s', got '%s'", tt.expectedURL, url)
+				if cfg == nil {
+					t.Fatal("expected config but got nil")
+				}
+				if cfg.baseURL != tt.expectedURL {
+					t.Errorf("expected URL '%s', got '%s'", tt.expectedURL, cfg.baseURL)
+				}
+				if tt.expectedProvider != "" && cfg.providerName != tt.expectedProvider {
+					t.Errorf("expected provider '%s', got '%s'", tt.expectedProvider, cfg.providerName)
+				}
+				if tt.expectedAuthType != "" {
+					if cfg.auth == nil {
+						t.Errorf("expected auth type '%s' but auth is nil", tt.expectedAuthType)
+					} else if cfg.auth.authType != tt.expectedAuthType {
+						t.Errorf("expected auth type '%s', got '%s'", tt.expectedAuthType, cfg.auth.authType)
+					}
+				}
+				if tt.expectedAuthType == "" && cfg != nil && cfg.auth != nil {
+					t.Errorf("expected no auth but got auth type '%s'", cfg.auth.authType)
 				}
 			}
 		})
+	}
+}
+
+func TestInjectAuthHeaders(t *testing.T) {
+	tests := []struct {
+		name           string
+		auth           *memoryProviderAuth
+		initialHeaders map[string]string
+		expectedHeader string // expected Authorization header value
+		expectedCustom map[string]string // for custom auth type
+	}{
+		{
+			name: "token auth",
+			auth: &memoryProviderAuth{
+				authType: "token",
+				apiKey:   "m0-test-key",
+			},
+			initialHeaders: map[string]string{"Content-Type": "application/json"},
+			expectedHeader: "Token m0-test-key",
+		},
+		{
+			name: "bearer auth",
+			auth: &memoryProviderAuth{
+				authType:    "bearer",
+				accessToken: "zep-test-token",
+			},
+			initialHeaders: map[string]string{"Content-Type": "application/json"},
+			expectedHeader: "Bearer zep-test-token",
+		},
+		{
+			name: "basic auth",
+			auth: &memoryProviderAuth{
+				authType: "basic",
+				username: "user",
+				password: "pass",
+			},
+			initialHeaders: map[string]string{},
+			expectedHeader: "Basic dXNlcjpwYXNz", // base64("user:pass")
+		},
+		{
+			name: "custom auth",
+			auth: &memoryProviderAuth{
+				authType:    "custom",
+				headerName:  "X-Api-Key",
+				headerValue: "custom-key-123",
+			},
+			initialHeaders: map[string]string{},
+			expectedCustom: map[string]string{"X-Api-Key": "custom-key-123"},
+		},
+		{
+			name:           "nil auth",
+			auth:           nil,
+			initialHeaders: map[string]string{"Content-Type": "application/json"},
+			expectedHeader: "",
+		},
+		{
+			name: "none auth type",
+			auth: &memoryProviderAuth{
+				authType: "none",
+			},
+			initialHeaders: map[string]string{},
+			expectedHeader: "",
+		},
+		{
+			name: "strips user-provided Authorization header",
+			auth: &memoryProviderAuth{
+				authType: "token",
+				apiKey:   "server-key",
+			},
+			initialHeaders: map[string]string{
+				"Authorization": "Token user-injected-key",
+			},
+			expectedHeader: "Token server-key",
+		},
+		{
+			name: "token with empty api_key skips auth",
+			auth: &memoryProviderAuth{
+				authType: "token",
+				apiKey:   "",
+			},
+			initialHeaders: map[string]string{},
+			expectedHeader: "",
+		},
+		{
+			name: "bearer with empty access_token skips auth",
+			auth: &memoryProviderAuth{
+				authType:    "bearer",
+				accessToken: "",
+			},
+			initialHeaders: map[string]string{},
+			expectedHeader: "",
+		},
+		{
+			name: "basic with empty password skips auth",
+			auth: &memoryProviderAuth{
+				authType: "basic",
+				username: "user",
+				password: "",
+			},
+			initialHeaders: map[string]string{},
+			expectedHeader: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := make(map[string]string)
+			for k, v := range tt.initialHeaders {
+				headers[k] = v
+			}
+
+			injectAuthHeaders(headers, tt.auth)
+
+			if tt.expectedCustom != nil {
+				for k, v := range tt.expectedCustom {
+					if headers[k] != v {
+						t.Errorf("expected header %s=%s, got %s", k, v, headers[k])
+					}
+				}
+			} else {
+				if tt.expectedHeader == "" {
+					if _, exists := headers["Authorization"]; exists {
+						t.Errorf("expected no Authorization header, got '%s'", headers["Authorization"])
+					}
+				} else {
+					if headers["Authorization"] != tt.expectedHeader {
+						t.Errorf("expected Authorization '%s', got '%s'", tt.expectedHeader, headers["Authorization"])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestMemoryOperationsHandlerNoAuth(t *testing.T) {
+	// Save original CfnConfig and restore after test
+	originalConfig := CfnConfig
+	defer func() {
+		cfnConfigMutex.Lock()
+		CfnConfig = originalConfig
+		cfnConfigMutex.Unlock()
+	}()
+
+	// Create a mock memory provider server that verifies NO Authorization header
+	mockMemoryProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			t.Errorf("expected no Authorization header for no-auth provider, got '%s'", auth)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+		})
+	}))
+	defer mockMemoryProvider.Close()
+
+	// Set up CfnConfig with auth type "none"
+	cfnConfigMutex.Lock()
+	CfnConfig = map[string]any{
+		"workspaces": []interface{}{
+			map[string]interface{}{
+				"workspace_id": "ws-123",
+				"multi_agentic_systems": []interface{}{
+					map[string]interface{}{
+						"id": "mas-456",
+						"agents": []interface{}{
+							map[string]interface{}{
+								"agent_id": "agent-789",
+								"agentic_memory": map[string]interface{}{
+									"config": map[string]interface{}{
+										"url": mockMemoryProvider.URL,
+										"auth": map[string]interface{}{
+											"type": "none",
+										},
+									},
+									"enabled": true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+
+	memoryCfg := httpclient.DefaultConfig()
+	memoryCfg.Timeout = 5 * time.Minute
+	memoryCfg.MaxRetries = 0
+	memoryCfg.RetryableFunc = func(resp *http.Response, err error) bool { return false }
+	memoryProxy := httpclient.NewWithConfig(memoryCfg)
+
+	app := &App{memoryProxyClient: memoryProxy, db: client.NewMockDatabase()}
+
+	requestPayload := memoryoperations.MemoryOperationRequest{
+		Payload: memoryoperations.MemoryOperationPayload{
+			HTTPRequestType: http.MethodGet,
+			HTTPURL:         "/v1/memories",
+		},
+	}
+
+	requestBody, _ := json.Marshal(requestPayload)
+	req, _ := http.NewRequest(http.MethodPost, "/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("workspaceId", "ws-123")
+	req.SetPathValue("masId", "mas-456")
+	req.SetPathValue("agentId", "agent-789")
+
+	rr := httptest.NewRecorder()
+	statusCode, err := app.memoryOperationsHandler(rr, req)
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+
+	if statusCode != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+
+	var response memoryoperations.MemoryOperationResponse
+	json.NewDecoder(rr.Body).Decode(&response)
+
+	if response.HTTPStatus != http.StatusOK {
+		t.Errorf("expected HTTP status %d, got %d", http.StatusOK, response.HTTPStatus)
+	}
+
+	if response.HTTPResponseBody["status"] != "ok" {
+		t.Errorf("expected status 'ok', got '%v'", response.HTTPResponseBody["status"])
+	}
+}
+
+// TestGetMemoryProviderURL tests the convenience wrapper
+func TestGetMemoryProviderURL(t *testing.T) {
+	originalConfig := CfnConfig
+	defer func() {
+		CfnConfig = originalConfig
+	}()
+
+	cfnConfigMutex.Lock()
+	CfnConfig = map[string]any{
+		"workspaces": []interface{}{
+			map[string]interface{}{
+				"workspace_id": "ws-1",
+				"multi_agentic_systems": []interface{}{
+					map[string]interface{}{
+						"id": "mas-1",
+						"agents": []interface{}{
+							map[string]interface{}{
+								"agent_id": "agent-1",
+								"agentic_memory": map[string]interface{}{
+									"config": map[string]interface{}{
+										"url": "https://api.mem0.ai",
+									},
+									"enabled": true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+
+	app := &App{}
+	url, err := app.getMemoryProviderURL("ws-1", "mas-1", "agent-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "https://api.mem0.ai" {
+		t.Errorf("expected URL 'https://api.mem0.ai', got '%s'", url)
 	}
 }
