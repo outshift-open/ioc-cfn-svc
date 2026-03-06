@@ -682,8 +682,8 @@ func injectAuthHeaders(headers map[string]string, auth *memoryProviderAuth) {
 }
 
 // memoryOperationsHandler godoc
-// @Summary		Proxy HTTP requests to a remote memory provider
-// @Description	Forwards HTTP requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
+// @Summary		Proxy API requests to a remote memory provider
+// @Description	Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
 // @Description	The memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.
 // @Description	The `http-url` field should contain the relative path and query parameters to append to the provider base URL.
 // @Description

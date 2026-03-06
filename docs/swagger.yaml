@@ -689,7 +689,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        Forwards HTTP requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
+        Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
         The memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.
         The `http-url` field should contain the relative path and query parameters to append to the provider base URL.
 
@@ -775,7 +775,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Proxy HTTP requests to a remote memory provider
+      summary: Proxy API requests to a remote memory provider
       tags:
       - memory-operations
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
