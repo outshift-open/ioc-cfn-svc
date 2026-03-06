@@ -418,9 +418,9 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		context.Context,
 		*iocmemoryprovider.KnowledgeGraphQueryRequest,
 	) (*iocmemoryprovider.KnowledgeGraphQueryResponse, error){
-		iocmemoryprovider.QueryTypePath:     a.knowledgeMemSvcClient.QueryKnowledgeGraphPath,
-		iocmemoryprovider.QueryTypeNeighbor: a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor,
-		iocmemoryprovider.QueryTypeConcept:  a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept,
+		iocmemoryprovider.QueryTypePath:      a.knowledgeMemSvcClient.QueryKnowledgeGraphPath,
+		iocmemoryprovider.QueryTypeNeighbour: a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor,
+		iocmemoryprovider.QueryTypeConcept:   a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept,
 	}
 
 	// TODO: not sure if we allow users to specify query type, hence always query "concept" for now

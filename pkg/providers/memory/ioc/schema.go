@@ -23,9 +23,9 @@ const (
 
 // Query type constants
 const (
-	QueryTypeNeighbor = "neighbor"
-	QueryTypePath     = "path"
-	QueryTypeConcept  = "concept"
+	QueryTypeNeighbour = "neighbour"
+	QueryTypePath      = "path"
+	QueryTypeConcept   = "concept"
 )
 
 // Memory type constants
@@ -256,7 +256,7 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 	}
 
 	conceptsCount := len(k.Records.Concepts)
-	queryType := QueryTypeNeighbor
+	queryType := QueryTypeNeighbour
 	if k.QueryCriteria != nil {
 		queryType = k.QueryCriteria.QueryType
 	}
@@ -266,7 +266,7 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 		if conceptsCount != 2 {
 			return errors.New("path queries require exactly 2 concepts (source and destination)")
 		}
-	case QueryTypeNeighbor:
+	case QueryTypeNeighbour:
 		if conceptsCount != 1 {
 			return errors.New("neighbor queries require exactly 1 concept")
 		}

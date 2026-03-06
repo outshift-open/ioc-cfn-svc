@@ -56,21 +56,21 @@ func (r *QueryRequest) Validate() error {
 	//}
 	//
 	//if r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypeConcept &&
-	//	r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypeNeighbor &&
+	//	r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypeNeighbour &&
 	//	r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypePath {
 	//	return fmt.Errorf("invalid query_type, valid values are: %s, %s, %s",
 	//		iocmemoryprovider.QueryTypeConcept,
-	//		iocmemoryprovider.QueryTypeNeighbor,
+	//		iocmemoryprovider.QueryTypeNeighbour,
 	//		iocmemoryprovider.QueryTypePath,
 	//	)
 	//}
 	//
-	//if r.QueryCriteria.QueryType == iocmemoryprovider.QueryTypeNeighbor ||
+	//if r.QueryCriteria.QueryType == iocmemoryprovider.QueryTypeNeighbour ||
 	//	r.QueryCriteria.QueryType == iocmemoryprovider.QueryTypePath {
 	//
 	//	if r.NodeIDs == nil || strings.TrimSpace(*r.NodeIDs) == "" {
 	//		return fmt.Errorf("node_ids must be provided when query_type is %s or %s",
-	//			iocmemoryprovider.QueryTypeNeighbor,
+	//			iocmemoryprovider.QueryTypeNeighbour,
 	//			iocmemoryprovider.QueryTypePath,
 	//		)
 	//	}

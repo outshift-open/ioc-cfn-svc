@@ -243,7 +243,7 @@ func testQueryKnowledgeGraphNeighbor(ctx context.Context, client *iocmemoryprovi
 	// Create query criteria for neighbor query
 	useDirection := true
 	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-		iocmemoryprovider.QueryTypeNeighbor,
+		iocmemoryprovider.QueryTypeNeighbour,
 		nil,
 		&useDirection,
 	)
