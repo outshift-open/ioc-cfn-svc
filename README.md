@@ -133,122 +133,79 @@ curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-sy
 
 ### Remote Agent Memory Operations
 
-**Execute Memory Operations** - Proxy HTTP requests to remote memory providers for agent-specific memory operations
+**POST /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations**
 
-This endpoint acts as an HTTP proxy that forwards requests to remote memory providers, supporting all HTTP methods (GET, POST, PUT, DELETE, PATCH, etc.).
+Proxy HTTP requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations. The memory provider base URL and auth credentials are auto-resolved from management plane config.
 
 ```bash
-# Example: Create a memory via remote memory provider (POST)
-curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
-  -H "Content-Type: application/json" \
+# Example: Add memories (POST)
+curl -X 'POST' \
+  'http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
   -d '{
-    "payload": {
-      "http-request-type": "POST",
-      "http-url": "/v1/memories",
-      "http-request-body": {
-        "content": "User prefers dark mode",
-        "category": "preferences",
-        "agent-id": "agent-789"
-      },
-      "http-headers": {
-        "Authorization": "Bearer your-token-here",
-        "X-Custom-Header": "custom-value"
-      }
-    }
-  }'
-
-# Response (200 OK):
-# {
-#   "http-status": 201,
-#   "http-headers": {
-#     "Content-Type": "application/json",
-#     "X-Memory-Id": "mem-12345"
-#   },
-#   "http-response-body": {
-#     "status": "success",
-#     "message": "Memory created successfully",
-#     "memory-id": "mem-12345"
-#   }
-# }
+  "header": {},
+  "payload": {
+    "http-request-type": "POST",
+    "http-url": "/v1/memories/",
+    "http-request-body": {
+      "messages": [{"role": "user", "content": "I prefer dark mode in all my apps"}],
+      "user_id": "curl-test-user"
+    },
+    "http-headers": {}
+  }
+}'
 
 # Example: Retrieve memories (GET)
-curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
-  -H "Content-Type: application/json" \
+curl -X 'POST' \
+  'http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
   -d '{
-    "payload": {
-      "http-request-type": "GET",
-      "http-url": "/v1/memories?category=preferences",
-      "http-headers": {
-        "Authorization": "Bearer your-token-here"
-      }
-    }
-  }'
-
-# Example: Update a memory (PUT)
-curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "payload": {
-      "http-request-type": "PUT",
-      "http-url": "/v1/memories/mem-12345",
-      "http-request-body": {
-        "content": "User prefers light mode",
-        "category": "preferences"
-      },
-      "http-headers": {
-        "Authorization": "Bearer your-token-here"
-      }
-    }
-  }'
+  "header": {},
+  "payload": {
+    "http-request-type": "GET",
+    "http-url": "v1/memories/?user_id=curl-test-user",
+    "http-request-body": {},
+    "http-headers": {}
+  }
+}'
 
 # Example: Delete a memory (DELETE)
-curl -X POST http://localhost:9002/api/workspaces/ws-123/multi-agentic-systems/mas-456/agents/agent-789/memory-operations \
-  -H "Content-Type: application/json" \
+curl -X 'POST' \
+  'http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
   -d '{
-    "payload": {
-      "http-request-type": "DELETE",
-      "http-url": "/v1/memories/mem-12345",
-      "http-headers": {
-        "Authorization": "Bearer your-token-here"
-      }
-    }
-  }'
+  "header": {},
+  "payload": {
+    "http-request-type": "DELETE",
+    "http-url": "/v1/memories/mem-12345/",
+    "http-request-body": {},
+    "http-headers": {}
+  }
+}'
 ```
 
 **Request Body:**
 | Field | Required | Description |
 |-------|----------|-------------|
-| `payload.http-request-type` | Yes | HTTP method (POST, GET, PUT, DELETE, PATCH, etc.) |
-| `payload.http-url` | No | Path and query parameters to append to memory provider base URL (e.g., `/v1/memories/add?user_id=123`). If omitted, uses base URL from config. |
-| `payload.http-request-body` | No | JSON payload to send to memory provider |
-| `payload.http-headers` | No | Custom HTTP headers to forward to memory provider |
-| `header` | No | Reserved for future SSTP header |
-
-**Response Format:**
-- `http-status` - HTTP status code from the memory provider
-- `http-headers` - Response headers from the memory provider
-- `http-response-body` - JSON response body from the memory provider
+| `header` | No | Reserved for future SSTP header (pass `{}`) |
+| `payload.http-request-type` | Yes | HTTP method: `GET`, `POST`, `PUT`, `DELETE`, `PATCH` |
+| `payload.http-url` | No | Relative path + query params appended to the provider base URL (e.g., `v1/memories/?user_id=123`). If omitted, uses base URL from config. |
+| `payload.http-request-body` | No | JSON payload to send to memory provider (pass `{}` for empty) |
+| `payload.http-headers` | No | Custom HTTP headers to forward (pass `{}` for none) |
 
 **Notes:**
-- Replace `{workspaceId}`, `{masId}`, and `{agentId}` with actual IDs
-- **URL Auto-Resolution:** The memory provider base URL (host:port) is automatically resolved from the synced CfnConfig based on the workspace/MAS/agent IDs in the path. The `http-url` field should only contain the path and query parameters to append to this base URL.
-- The endpoint always returns HTTP 200 for successful proxying
-- The actual status from the memory provider is in the `http-status` field
-- All request/response bodies are assumed to be JSON
-- Query parameters should be included in the `http-url` field (URL encoded)
-- For detailed examples and documentation, see [docs/memory-operations-api.md](docs/memory-operations-api.md)
-=======
-### cognition agents Memory API
+- Replace `{workspaceId}`, `{masId}`, and `{agentId}` with actual IDs from the management plane
+- **URL + Auth Auto-Resolution:** The memory provider base URL and authentication credentials are automatically resolved from the management plane config based on workspace/MAS/agent IDs. No need to pass auth headers in the request.
+- The outer HTTP status is always `200` for successful proxying; the actual provider status is in `http-status`
+- User-supplied `Authorization` headers are stripped for security; auth is injected server-side from config
+- All request/response bodies are JSON
 
-**POST /api/memory/** — Query cognition agent memory using natural-language queries and embeddings. Returns ranked hits per query. See `pkg/app/httpapi/cognitionagents/` for DTOs.
+> **Mem0 provider setup:** Create an account at [https://mem0.ai/](https://mem0.ai/), copy your API key, and configure it in the management plane UI under the agent's memory provider registration settings with auth type `API KEY`.
 
-> **Note:** API route and structs may change as core logic is implemented.
-
-### cognition agent Client
-
-Go client (`pkg/client/cognitionagentclient/`) for calling external cognition agents API endpoints (`/api/_otel`, `/api/_general`, `/api/_reasoner`). Includes retries, exponential backoff, and a smoke-test helper.
-
-See [`pkg/client/cognitionagentclient/README.md`](pkg/client/cognitionagentclient/README.md) for details.
+> **Note:** This API is under active development and subject to change. Please check the Swagger docs (`/docs/index.html`) for the latest contract and keep this section updated accordingly.
 
 ### Log Level Management
 

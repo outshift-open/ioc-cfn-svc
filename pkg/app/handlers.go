@@ -682,8 +682,39 @@ func injectAuthHeaders(headers map[string]string, auth *memoryProviderAuth) {
 }
 
 // memoryOperationsHandler godoc
-// @Summary		Execute memory operations on remote memory provider
-// @Description	Proxies HTTP requests to a remote memory provider for agent memory operations
+// @Summary		Proxy API requests to a remote memory provider
+// @Description	Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
+// @Description	The memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.
+// @Description	The `http-url` field should contain the relative path and query parameters to append to the provider base URL.
+// @Description
+// @Description	**GET example** — retrieve memories:
+// @Description	```json
+// @Description	{
+// @Description	  "header": {},
+// @Description	  "payload": {
+// @Description	    "http-request-type": "GET",
+// @Description	    "http-url": "v1/memories/?user_id=curl-test-user",
+// @Description	    "http-request-body": {},
+// @Description	    "http-headers": {}
+// @Description	  }
+// @Description	}
+// @Description	```
+// @Description
+// @Description	**POST example** — add memories:
+// @Description	```json
+// @Description	{
+// @Description	  "header": {},
+// @Description	  "payload": {
+// @Description	    "http-request-type": "POST",
+// @Description	    "http-url": "/v1/memories/",
+// @Description	    "http-request-body": {
+// @Description	      "messages": [{"role": "user", "content": "I prefer dark mode in all my apps"}],
+// @Description	      "user_id": "curl-test-user"
+// @Description	    },
+// @Description	    "http-headers": {}
+// @Description	  }
+// @Description	}
+// @Description	```
 // @Tags			memory-operations
 // @Accept		json
 // @Produce		json
@@ -691,9 +722,11 @@ func injectAuthHeaders(headers map[string]string, auth *memoryProviderAuth) {
 // @Param		masId		path		string								true	"Multi-Agentic System ID"
 // @Param		agentId		path		string								true	"Agent ID"
 // @Param		body		body		memoryoperations.MemoryOperationRequest	true	"Memory operation request"
-// @Success		200			{object}	memoryoperations.MemoryOperationResponse
-// @Failure		400			{object}	map[string]string
-// @Failure		500			{object}	map[string]string
+// @Success		200			{object}	memoryoperations.MemoryOperationResponse	"Proxied response (actual provider status is in http-status field)"
+// @Failure		400			{object}	map[string]string	"Invalid request body or missing http-request-type"
+// @Failure		404			{object}	map[string]string	"Memory provider config not found for agent"
+// @Failure		502			{object}	map[string]string	"Failed to forward request to memory provider"
+// @Failure		503			{object}	map[string]string	"Memory proxy client not configured"
 // @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations [post]
 func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
