@@ -132,7 +132,7 @@ func TransformReasonerResponseToRecords(resp *cognitionagentclient.ReasonerCogni
 // upsertSharedMemoriesHandler godoc
 //
 // @Summary     Upsert shared memories.
-// @Description Upserts shared memory wirth entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.
+// @Description Upserts shared memory with entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.
 //
 // @Tags        shared-memories
 // @Accept      json

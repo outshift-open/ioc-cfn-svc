@@ -514,7 +514,7 @@ const docTemplate = `{
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
-                "description": "Upserts shared memory wirth entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.",
+                "description": "Upserts shared memory with entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.",
                 "consumes": [
                     "application/json"
                 ],
