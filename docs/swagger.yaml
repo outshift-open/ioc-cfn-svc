@@ -688,8 +688,39 @@ paths:
     post:
       consumes:
       - application/json
-      description: Proxies HTTP requests to a remote memory provider for agent memory
-        operations
+      description: |-
+        Forwards HTTP requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
+        The memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.
+        The `http-url` field should contain the relative path and query parameters to append to the provider base URL.
+
+        **GET example** — retrieve memories:
+        ```json
+        {
+        "header": {},
+        "payload": {
+        "http-request-type": "GET",
+        "http-url": "v1/memories/?user_id=curl-test-user",
+        "http-request-body": {},
+        "http-headers": {}
+        }
+        }
+        ```
+
+        **POST example** — add memories:
+        ```json
+        {
+        "header": {},
+        "payload": {
+        "http-request-type": "POST",
+        "http-url": "/v1/memories/",
+        "http-request-body": {
+        "messages": [{"role": "user", "content": "I prefer dark mode in all my apps"}],
+        "user_id": "curl-test-user"
+        },
+        "http-headers": {}
+        }
+        }
+        ```
       parameters:
       - description: Workspace ID
         in: path
@@ -716,22 +747,35 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Proxied response (actual provider status is in http-status
+            field)
           schema:
             $ref: '#/definitions/memoryoperations.MemoryOperationResponse'
         "400":
-          description: Bad Request
+          description: Invalid request body or missing http-request-type
           schema:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Internal Server Error
+        "404":
+          description: Memory provider config not found for agent
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Execute memory operations on remote memory provider
+        "502":
+          description: Failed to forward request to memory provider
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Memory proxy client not configured
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Proxy HTTP requests to a remote memory provider
       tags:
       - memory-operations
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
