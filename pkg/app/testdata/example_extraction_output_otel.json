@@ -1,0 +1,417 @@
+{
+  "header": {
+    "workspace_id": "ws1",
+    "mas_id": "mas1",
+    "agent_id": "agent-1"
+  },
+  "response_id": "96b41f19-d6ae-4551-a1e3-538ba90e5269",
+  "concepts": [
+    {
+      "id": "be61abb6c3e01f09c577e06eb392ba10",
+      "name": "query_cfa0e6faed8e",
+      "description": "\nBelow you find a question.\nReturn a list of links to websites that, together, contain all the information needed to answer that question.\nMake sure that the websites do ALLOW for scraping!\nMake sure",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "query",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "15118c8b99e5813a2239279f0d7fb7c6",
+      "name": "website_selector_agent",
+      "description": "Agent: website_selector_agent",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "agent",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "b9289c4679466c4e15ee79b2dfa55f5a",
+      "name": "Miss-Marple",
+      "description": "Service: Miss-Marple",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "service",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "4e706aec50174e58f15a52a53e6ca4f5",
+      "name": "gpt-4o",
+      "description": "Llm: gpt-4o",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "llm",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "9c3365fe98bfc211d092f9dd4bff9ad4",
+      "name": "search_serper",
+      "description": "Useful to search the internet\nabout a given topic and return relevant results",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "0ae559676e9ca2d5553a7e99a2983979",
+      "name": "output_9d4568c009d2",
+      "description": "",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "131de3ff8abe1ec1840487cc9117d53f",
+      "name": "output_bbdd59f13b6f",
+      "description": "- https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States_by_home_state\n- https://www.presidentsusa.net/birth.html\n- https://www.census.gov/library/stories/2021/02/presidential-birth-sta",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "770ec39a9f3b665d736b908b1cf8b392",
+      "name": "website_expert_agent",
+      "description": "Agent: website_expert_agent",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "agent",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "3b3374035a12f8f38169846204abc4cb",
+      "name": "extract_website",
+      "description": "Useful to scrape and summarize a website content\n:param query: the url of a website to visit",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "7d64df2d87b313505cf554d93ddb242e",
+      "name": "download_pdf",
+      "description": "A function to download a pdf file.\n:param query: the url of the pdf file.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "20619101bcbd5ac03b584205ac9a4389",
+      "name": "output_2675450b71bf",
+      "description": "The relevant passages from the websites are as follows:\n\n1. From Wikipedia: \"The number of presidents per state in which they were born...\"",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "c4a7de0c96b2037fdcd5c27915ff8a29",
+      "name": "documentation_agent",
+      "description": "Agent: documentation_agent",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "agent",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "51f0e027e6c6e9f497c85f8724c5da10",
+      "name": "documentation_search",
+      "description": "Searches the available documentation",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "2010796937fa10d1f126384a796b6df8",
+      "name": "output_d1554a52aa3b",
+      "description": "The context provided does not contain information about the birthplaces of U.S. presidents in relation to U.S. cities.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "73dafdf526b269bc34c50c0b150871fd",
+      "name": "output_f2916e524384",
+      "description": "The context does not provide information about the birthplaces of U.S. presidents or their geographical arrangement from west to east.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "073f19c77d8e7145ec74912ab8dd0e4d",
+      "name": "output_5a7076c9ae40",
+      "description": "The documentation does not contain information about the birthplaces of U.S. presidents in relation to U.S. cities or their geographical arrangement from west to east.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "c1c32964279f380d1c5ffbdbc3c8576e",
+      "name": "reasoning_agent",
+      "description": "Agent: reasoning_agent",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "agent",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "4880766485de7821db13940395a913c8",
+      "name": "calculator",
+      "description": "Useful to perform any mathematical calculations,\nlike sum, minus, multiplication, division, etc.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "b6a4b679c272a0fb68ed3c94eb31dfcc",
+      "name": "Python_REPL",
+      "description": "A Python shell used to execute python commands.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "function",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    },
+    {
+      "id": "fd464abd60ae57941c60fd243dbddbd0",
+      "name": "output_280bbf751dd1",
+      "description": "Honolulu, Hawaii, Yorba Linda, California",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "output",
+        "embedding": [
+          [ /* many floats */ ]
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "9608adf68d8de6c686693128a161496c",
+      "node_ids": [
+        "be61abb6c3e01f09c577e06eb392ba10",
+        "15118c8b99e5813a2239279f0d7fb7c6"
+      ],
+      "relationship": "SUBMITTED_TO",
+      "attributes": {
+        "source_name": "query_cfa0e6faed8e",
+        "summarized_context": "query_cfa0e6faed8e submitted to website_selector_agent",
+        "target_name": "website_selector_agent"
+      }
+    },
+    {
+      "id": "d207d8544faca74525e7b94b82922e61",
+      "node_ids": [
+        "b9289c4679466c4e15ee79b2dfa55f5a",
+        "15118c8b99e5813a2239279f0d7fb7c6"
+      ],
+      "relationship": "HOSTS",
+      "attributes": {
+        "source_name": "Miss-Marple",
+        "summarized_context": "Miss-Marple hosts website_selector_agent",
+        "target_name": "website_selector_agent"
+      }
+    },
+    {
+      "id": "e294383a06b0b8d904f341044aaf36b5",
+      "node_ids": [
+        "15118c8b99e5813a2239279f0d7fb7c6",
+        "4e706aec50174e58f15a52a53e6ca4f5"
+      ],
+      "relationship": "SENDS_PROMPT_TO",
+      "attributes": {
+        "source_name": "website_selector_agent",
+        "summarized_context": "website_selector_agent sends prompt to gpt-4o",
+        "target_name": "gpt-4o"
+      }
+    },
+    {
+      "id": "5279e0d8027a84c95a40c69df7f854ce",
+      "node_ids": [
+        "be61abb6c3e01f09c577e06eb392ba10",
+        "770ec39a9f3b665d736b908b1cf8b392"
+      ],
+      "relationship": "SUBMITTED_TO",
+      "attributes": {
+        "source_name": "query_cfa0e6faed8e",
+        "summarized_context": "query_cfa0e6faed8e submitted to website_expert_agent",
+        "target_name": "website_expert_agent"
+      }
+    },
+    {
+      "id": "6ac234d28ce8d443fc37fcca68af6800",
+      "node_ids": [
+        "b9289c4679466c4e15ee79b2dfa55f5a",
+        "770ec39a9f3b665d736b908b1cf8b392"
+      ],
+      "relationship": "HOSTS",
+      "attributes": {
+        "source_name": "Miss-Marple",
+        "summarized_context": "Miss-Marple hosts website_expert_agent",
+        "target_name": "website_expert_agent"
+      }
+    },
+    {
+      "id": "3ed6088b0af85b162d3ff1a25264161d",
+      "node_ids": [
+        "770ec39a9f3b665d736b908b1cf8b392",
+        "4e706aec50174e58f15a52a53e6ca4f5"
+      ],
+      "relationship": "SENDS_PROMPT_TO",
+      "attributes": {
+        "source_name": "website_expert_agent",
+        "summarized_context": "website_expert_agent sends prompt to gpt-4o",
+        "target_name": "gpt-4o"
+      }
+    },
+    {
+      "id": "f5d4542681225256726b7ce744c21ac4",
+      "node_ids": [
+        "be61abb6c3e01f09c577e06eb392ba10",
+        "c4a7de0c96b2037fdcd5c27915ff8a29"
+      ],
+      "relationship": "SUBMITTED_TO",
+      "attributes": {
+        "source_name": "query_cfa0e6faed8e",
+        "summarized_context": "query_cfa0e6faed8e submitted to documentation_agent",
+        "target_name": "documentation_agent"
+      }
+    },
+    {
+      "id": "9a252ea9ff9c62bba7c194931e5e256d",
+      "node_ids": [
+        "b9289c4679466c4e15ee79b2dfa55f5a",
+        "c4a7de0c96b2037fdcd5c27915ff8a29"
+      ],
+      "relationship": "HOSTS",
+      "attributes": {
+        "source_name": "Miss-Marple",
+        "summarized_context": "Miss-Marple hosts documentation_agent",
+        "target_name": "documentation_agent"
+      }
+    },
+    {
+      "id": "16b0a9126b0407ada3fa97f981f97e8a",
+      "node_ids": [
+        "c4a7de0c96b2037fdcd5c27915ff8a29",
+        "4e706aec50174e58f15a52a53e6ca4f5"
+      ],
+      "relationship": "SENDS_PROMPT_TO",
+      "attributes": {
+        "source_name": "documentation_agent",
+        "summarized_context": "documentation_agent sends prompt to gpt-4o",
+        "target_name": "gpt-4o"
+      }
+    },
+    {
+      "id": "eb26e496ef38fb1e89f74d975c535443",
+      "node_ids": [
+        "be61abb6c3e01f09c577e06eb392ba10",
+        "c1c32964279f380d1c5ffbdbc3c8576e"
+      ],
+      "relationship": "SUBMITTED_TO",
+      "attributes": {
+        "source_name": "query_cfa0e6faed8e",
+        "summarized_context": "query_cfa0e6faed8e submitted to reasoning_agent",
+        "target_name": "reasoning_agent"
+      }
+    },
+    {
+      "id": "49b4e4e40e018c84b47c0b033a4fed29",
+      "node_ids": [
+        "b9289c4679466c4e15ee79b2dfa55f5a",
+        "c1c32964279f380d1c5ffbdbc3c8576e"
+      ],
+      "relationship": "HOSTS",
+      "attributes": {
+        "source_name": "Miss-Marple",
+        "summarized_context": "Miss-Marple hosts reasoning_agent",
+        "target_name": "reasoning_agent"
+      }
+    },
+    {
+      "id": "aa5c8ea764345e85f9e4789b0fe661f6",
+      "node_ids": [
+        "c1c32964279f380d1c5ffbdbc3c8576e",
+        "4e706aec50174e58f15a52a53e6ca4f5"
+      ],
+      "relationship": "SENDS_PROMPT_TO",
+      "attributes": {
+        "source_name": "reasoning_agent",
+        "summarized_context": "reasoning_agent sends prompt to gpt-4o",
+        "target_name": "gpt-4o"
+      }
+    }
+  ],
+  "descriptor": "observe-sdk-otel",
+  "metadata": {
+    "records_processed": 12,
+    "concepts_extracted": 20,
+    "relations_extracted": 12,
+    "dedup_enabled": true,
+    "concepts_deduped": 0,
+    "relations_deduped": 0
+  }
+}

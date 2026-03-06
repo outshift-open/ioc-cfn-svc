@@ -8,6 +8,218 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/cfn/{cfnId}/memory": {
+            "post": {
+                "description": "Creates a new memory record for a cognition agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Create cognition agent memory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Memory create request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemoryCreateResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/concepts/search": {
+            "post": {
+                "description": "Searches memory concepts for a cognition agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search cognition agent memory concepts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concepts search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.ConceptsSearchResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/paths/search": {
+            "post": {
+                "description": "Searches for paths between two nodes in cognition agent memory",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search memory paths",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Paths search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.PathsSearchResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cfn/{cfnId}/memory/search": {
+            "post": {
+                "description": "Searches cognition agent memory with natural-language queries and embeddings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-agents"
+                ],
+                "summary": "Search cognition agent memory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CFN ID",
+                        "name": "cfnId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Memory search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionagents.MemorySearchResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/audit-events": {
             "get": {
                 "description": "Returns audit events with optional resource_type and audit_type query filters",
@@ -295,7 +507,7 @@
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
-                "description": "Upserts shared memory entries (concepts and relations) for a given workspace and multi-agentic system.",
+                "description": "Upserts shared memory wirth entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.",
                 "consumes": [
                     "application/json"
                 ],
@@ -326,7 +538,7 @@
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                            "$ref": "#/definitions/sharedmemory.UpsertRequest"
                         }
                     }
                 ],
@@ -334,7 +546,7 @@
                     "201": {
                         "description": "Shared memories successfully upserted",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse"
+                            "$ref": "#/definitions/sharedmemory.UpsertResponse"
                         }
                     },
                     "400": {
@@ -391,7 +603,7 @@
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryRequest"
+                            "$ref": "#/definitions/sharedmemory.QueryRequest"
                         }
                     }
                 ],
@@ -399,7 +611,7 @@
                     "200": {
                         "description": "Query executed successfully",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponse"
+                            "$ref": "#/definitions/sharedmemory.QueryResponse"
                         }
                     },
                     "400": {
@@ -504,6 +716,265 @@
                 }
             }
         },
+        "cognitionagentclient.ExtractionPayload": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\" and \"openclaw\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
+                    "type": "object"
+                },
+                "metadata": {
+                    "description": "Metadata describes the format and interpretation of the payload.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cognitionagentclient.ExtractionPayloadMetadata"
+                        }
+                    ]
+                }
+            }
+        },
+        "cognitionagentclient.ExtractionPayloadMetadata": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.ConceptsSearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                }
+            }
+        },
+        "cognitionagents.ConceptsSearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                }
+            }
+        },
+        "cognitionagents.MemoryCreateRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                }
+            }
+        },
+        "cognitionagents.MemoryCreateResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.MemorySearchRequest": {
+            "type": "object",
+            "properties": {
+                "embeding": {
+                    "description": "Kept as \"embeding\" per API spec",
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "k": {
+                    "type": "integer"
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "cognitionagents.MemorySearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.QueryResult"
+                    }
+                }
+            }
+        },
+        "cognitionagents.PathEdge": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "relation": {
+                    "type": "string"
+                },
+                "to_id": {
+                    "type": "string"
+                },
+                "to_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathResult": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.PathEdge"
+                    }
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_length": {
+                    "type": "integer"
+                },
+                "symbolic": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchPayload": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "max_depth": {
+                    "type": "integer"
+                },
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "to_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "payload": {
+                    "$ref": "#/definitions/cognitionagents.PathsSearchPayload"
+                }
+            }
+        },
+        "cognitionagents.PathsSearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionagents.PathResult"
+                    }
+                },
+                "response_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.QueryResult": {
+            "type": "object",
+            "properties": {
+                "hits": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "Optional",
+                    "type": "string"
+                },
+                "mas_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                }
+            }
+        },
         "iocmemoryprovider.Concept": {
             "type": "object",
             "properties": {
@@ -531,14 +1002,6 @@
                 }
             }
         },
-        "iocmemoryprovider.ConceptRecord": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
         "iocmemoryprovider.EmbeddingConfig": {
             "type": "object",
             "properties": {
@@ -553,63 +1016,6 @@
                 }
             }
         },
-        "iocmemoryprovider.KnowledgeGraphQueryCriteria": {
-            "type": "object",
-            "properties": {
-                "depth": {
-                    "type": "integer"
-                },
-                "query_type": {
-                    "type": "string"
-                },
-                "use_direction": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryRequest": {
-            "type": "object",
-            "properties": {
-                "mas_id": {
-                    "type": "string"
-                },
-                "memory_type": {
-                    "type": "string"
-                },
-                "query_criteria": {
-                    "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryCriteria"
-                },
-                "records": {
-                    "$ref": "#/definitions/iocmemoryprovider.QueryRecords"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "wksp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
-                    }
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
-                }
-            }
-        },
         "iocmemoryprovider.KnowledgeGraphQueryResponseRecord": {
             "type": "object",
             "properties": {
@@ -620,71 +1026,6 @@
                     }
                 },
                 "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Relation"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreRequest": {
-            "type": "object",
-            "properties": {
-                "force_replace": {
-                    "type": "boolean"
-                },
-                "mas_id": {
-                    "type": "string"
-                },
-                "memory_type": {
-                    "type": "string"
-                },
-                "records": {
-                    "$ref": "#/definitions/iocmemoryprovider.Records"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "wksp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
-                }
-            }
-        },
-        "iocmemoryprovider.QueryRecords": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.ConceptRecord"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.Records": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Concept"
-                    }
-                },
-                "relations": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/iocmemoryprovider.Relation"
@@ -715,21 +1056,6 @@
                     "type": "string"
                 }
             }
-        },
-        "iocmemoryprovider.ResponseStatus": {
-            "type": "string",
-            "enum": [
-                "success",
-                "failure",
-                "validation error",
-                "not found"
-            ],
-            "x-enum-varnames": [
-                "ResponseStatusSuccess",
-                "ResponseStatusFailure",
-                "ResponseStatusValidationError",
-                "ResponseStatusNotFound"
-            ]
         },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
@@ -785,6 +1111,78 @@
                 },
                 "http-status": {
                     "type": "integer"
+                }
+            }
+        },
+        "sharedmemory.QueryRequest": {
+            "type": "object",
+            "properties": {
+                "additional_context": {
+                    "description": "TODO: not sure if we allow users to specify query type along with specified node IDs\nNodeIDs           *[]string                                      `json:\"node_ids,omitempty\"`        // node ID(s) must be provided if query_type is \"neighbor\" or \"path\". Node ID(s) is ignored is query_type is set to be \"concept\"\nQueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria `json:\"query_criteria,omitempty\"`",
+                    "type": "array",
+                    "items": {}
+                },
+                "agent_id": {
+                    "type": "string"
+                },
+                "intent": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "search_strategy": {
+                    "description": "only supported search strategy: \"semantic_graph_traversal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
+                    }
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.UpsertRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "optional",
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.UpsertResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }

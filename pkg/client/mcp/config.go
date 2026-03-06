@@ -74,7 +74,7 @@ func ClientConfigFromEnv() ClientConfig {
 }
 
 type EchoParams struct {
-	Message string `json:"message" jsonschema:"Message to echo back"`
+	Message string `json:"message" jsonschema:"Intent to echo back"`
 }
 
 func echoHandler(ctx context.Context, req *mcp.CallToolRequest, params *EchoParams) (*mcp.CallToolResult, any, error) {

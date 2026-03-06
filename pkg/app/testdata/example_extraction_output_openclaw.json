@@ -1,0 +1,299 @@
+{
+  "header": {
+    "workspace_id": "ws1",
+    "mas_id": "mas_openclaw",
+    "agent_id": "agent-1"
+  },
+  "response_id": "1dd87e2f-cfdf-4367-b24b-5cd5ab0bfe78",
+  "concepts": [
+    {
+      "id": "30ade5fd2f28cf1a28fe803fbcb464fd",
+      "name": "Q2 Budget Planning",
+      "description": "The user initiates a session for planning the budget allocation for Q2, with a total of $200,000 to be distributed among Engineering, Product, and Sales departments.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "query",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "a08372b70196c21a9229cf04db6b7ceb",
+      "name": "Alex",
+      "description": "Alex is the Head of Engineering and a participant in the budget planning session, advocating for the department's funding needs.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "speaker",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ba0e0cde1bf72c28d435c89a66afc61a",
+      "name": "Sam",
+      "description": "Sam is the Head of Sales and a participant in the budget planning session, presenting the department's funding requests.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "speaker",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "6ea1e24d60afddf388b06f8243c45b70",
+      "name": "Jordan",
+      "description": "Jordan is the Head of Product and a participant in the budget planning session, outlining the department's funding priorities.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "speaker",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "d38b4ae9e2db52da88538bf4167857a2",
+      "name": "Structured Semantic Turn Protocol (SSTP)",
+      "description": "A protocol used for structured inter-agent communication during coordinated multi-agent sessions, facilitating negotiation and decision-making.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "tool",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "4ddcf66a0f1333dec9aaa0cc85bb8841",
+      "name": "Budget Allocation",
+      "description": "The process of distributing a fixed budget across multiple departments based on their priorities and funding requests.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "topic",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "6951c0f70a4d0abeac039f30aa025240",
+      "name": "Engineering Department Funding Request",
+      "description": "The intent expressed by Alex, requesting $95,000 for cloud infrastructure upgrades, contract engineers, and developer tooling.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "intent",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "4b4b185fadfa8f9bb839f3527f6a46c1",
+      "name": "Sales Department Funding Request",
+      "description": "The intent expressed by Sam, requesting $80,000 for CRM upgrades, SDR contractors, and conference sponsorships.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "intent",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "962a421c49c4b386a1a68bc8d4fe43e1",
+      "name": "Product Department Funding Request",
+      "description": "The intent expressed by Jordan, requesting $70,000 for user research, design contractors, and analytics tooling.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "intent",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "4ad1c91c380e9d40cdb81846b3b403ed",
+      "name": "Negotiation Constraints",
+      "description": "The total budget cannot exceed $200,000, requiring departments to negotiate and compromise on their requests.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "fact",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "e1397f064057d8ba5283c85646bb9006",
+      "name": "Shared Observability Platform",
+      "description": "A proposed solution to combine analytics tooling needs from Product and Engineering, potentially saving costs and improving efficiency.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "other_concept",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "7b58fff9966369a6d7e0334e33ee81c4",
+      "name": "CRM Platform Upgrade",
+      "description": "A system upgrade requested by the Sales department to enhance customer relationship management capabilities.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "9915d6aa4ffe1052f46d4c0945568a3a",
+      "name": "Conference Sponsorships",
+      "description": "Funding requested by Sales for sponsoring conferences to generate leads and improve pipeline ROI.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "5fce61971bb13bf03214c325456f19ff",
+      "name": "User Research Program",
+      "description": "A program proposed by the Product department to gather insights on user needs and preferences.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "1e42537f2661cc9b72590891b2bc1301",
+      "name": "Analytics Tooling",
+      "description": "Tools requested by the Product department to measure feature adoption and usage, overlapping with Engineering's monitoring needs.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "6824ed5bac40d4a0bee5a0488589c2d9",
+      "name": "Cloud Infrastructure Upgrades",
+      "description": "Enhancements to cloud infrastructure requested by Engineering to support operational efficiency and scalability.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "5c1dae69b8b4d92f59b4f7ce603fe479",
+      "name": "Contract Engineers",
+      "description": "Temporary engineering staff requested by Engineering to address backlog issues.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    },
+    {
+      "id": "8062ce4bc4c6bcf43abd87b713e96b6b",
+      "name": "Design Contractor",
+      "description": "A contractor proposed by the Product department to assist with design tasks.",
+      "type": "concept",
+      "attributes": {
+        "concept_type": "entity",
+        "embedding": [
+          [
+            /* many floats */
+          ]
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "9f11e113be2f3d7fb7f1f6ee0966c318",
+      "node_ids": [
+        "30ade5fd2f28cf1a28fe803fbcb464fd",
+        "4ddcf66a0f1333dec9aaa0cc85bb8841"
+      ],
+      "relationship": "INITIATES_TOPIC",
+      "attributes": {
+        "source_name": "Q2 Budget Planning",
+        "summarized_context": "The Q2 Budget Planning session initiates the topic of budget allocation among departments.",
+        "target_name": "Budget Allocation"
+      }
+    },
+    {
+      "id": "3080c0fc24943bb9dbe16d87d35b44cd",
+      "node_ids": [
+        "4ad1c91c380e9d40cdb81846b3b403ed",
+        "4ddcf66a0f1333dec9aaa0cc85bb8841"
+      ],
+      "relationship": "IMPOSES_LIMITS",
+      "attributes": {
+        "source_name": "Negotiation Constraints",
+        "summarized_context": "The negotiation constraints impose a limit on the budget allocation process.",
+        "target_name": "Budget Allocation"
+      }
+    }
+  ],
+  "descriptor": "openclaw",
+  "metadata": {
+    "records_processed": 4,
+    "concepts_extracted": 18,
+    "relations_extracted": 16,
+    "dedup_enabled": true,
+    "concepts_deduped": 0,
+    "relations_deduped": 0
+  }
+}

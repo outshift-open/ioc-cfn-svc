@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
@@ -132,6 +133,7 @@ type App struct {
 	memoryClient *mem0client.ProxyClient
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
+	cognitionAgentsClient *cognitionagentclient.Client
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -172,6 +174,10 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		log.Fatalf("Failed to create knowledge memory client: %v", err)
 	}
 
+	cognitionAgentsURL := getEnvOrDefault("COGNITION_AGENTS_SVC_URL", "http://localhost:9004")
+	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
+	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 30*time.Second)
+
 	a := &App{
 		buildVersion:          buildVersion,
 		gitCommitSHA:          gitCommitSHA,
@@ -184,6 +190,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		s3:                    s3,
 		memoryClient:          memoryProxy,
 		knowledgeMemSvcClient: knowledgeMemClient,
+		cognitionAgentsClient: cognitionAgentsClient,
 	}
 
 	rtr := a.initializeRoutes()

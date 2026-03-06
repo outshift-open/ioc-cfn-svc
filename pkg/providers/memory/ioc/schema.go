@@ -23,9 +23,9 @@ const (
 
 // Query type constants
 const (
-	QueryTypeNeighbour = "neighbour"
-	QueryTypePath      = "path"
-	QueryTypeConcept   = "concept"
+	QueryTypeNeighbor = "neighbor"
+	QueryTypePath     = "path"
+	QueryTypeConcept  = "concept"
 )
 
 // Memory type constants
@@ -71,7 +71,7 @@ func (r *Relation) Validate() error {
 // Records represents the records structure containing concepts and relations
 type Records struct {
 	Concepts  []Concept  `json:"concepts,omitempty"`
-	Relations []Relation `json:"relations,omitempty"`
+	Relations []Relation `json:"relations"`
 }
 
 // KnowledgeGraphStoreRequest represents a request to the Store for storing and managing knowledge graph data
@@ -152,7 +152,8 @@ func (k *KnowledgeGraphStoreResponse) MarshalJSON() ([]byte, error) {
 
 // ConceptRecord represents a concept record for delete operations
 type ConceptRecord struct {
-	ID string `json:"id" description:"Unique identifier for the concept"`
+	ID   string `json:"id,omitempty" description:"Unique identifier for the concept"`
+	Name string `json:"name" description:"Name of the concept"`
 }
 
 // DeleteRecords represents the records structure for delete operations
@@ -255,7 +256,7 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 	}
 
 	conceptsCount := len(k.Records.Concepts)
-	queryType := QueryTypeNeighbour
+	queryType := QueryTypeNeighbor
 	if k.QueryCriteria != nil {
 		queryType = k.QueryCriteria.QueryType
 	}
@@ -265,7 +266,7 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 		if conceptsCount != 2 {
 			return errors.New("path queries require exactly 2 concepts (source and destination)")
 		}
-	case QueryTypeNeighbour:
+	case QueryTypeNeighbor:
 		if conceptsCount != 1 {
 			return errors.New("neighbor queries require exactly 1 concept")
 		}

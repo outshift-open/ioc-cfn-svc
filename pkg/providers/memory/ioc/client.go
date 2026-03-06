@@ -120,6 +120,14 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	log.Debugf("Response headers: %v", resp.Header)
 	log.Debugf("Response body: %s", string(body))
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
 	// Pretty print JSON response
 	c.prettyPrintJSON(body)
 
@@ -248,6 +256,14 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 	log.Infof("Response status: %s", resp.Status)
 	log.Debugf("Response headers: %v", resp.Header)
 	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
 
 	// Pretty print JSON response
 	c.prettyPrintJSON(body)
