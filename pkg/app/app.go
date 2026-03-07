@@ -469,6 +469,13 @@ func (a *App) registerCognitionEngines(mgmtURL string) {
 
 	log.Infof("registering cognition engines with workspace_id=%s, ce_url=%s", workspaceID, ceURL)
 
+	// Fetch existing engines to check if they already exist
+	existingEngines, err := a.getExistingCognitionEngines(mgmtURL, workspaceID)
+	if err != nil {
+		log.Warnf("Failed to fetch existing cognition engines: %v. Will attempt registration anyway.", err)
+		existingEngines = make(map[string]bool)
+	}
+
 	// Register both cognition engines
 	ceNames := []string{
 		"Knowledge Management Cognitive Engine",
@@ -476,11 +483,66 @@ func (a *App) registerCognitionEngines(mgmtURL string) {
 	}
 
 	for _, ceName := range ceNames {
+		if existingEngines[ceName] {
+			log.Infof("Cognition engine %q already exists, skipping registration", ceName)
+			continue
+		}
+
 		if err := a.registerCognitionEngine(mgmtURL, workspaceID, ceName, ceURL); err != nil {
 			log.Fatalf("Failed to register %s: %v", ceName, err)
 		}
 		log.Infof("Successfully registered %s at %s", ceName, ceURL)
 	}
+}
+
+// getExistingCognitionEngines fetches the list of existing cognition engines from the management plane
+// and returns a map of engine names for quick lookup.
+func (a *App) getExistingCognitionEngines(mgmtURL, workspaceID string) (map[string]bool, error) {
+	log := getLogger()
+
+	enginesURL := fmt.Sprintf("%s/api/workspaces/%s/cognition-engines", mgmtURL, workspaceID)
+	log.Infof("fetching existing cognition engines from %s", enginesURL)
+
+	httpClient := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	resp, err := httpClient.Get(ctx, enginesURL, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch cognition engines: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Engines []struct {
+			CognitiveEngineID   string         `json:"cognitive_engine_id"`
+			WorkspaceID         string         `json:"workspace_id"`
+			CognitiveEngineName string         `json:"cognitive_engine_name"`
+			Config              map[string]any `json:"config"`
+			Enabled             bool           `json:"enabled"`
+			CreatedAt           string         `json:"created_at"`
+		} `json:"engines"`
+		Total int `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode cognition engines response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("failed to fetch cognition engines: status=%d", resp.StatusCode)
+	}
+
+	// Build map of existing engine names
+	existingEngines := make(map[string]bool)
+	for _, engine := range result.Engines {
+		existingEngines[engine.CognitiveEngineName] = true
+	}
+
+	log.Infof("found %d existing cognition engines", len(existingEngines))
+	return existingEngines, nil
 }
 
 // getWorkspaceID fetches the workspace ID from the management plane.
@@ -493,13 +555,13 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 	workspacesURL := mgmtURL + "/api/workspaces"
 	log.Infof("fetching workspaces from %s", workspacesURL)
 
-	client := httpclient.New(30 * time.Second)
+	httpClient := httpclient.New(30 * time.Second)
 	ctx := context.Background()
 	headers := map[string]string{
 		"Accept": "application/json",
 	}
 
-	resp, err := client.Get(ctx, workspacesURL, headers)
+	resp, err := httpClient.Get(ctx, workspacesURL, headers)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch workspaces: %w", err)
 	}
@@ -546,7 +608,6 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 }
 
 // registerCognitionEngine registers a single Cognition Engine with the management plane.
-// If the engine already exists (409 Conflict), it logs a warning and returns nil (no error).
 func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineURL string) error {
 	log := getLogger()
 
@@ -560,14 +621,14 @@ func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineUR
 		},
 	})
 
-	client := httpclient.New(30 * time.Second)
+	httpClient := httpclient.New(30 * time.Second)
 	ctx := context.Background()
 	headers := map[string]string{
 		"Content-Type": "application/json",
 		"Accept":       "application/json",
 	}
 
-	resp, err := client.Post(ctx, registerURL, body, headers)
+	resp, err := httpClient.Post(ctx, registerURL, body, headers)
 	if err != nil {
 		return fmt.Errorf("cognition engine registration failed: %w", err)
 	}
@@ -578,17 +639,9 @@ func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineUR
 		return fmt.Errorf("failed to decode registration response: %w", err)
 	}
 
-	// Handle success cases
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return nil
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("cognition engine registration failed: status=%d, response=%v", resp.StatusCode, result)
 	}
 
-	// Handle "already exists" case - don't fail, just log
-	if resp.StatusCode == http.StatusConflict {
-		log.Warnf("cognition engine %q already exists, skipping registration", engineName)
-		return nil
-	}
-
-	// Handle other error cases
-	return fmt.Errorf("cognition engine registration failed: status=%d, response=%v", resp.StatusCode, result)
+	return nil
 }
