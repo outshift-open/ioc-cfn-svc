@@ -546,6 +546,7 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 }
 
 // registerCognitionEngine registers a single Cognition Engine with the management plane.
+// If the engine already exists (409 Conflict), it logs a warning and returns nil (no error).
 func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineURL string) error {
 	log := getLogger()
 
@@ -568,7 +569,7 @@ func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineUR
 
 	resp, err := client.Post(ctx, registerURL, body, headers)
 	if err != nil {
-		return fmt.Errorf("cognitive engine registration failed: %w", err)
+		return fmt.Errorf("cognition engine registration failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -577,9 +578,17 @@ func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineUR
 		return fmt.Errorf("failed to decode registration response: %w", err)
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("cognition engine registration failed: status=%d, response=%v", resp.StatusCode, result)
+	// Handle success cases
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
 	}
 
-	return nil
+	// Handle "already exists" case - don't fail, just log
+	if resp.StatusCode == http.StatusConflict {
+		log.Warnf("cognition engine %q already exists, skipping registration", engineName)
+		return nil
+	}
+
+	// Handle other error cases
+	return fmt.Errorf("cognition engine registration failed: status=%d, response=%v", resp.StatusCode, result)
 }
