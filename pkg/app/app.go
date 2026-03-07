@@ -47,6 +47,15 @@ var (
 	cfnConfigMutex sync.RWMutex
 )
 
+const (
+	// CognitionEngineKnowledgeManagement is the name for the Knowledge Management Cognition Engine
+	CognitionEngineKnowledgeManagement = "Knowledge Management Cognitive Engine"
+	// CognitionEngineSemanticNegotiation is the name for the Semantic Negotiation Cognition Engine
+	CognitionEngineSemanticNegotiation = "Semantic Negotiation Cognitive Engine"
+	// DefaultWorkspaceName is the workspace name to search for when multiple workspaces exist
+	DefaultWorkspaceName = "Default Workspace"
+)
+
 // getOutboundIP determines the service's outbound IP address by querying network interfaces.
 // It prefers the CFN_IP environment variable if set, then falls back to detecting the first
 // non-loopback IPv4 address from active network interfaces.
@@ -478,8 +487,8 @@ func (a *App) registerCognitionEngines(mgmtURL string) {
 
 	// Register both cognition engines
 	ceNames := []string{
-		"Knowledge Management Cognitive Engine",
-		"Semantic Negotiation Cognitive Engine",
+		CognitionEngineKnowledgeManagement,
+		CognitionEngineSemanticNegotiation,
 	}
 
 	for _, ceName := range ceNames {
@@ -515,6 +524,10 @@ func (a *App) getExistingCognitionEngines(mgmtURL, workspaceID string) (map[stri
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("failed to fetch cognition engines: status=%d", resp.StatusCode)
+	}
+
 	var result struct {
 		Engines []struct {
 			CognitiveEngineID   string         `json:"cognitive_engine_id"`
@@ -531,14 +544,12 @@ func (a *App) getExistingCognitionEngines(mgmtURL, workspaceID string) (map[stri
 		return nil, fmt.Errorf("failed to decode cognition engines response: %w", err)
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("failed to fetch cognition engines: status=%d", resp.StatusCode)
-	}
-
 	// Build map of existing engine names
 	existingEngines := make(map[string]bool)
-	for _, engine := range result.Engines {
-		existingEngines[engine.CognitiveEngineName] = true
+	if result.Engines != nil {
+		for _, engine := range result.Engines {
+			existingEngines[engine.CognitiveEngineName] = true
+		}
 	}
 
 	log.Infof("found %d existing cognition engines", len(existingEngines))
@@ -567,6 +578,10 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("failed to fetch workspaces: status=%d", resp.StatusCode)
+	}
+
 	var result struct {
 		Workspaces []struct {
 			ID    string `json:"id"`
@@ -578,10 +593,6 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("failed to decode workspaces response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("failed to fetch workspaces: status=%d", resp.StatusCode)
 	}
 
 	if len(result.Workspaces) == 0 {
@@ -597,14 +608,14 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 
 	// Multiple workspaces: search for "Default Workspace"
 	for _, ws := range result.Workspaces {
-		if ws.Name == "Default Workspace" {
+		if ws.Name == DefaultWorkspaceName {
 			log.Infof("found Default Workspace: id=%s", ws.ID)
 			return ws.ID, nil
 		}
 	}
 
 	// "Default Workspace" not found among multiple workspaces
-	return "", fmt.Errorf("multiple workspaces found but 'Default Workspace' not found - cognition engine registration failed")
+	return "", fmt.Errorf("multiple workspaces found but '%s' not found - cognition engine registration failed", DefaultWorkspaceName)
 }
 
 // registerCognitionEngine registers a single Cognition Engine with the management plane.
