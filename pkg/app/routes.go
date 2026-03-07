@@ -5,7 +5,7 @@ import (
 
 	_ "github.com/cisco-eti/ioc-cfn-svc/docs"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
-	httpSwagger "github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 const (

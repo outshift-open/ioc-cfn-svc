@@ -11,7 +11,7 @@ require (
 	github.com/namsral/flag v1.7.4-pre
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	github.com/swaggo/http-swagger v1.3.4
+	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/zap v1.27.0
 	gorm.io/datatypes v1.2.7
@@ -26,7 +26,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect
+	github.com/swaggo/files/v2 v2.0.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	gorm.io/driver/mysql v1.5.6 // indirect
@@ -59,7 +59,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
