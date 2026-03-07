@@ -266,8 +266,8 @@ func (a *App) registerOnStartup() {
 
 	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v timestamp=%s", CfnID, cfnName, appIP, appPort, CfnConfig, CfnTimestamp)
 
-	// Register Cognitive Engines
-	a.registerCognitiveEngines(mgmtURL)
+	// Register Cognition Engines
+	a.registerCognitionEngines(mgmtURL)
 
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
@@ -450,15 +450,15 @@ func (a *App) Stop() error {
 	return errors.Join(err1, err2)
 }
 
-// registerCognitiveEngines registers the two Cognitive Engines with the management plane.
-// It registers both Knowledge Management and Semantic Negotiation Cognitive Engines using
+// registerCognitionEngines registers the two Cognition Engines with the management plane.
+// It registers both Knowledge Management and Semantic Negotiation Cognition Engines using
 // the same CE service URL (host:port) from environment variables.
-func (a *App) registerCognitiveEngines(mgmtURL string) {
+func (a *App) registerCognitionEngines(mgmtURL string) {
 	log := getLogger()
 
 	// Get CE configuration from environment
-	ceHost := getEnvOrDefault("COGNITIVE_ENGINE_HOST", "localhost")
-	cePortStr := getEnvOrDefault("COGNITIVE_ENGINE_PORT", "8765")
+	ceHost := getEnvOrDefault("COGNITION_ENGINE_HOST", "localhost")
+	cePortStr := getEnvOrDefault("COGNITION_ENGINE_PORT", "8000")
 	ceURL := fmt.Sprintf("%s:%s", ceHost, cePortStr)
 
 	// Fetch workspace ID from management plane
@@ -467,16 +467,16 @@ func (a *App) registerCognitiveEngines(mgmtURL string) {
 		log.Fatalf("Failed to get workspace ID: %v", err)
 	}
 
-	log.Infof("registering cognitive engines with workspace_id=%s, ce_url=%s", workspaceID, ceURL)
+	log.Infof("registering cognition engines with workspace_id=%s, ce_url=%s", workspaceID, ceURL)
 
-	// Register both cognitive engines
+	// Register both cognition engines
 	ceNames := []string{
 		"Knowledge Management Cognitive Engine",
 		"Semantic Negotiation Cognitive Engine",
 	}
 
 	for _, ceName := range ceNames {
-		if err := a.registerCognitiveEngine(mgmtURL, workspaceID, ceName, ceURL); err != nil {
+		if err := a.registerCognitionEngine(mgmtURL, workspaceID, ceName, ceURL); err != nil {
 			log.Fatalf("Failed to register %s: %v", ceName, err)
 		}
 		log.Infof("Successfully registered %s at %s", ceName, ceURL)
@@ -542,15 +542,15 @@ func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
 	}
 
 	// "Default Workspace" not found among multiple workspaces
-	return "", fmt.Errorf("multiple workspaces found but 'Default Workspace' not found - cognitive engine registration failed")
+	return "", fmt.Errorf("multiple workspaces found but 'Default Workspace' not found - cognition engine registration failed")
 }
 
-// registerCognitiveEngine registers a single Cognitive Engine with the management plane.
-func (a *App) registerCognitiveEngine(mgmtURL, workspaceID, engineName, engineURL string) error {
+// registerCognitionEngine registers a single Cognition Engine with the management plane.
+func (a *App) registerCognitionEngine(mgmtURL, workspaceID, engineName, engineURL string) error {
 	log := getLogger()
 
 	registerURL := fmt.Sprintf("%s/api/workspaces/%s/cognition-engines", mgmtURL, workspaceID)
-	log.Infof("registering cognitive engine %q at %s", engineName, registerURL)
+	log.Infof("registering cognition engine %q at %s", engineName, registerURL)
 
 	body, _ := json.Marshal(map[string]any{
 		"cognitive_engine_name": engineName,
@@ -578,7 +578,7 @@ func (a *App) registerCognitiveEngine(mgmtURL, workspaceID, engineName, engineUR
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("cognitive engine registration failed: status=%d, response=%v", resp.StatusCode, result)
+		return fmt.Errorf("cognition engine registration failed: status=%d, response=%v", resp.StatusCode, result)
 	}
 
 	return nil

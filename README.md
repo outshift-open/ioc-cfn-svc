@@ -494,6 +494,8 @@ Environment variables (uppercase):
 | `X_API_KEY` | - | API key from IoC Mgmt Plane |
 | `CFN_NAME` | cfn-local | CFN instance name |
 | `HEARTBEAT_INTERVAL_SECONDS` | 29 | Heartbeat interval in seconds |
+| `COGNITION_ENGINE_HOST` | localhost | Cognition engine host for auto-registration |
+| `COGNITION_ENGINE_PORT` | 8000 | Cognition engine port for auto-registration |
 | `MCP_ENABLED` | false | Enable MCP server mode |
 | `MCP_PORT` | 9002 | MCP server port |
 | `MCP_HOST` | (empty) | MCP server host |
