@@ -266,6 +266,9 @@ func (a *App) registerOnStartup() {
 
 	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v timestamp=%s", CfnID, cfnName, appIP, appPort, CfnConfig, CfnTimestamp)
 
+	// Register Cognitive Engines
+	a.registerCognitiveEngines(mgmtURL)
+
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
 }
@@ -445,4 +448,138 @@ func (a *App) Stop() error {
 	log.Info("- closing connection to db")
 	err2 := a.db.Close()
 	return errors.Join(err1, err2)
+}
+
+// registerCognitiveEngines registers the two Cognitive Engines with the management plane.
+// It registers both Knowledge Management and Semantic Negotiation Cognitive Engines using
+// the same CE service URL (host:port) from environment variables.
+func (a *App) registerCognitiveEngines(mgmtURL string) {
+	log := getLogger()
+
+	// Get CE configuration from environment
+	ceHost := getEnvOrDefault("COGNITIVE_ENGINE_HOST", "localhost")
+	cePortStr := getEnvOrDefault("COGNITIVE_ENGINE_PORT", "8765")
+	ceURL := fmt.Sprintf("%s:%s", ceHost, cePortStr)
+
+	// Fetch workspace ID from management plane
+	workspaceID, err := a.getWorkspaceID(mgmtURL)
+	if err != nil {
+		log.Fatalf("Failed to get workspace ID: %v", err)
+	}
+
+	log.Infof("registering cognitive engines with workspace_id=%s, ce_url=%s", workspaceID, ceURL)
+
+	// Register both cognitive engines
+	ceNames := []string{
+		"Knowledge Management Cognitive Engine",
+		"Semantic Negotiation Cognitive Engine",
+	}
+
+	for _, ceName := range ceNames {
+		if err := a.registerCognitiveEngine(mgmtURL, workspaceID, ceName, ceURL); err != nil {
+			log.Fatalf("Failed to register %s: %v", ceName, err)
+		}
+		log.Infof("Successfully registered %s at %s", ceName, ceURL)
+	}
+}
+
+// getWorkspaceID fetches the workspace ID from the management plane.
+// If there's only one workspace, it returns that workspace's ID.
+// If there are multiple workspaces, it searches for "Default Workspace".
+// If "Default Workspace" is not found among multiple workspaces, it returns an error.
+func (a *App) getWorkspaceID(mgmtURL string) (string, error) {
+	log := getLogger()
+
+	workspacesURL := mgmtURL + "/api/workspaces"
+	log.Infof("fetching workspaces from %s", workspacesURL)
+
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	resp, err := client.Get(ctx, workspacesURL, headers)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch workspaces: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Workspaces []struct {
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			CfnID string `json:"cfn_id"`
+		} `json:"workspaces"`
+		Total int `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode workspaces response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("failed to fetch workspaces: status=%d", resp.StatusCode)
+	}
+
+	if len(result.Workspaces) == 0 {
+		return "", fmt.Errorf("no workspaces found")
+	}
+
+	// If there's only one workspace, use that
+	if len(result.Workspaces) == 1 {
+		workspaceID := result.Workspaces[0].ID
+		log.Infof("found single workspace: id=%s, name=%s", workspaceID, result.Workspaces[0].Name)
+		return workspaceID, nil
+	}
+
+	// Multiple workspaces: search for "Default Workspace"
+	for _, ws := range result.Workspaces {
+		if ws.Name == "Default Workspace" {
+			log.Infof("found Default Workspace: id=%s", ws.ID)
+			return ws.ID, nil
+		}
+	}
+
+	// "Default Workspace" not found among multiple workspaces
+	return "", fmt.Errorf("multiple workspaces found but 'Default Workspace' not found - cognitive engine registration failed")
+}
+
+// registerCognitiveEngine registers a single Cognitive Engine with the management plane.
+func (a *App) registerCognitiveEngine(mgmtURL, workspaceID, engineName, engineURL string) error {
+	log := getLogger()
+
+	registerURL := fmt.Sprintf("%s/api/workspaces/%s/cognition-engines", mgmtURL, workspaceID)
+	log.Infof("registering cognitive engine %q at %s", engineName, registerURL)
+
+	body, _ := json.Marshal(map[string]any{
+		"cognitive_engine_name": engineName,
+		"config": map[string]any{
+			"url": engineURL,
+		},
+	})
+
+	client := httpclient.New(30 * time.Second)
+	ctx := context.Background()
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Accept":       "application/json",
+	}
+
+	resp, err := client.Post(ctx, registerURL, body, headers)
+	if err != nil {
+		return fmt.Errorf("cognitive engine registration failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode registration response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("cognitive engine registration failed: status=%d, response=%v", resp.StatusCode, result)
+	}
+
+	return nil
 }
