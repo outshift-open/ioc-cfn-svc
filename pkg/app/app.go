@@ -176,7 +176,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		log.Fatalf("Failed to create knowledge memory client: %v", err)
 	}
 
-	cognitionAgentsURL := getEnvOrDefault("COGNITION_AGENTS_SVC_URL", "http://localhost:9004")
+	cognitionAgentsURL := getEnvOrDefault("COGNITION_ENGINE_SVC_URL", "http://localhost:9004")
 	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
 	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
