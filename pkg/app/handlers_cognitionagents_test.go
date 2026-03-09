@@ -8,13 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionagents"
 )
 
-var validHeader = cognitionagents.Header{
+var validHeader = common.Header{
 	WorkspaceID: "ws-456",
 	MASID:       "mas-123",
 	AgentID:     "agent-42",
@@ -44,7 +45,7 @@ func TestMemoryCreateHandler_Success(t *testing.T) {
 
 func TestMemoryCreateHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitionagents.MemoryCreateRequest{Header: cognitionagents.Header{}}
+	body := cognitionagents.MemoryCreateRequest{Header: common.Header{}}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", bytes.NewReader(b))
@@ -107,7 +108,7 @@ func TestMemorySearchHandler_Success(t *testing.T) {
 func TestMemorySearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
 	body := cognitionagents.MemorySearchRequest{
-		Header:  cognitionagents.Header{},
+		Header:  common.Header{},
 		Queries: []string{"test"},
 	}
 	b, _ := json.Marshal(body)
@@ -162,7 +163,7 @@ func TestConceptsSearchHandler_Success(t *testing.T) {
 
 func TestConceptsSearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
-	body := cognitionagents.ConceptsSearchRequest{Header: cognitionagents.Header{}}
+	body := cognitionagents.ConceptsSearchRequest{Header: common.Header{}}
 	b, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", bytes.NewReader(b))
@@ -224,7 +225,7 @@ func TestPathsSearchHandler_Success(t *testing.T) {
 func TestPathsSearchHandler_MissingHeader(t *testing.T) {
 	app := &App{}
 	body := cognitionagents.PathsSearchRequest{
-		Header: cognitionagents.Header{},
+		Header: common.Header{},
 		Payload: cognitionagents.PathsSearchPayload{
 			FromID: "id-A",
 			ToID:   "id-B",

@@ -23,24 +23,8 @@ import (
 	"time"
 
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 )
-
-// ---------------------------------------------------------------------------
-// Common types
-// ---------------------------------------------------------------------------
-
-// Header carries routing context for CFN requests and responses.
-type Header struct {
-	WorkspaceID string `json:"workspace_id"`       // Mandatory
-	MASID       string `json:"mas_id"`             // Mandatory
-	AgentID     string `json:"agent_id,omitempty"` // Optional
-}
-
-// ErrorDetail provides debugging information when an error occurs.
-type ErrorDetail struct {
-	Message string                 `json:"message"`
-	Detail  map[string]interface{} `json:"detail,omitempty"`
-}
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -48,13 +32,49 @@ type ErrorDetail struct {
 
 // ExtractionPayloadMetadata describes the format and labels of the incoming data.
 type ExtractionPayloadMetadata struct {
-	Format string `json:"format"` // e.g. "observe-sdk-otel", "openclaw"
+	// Format specifies how the Data field should be interpreted.
+	//
+	// Supported values:
+	// - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+	// - "openclaw": Data is an opaque JSON payload
+	Format string `json:"format"`
+}
+
+func (m ExtractionPayloadMetadata) Validate() error {
+	switch m.Format {
+	case common.FormatObserveSDKOTel, common.FormatOpenClaw:
+		return nil
+	default:
+		return fmt.Errorf(
+			"invalid metadata.format %q (supported: %q, %q)",
+			m.Format,
+			common.FormatObserveSDKOTel,
+			common.FormatOpenClaw,
+		)
+	}
 }
 
 // ExtractionPayload holds the metadata and raw data array for an extraction request.
 type ExtractionPayload struct {
+	// Metadata describes the format and interpretation of the payload.
 	Metadata ExtractionPayloadMetadata `json:"metadata"`
-	Data     []ExtractionDataRecord    `json:"data"`
+	// Data contains the extraction payload and its structure depends on Metadata.Format.
+	//
+	// Supported formats: "observe-sdk-otel" and "openclaw
+	//
+	// 1. format = "observe-sdk-otel"
+	//    - Data MUST be a JSON array of ExtractionDataRecord objects.
+	//    - Example:
+	// [
+	//   { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }
+	// ]
+	//
+	// 2. format = "openclaw"
+	//    - Data is an opaque JSON payload.
+	//    - The structure is not interpreted or validated by this service and is processed as-is.
+	//
+	// Clients MUST ensure the Data field matches the structure required by the specified Metadata.Format.
+	Data json.RawMessage `json:"data" swaggertype:"object"`
 }
 
 // ExtractionDataRecord represents a single telemetry record (e.g. an OTel span).
@@ -70,14 +90,14 @@ type ExtractionDataRecord struct {
 
 // ExtractionRequest is the request body for POST /api/knowledge-mgmt/extraction.
 type ExtractionRequest struct {
-	Header    Header            `json:"header"`
+	Header    common.Header     `json:"header"`
 	RequestID string            `json:"request_id"`
 	Payload   ExtractionPayload `json:"payload"`
 }
 
 // ReasoningEvidencePayloadMetadata describes the type of reasoning query.
 type ReasoningEvidencePayloadMetadata struct {
-	QueryType string `json:"query_type,omitempty"` // e.g. "Semantic Graph Traversal", "Vector Search"
+	QueryType string `json:"query_type,omitempty"` // e.g. "Semantic Graph Traversal",
 }
 
 // ReasoningEvidencePayload holds the intent and optional context for a reasoning evidence request.
@@ -89,8 +109,8 @@ type ReasoningEvidencePayload struct {
 
 // ReasoningEvidenceRequest is the request body for POST /api/knowledge-mgmt/reasoning/evidence.
 type ReasoningEvidenceRequest struct {
-	Header    Header                   `json:"header"`
-	RequestID string                   `json:"request_id,omitempty"`
+	Header    common.Header            `json:"header"`
+	RequestID *string                  `json:"request_id,omitempty"`
 	Payload   ReasoningEvidencePayload `json:"payload"`
 }
 
@@ -102,7 +122,7 @@ type SemanticNegotiationPayload struct {
 
 // SemanticNegotiationRequest is the request body for POST /api/semantic-negotiation.
 type SemanticNegotiationRequest struct {
-	Header    Header                     `json:"header"`
+	Header    common.Header              `json:"header"`
 	RequestID string                     `json:"request_id,omitempty"`
 	Payload   SemanticNegotiationPayload `json:"payload"`
 }
@@ -113,22 +133,39 @@ type SemanticNegotiationRequest struct {
 
 // KnowledgeCognitionResponse is the response from POST /api/knowledge-mgmt/extraction.
 type KnowledgeCognitionResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
-	Concepts   []Concept    `json:"concepts,omitempty"`
-	Relations  []Relation   `json:"relations,omitempty"`
-	Descriptor string       `json:"descriptor,omitempty"`
-	Metadata   Meta         `json:"metadata,omitempty"`
+	Header     common.Header       `json:"header"`
+	ResponseID string              `json:"response_id"`
+	Error      *common.ErrorDetail `json:"error,omitempty"`
+	Concepts   []Concept           `json:"concepts,omitempty"`
+	Relations  []Relation          `json:"relations,omitempty"`
+	Descriptor string              `json:"descriptor,omitempty"`
+	Metadata   Meta                `json:"metadata,omitempty"`
+}
+
+type ConceptAttributes struct {
+	ConceptType string      `json:"concept_type"`
+	Embedding   [][]float64 `json:"embedding,omitempty"`
+
+	// Extra captures arbitrary additional fields (equivalent to extra="allow" in Pydantic)
+	Extra map[string]any `json:"-"`
 }
 
 // Concept represents an extracted concept from telemetry data.
 type Concept struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Type        string                 `json:"type"`
-	Attributes  map[string]interface{} `json:"attributes"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Type        string            `json:"type"`
+	Attributes  ConceptAttributes `json:"attributes"`
+}
+
+type RelationAttributes struct {
+	SourceName        string `json:"source_name"`
+	TargetName        string `json:"target_name"`
+	SummarizedContext string `json:"summarized_context"`
+
+	// Extra captures arbitrary additional fields (equivalent to extra="allow" in Pydantic)
+	Extra map[string]any `json:"-"`
 }
 
 // Relation represents a relationship between concepts.
@@ -139,21 +176,53 @@ type Relation struct {
 	Attributes   map[string]interface{} `json:"attributes"`
 }
 
+type ReasonerRecord struct {
+	Content ReasonerContent `json:"content"`
+}
+
+type ReasonerContent struct {
+	Evidence ReasonerEvidence `json:"evidence"`
+}
+
+type ReasonerEvidence struct {
+	Details ReasonerDetails `json:"details"`
+}
+
+type ReasonerDetails struct {
+	Concepts  []ReasonerConcept  `json:"concepts"`
+	Relations []ReasonerRelation `json:"relations"`
+}
+
+type ReasonerConcept struct {
+	ConceptID   string                 `json:"concept_id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Type        string                 `json:"type"`
+	Attributes  map[string]interface{} `json:"attributes"`
+}
+
+type ReasonerRelation struct {
+	ID         string                 `json:"id"`
+	NodeIDs    []string               `json:"node_ids"`
+	Relation   string                 `json:"relationship"`
+	Attributes map[string]interface{} `json:"attributes"`
+}
+
 // ReasonerCognitionResponse is the response from POST /api/knowledge-mgmt/reasoning/evidence.
 type ReasonerCognitionResponse struct {
-	Header     Header                   `json:"header"`
-	ResponseID string                   `json:"response_id"`
-	Error      *ErrorDetail             `json:"error,omitempty"`
-	Records    []map[string]interface{} `json:"records,omitempty"` // List of TKFKnowledgeRecord (TODO: define struct)
-	Metadata   map[string]interface{}   `json:"metadata,omitempty"`
+	Header     common.Header          `json:"header"`
+	ResponseID string                 `json:"response_id"`
+	Error      *common.ErrorDetail    `json:"error,omitempty"`
+	Records    []ReasonerRecord       `json:"records,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // SemanticNegotiationResponse is the response from POST /api/semantic-negotiation.
 // TODO: Define additional fields once the API contract is finalized.
 type SemanticNegotiationResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
+	Header     common.Header       `json:"header"`
+	ResponseID string              `json:"response_id"`
+	Error      *common.ErrorDetail `json:"error,omitempty"`
 }
 
 // Meta contains metadata about the knowledge cognition processing.

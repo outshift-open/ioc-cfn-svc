@@ -181,7 +181,7 @@ Tests HTTP handlers using `MockDatabase`.
 
 Each handler emits a **start** audit event before the operation and an **end** audit event on success or failure. All audit information is stored as JSON in the `audit_information` field.
 
-### Upsert Shared Memories (`upsertSharedMemoriesHandler`)
+### Crete or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
 
 | Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
 |-------|--------------|------------|---------------------|--------------------------|-------------------|

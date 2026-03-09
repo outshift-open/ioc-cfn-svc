@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionagents"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/google/uuid"
 )
@@ -32,7 +33,7 @@ func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.MemoryCreateResponse{
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "invalid JSON body",
 				Detail:  map[string]interface{}{"error": err.Error()},
 			},
@@ -43,7 +44,7 @@ func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.MemoryCreateResponse{
 			Header:     req.Header,
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "workspace_id and mas_id are mandatory",
 			},
 		})
@@ -75,7 +76,7 @@ func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *htt
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.ConceptsSearchResponse{
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "invalid JSON body",
 				Detail:  map[string]interface{}{"error": err.Error()},
 			},
@@ -86,7 +87,7 @@ func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *htt
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.ConceptsSearchResponse{
 			Header:     req.Header,
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "workspace_id and mas_id are mandatory",
 			},
 		})
@@ -119,7 +120,7 @@ func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.R
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.PathsSearchResponse{
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "invalid JSON body",
 				Detail:  map[string]interface{}{"error": err.Error()},
 			},
@@ -130,7 +131,7 @@ func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.R
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.PathsSearchResponse{
 			Header:     req.Header,
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "workspace_id and mas_id are mandatory",
 			},
 		})
@@ -140,7 +141,7 @@ func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.R
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.PathsSearchResponse{
 			Header:     req.Header,
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "from_id and to_id are mandatory",
 			},
 		})
@@ -173,7 +174,7 @@ func (a *App) cognitionAgentsMemorySearchHandler(w http.ResponseWriter, r *http.
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.MemorySearchResponse{
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "invalid JSON body",
 				Detail:  map[string]interface{}{"error": err.Error()},
 			},
@@ -184,7 +185,7 @@ func (a *App) cognitionAgentsMemorySearchHandler(w http.ResponseWriter, r *http.
 		return eh.RespondWithJSON(w, http.StatusBadRequest, cognitionagents.MemorySearchResponse{
 			Header:     req.Header,
 			ResponseID: uuid.New().String(),
-			Error: &cognitionagents.ErrorDetail{
+			Error: &common.ErrorDetail{
 				Message: "workspace_id and mas_id are mandatory",
 			},
 		})

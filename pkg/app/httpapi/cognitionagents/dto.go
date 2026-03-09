@@ -3,45 +3,36 @@
 // NOTE: Struct fields and JSON tags may change as the API evolves.
 package cognitionagents
 
-// Header carries routing context for CFN requests and responses.
-type Header struct {
-	WorkspaceID string `json:"workspace_id"`       // Mandatory
-	MASID       string `json:"mas_id"`             // Mandatory
-	AgentID     string `json:"agent_id,omitempty"` // Optional
-}
-
-// ErrorDetail provides debugging information when an error occurs.
-type ErrorDetail struct {
-	Message string                 `json:"message"`
-	Detail  map[string]interface{} `json:"detail,omitempty"`
-}
+import (
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
+)
 
 // MemoryCreateRequest is the request body for POST /api/cfn/{cfn-id}/memory.
 // TODO: Define fields once the API contract is finalized.
 type MemoryCreateRequest struct {
-	Header Header `json:"header"`
+	Header common.Header `json:"header"`
 }
 
 // MemoryCreateResponse is the response body for POST /api/cfn/{cfn-id}/memory.
 // TODO: Define fields once the API contract is finalized.
 type MemoryCreateResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
+	Header     common.Header       `json:"header"`
+	ResponseID string              `json:"response_id"`
+	Error      *common.ErrorDetail `json:"error,omitempty"`
 }
 
 // ConceptsSearchRequest is the request body for POST /api/cfn/{cfn-id}/memory/concepts/search.
 // TODO: Define additional fields once the API contract is finalized.
 type ConceptsSearchRequest struct {
-	Header Header `json:"header"`
+	Header common.Header `json:"header"`
 }
 
 // ConceptsSearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/concepts/search.
 // TODO: Define fields once the response contract (TKFKnowledgeRecord) is finalized.
 type ConceptsSearchResponse struct {
-	Header     Header                   `json:"header"`
+	Header     common.Header            `json:"header"`
 	ResponseID string                   `json:"response_id"`
-	Error      *ErrorDetail             `json:"error,omitempty"`
+	Error      *common.ErrorDetail      `json:"error,omitempty"`
 	Results    []map[string]interface{} `json:"results,omitempty"`
 }
 
@@ -55,7 +46,7 @@ type PathsSearchPayload struct {
 
 // PathsSearchRequest is the request body for POST /api/cfn/{cfn-id}/memory/paths/search.
 type PathsSearchRequest struct {
-	Header  Header             `json:"header"`
+	Header  common.Header      `json:"header"`
 	Payload PathsSearchPayload `json:"payload"`
 }
 
@@ -78,26 +69,26 @@ type PathResult struct {
 
 // PathsSearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/paths/search.
 type PathsSearchResponse struct {
-	Header     Header       `json:"header"`
-	ResponseID string       `json:"response_id"`
-	Error      *ErrorDetail `json:"error,omitempty"`
-	Paths      []PathResult `json:"paths,omitempty"`
+	Header     common.Header       `json:"header"`
+	ResponseID string              `json:"response_id"`
+	Error      *common.ErrorDetail `json:"error,omitempty"`
+	Paths      []PathResult        `json:"paths,omitempty"`
 }
 
 // MemorySearchRequest is the request body for POST /api/cfn/{cfn-id}/memory/search.
 type MemorySearchRequest struct {
-	Header    Header    `json:"header"`
-	Queries   []string  `json:"queries"`
-	Embedding []float64 `json:"embeding"` // Kept as "embeding" per API spec
-	K         int       `json:"k"`
+	Header    common.Header `json:"header"`
+	Queries   []string      `json:"queries"`
+	Embedding []float64     `json:"embeding"` // Kept as "embeding" per API spec
+	K         int           `json:"k"`
 }
 
 // MemorySearchResponse is the response body for POST /api/cfn/{cfn-id}/memory/search.
 type MemorySearchResponse struct {
-	Header     Header        `json:"header"`
-	ResponseID string        `json:"response_id"`
-	Error      *ErrorDetail  `json:"error,omitempty"`
-	Results    []QueryResult `json:"results,omitempty"`
+	Header     common.Header       `json:"header"`
+	ResponseID string              `json:"response_id"`
+	Error      *common.ErrorDetail `json:"error,omitempty"`
+	Results    []QueryResult       `json:"results,omitempty"`
 }
 
 // QueryResult holds the results for a single query.

@@ -33,7 +33,7 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
 	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.upsertSharedMemoriesHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
 	// remote agent memory operations

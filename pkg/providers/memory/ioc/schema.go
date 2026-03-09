@@ -71,7 +71,7 @@ func (r *Relation) Validate() error {
 // Records represents the records structure containing concepts and relations
 type Records struct {
 	Concepts  []Concept  `json:"concepts,omitempty"`
-	Relations []Relation `json:"relations,omitempty"`
+	Relations []Relation `json:"relations"`
 }
 
 // KnowledgeGraphStoreRequest represents a request to the Store for storing and managing knowledge graph data
@@ -152,7 +152,8 @@ func (k *KnowledgeGraphStoreResponse) MarshalJSON() ([]byte, error) {
 
 // ConceptRecord represents a concept record for delete operations
 type ConceptRecord struct {
-	ID string `json:"id" description:"Unique identifier for the concept"`
+	ID   string `json:"id,omitempty" description:"Unique identifier for the concept"`
+	Name string `json:"name" description:"Name of the concept"`
 }
 
 // DeleteRecords represents the records structure for delete operations

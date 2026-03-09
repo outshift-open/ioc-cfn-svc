@@ -77,51 +77,145 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 ### Shared Memory APIs
 
-**Upsert Shared Memories** - Store memories and relationships for inter-agent communication
+**Create or Update Shared Memories** - Store or update concepts and relationships for inter-agent communication
 
+This API accepts both Otel Trace and Open Claw output.
+
+Example with [Otel Trace](./pkg/app/testdata/otel.json):
 ```bash
-curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories \
+cat pkg/app/testdata/otel.json | jq -s '{
+  agent_id: "agent-1",
+  payload: {
+    metadata: {
+      format: "observe-sdk-otel"
+    },
+    data: .[0]
+  }
+}' | curl -X POST \
+  http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_otel/shared-memories \
   -H "Content-Type: application/json" \
-  -d '{
-    "memories": [
-      {
-        "id": "mem-1",
-        "content": "User prefers dark mode",
-        "type": "preference",
-        "timestamp": "2026-02-18T10:00:00Z"
-      },
-      {
-        "id": "mem-2",
-        "content": "Project uses Go 1.21",
-        "type": "technical"
-      }
-    ],
-    "relationships": [
-      {
-        "from": "mem-1",
-        "to": "mem-2",
-        "type": "related_to",
-        "strength": 0.8
-      }
-    ]
-  }'
+  --data-binary @-
 
 # Response (201 Created):
 # {
+#   "response_id": "9af99ba5-e8aa-47aa-a217-b87dd928ac59",
 #   "status": "success",
-#   "message": "shared memories upserted successfully"
+#   "message": "Successfully saved 10 nodes and 16 edges to graph 'graph_mas_otel'"
+# }
+```
+
+
+Example with [OpenClaw output](./pkg/app/testdata/openclaw.json):
+
+```bash
+cat pkg/app/testdata/openclaw.json | jq -s '{
+  agent_id: "agent-1",
+  payload: {
+    metadata: {
+      format: "openclaw"
+    },
+    data: .[0]
+  }
+}' | curl -X POST \
+  http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_openclaw/shared-memories \
+  -H "Content-Type: application/json" \
+  --data-binary @-
+
+# Response (201 Created):
+# {
+#   "response_id": "9af99ba5-e8aa-47aa-a217-b87dd928ac59",
+#   "status": "success",
+#   "message": "Successfully saved 15 nodes and 17 edges to graph 'graph_mas_openclaw'"
 # }
 ```
 
 **Fetch Shared Memories** - Query stored memories for agent coordination
 
 ```bash
-curl -X POST http://localhost:9002/api/workspaces/{workspaceId}/multi-agentic-systems/{systemId}/shared-memories/query \
+curl -X POST http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_otel/shared-memories/query \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{
+        "agent_id": "agent-1",
+		    "search_strategy": "semantic_graph_traversal",
+		    "intent": "what does the website_selector_agent do?"
+    }'
 
 # Response (200 OK):
-# TODO: Response format to be defined
+{
+  "response_id": "5aec5901-b2f8-40af-af53-b0c3e782d249",
+  "status": "success",
+  "message": "Successfully queried neighbours for:15118c8b99e5813a2239279f0d7fb7c6 in graph:graph_mas_otel.",
+  "records": [
+    {
+      "relationships": [
+        {
+          "id": "5883c6441e793212e18c0f01f46ae8ff",
+          "relation": "ORCHESTRATES_AGENT",
+          "node_ids": [
+            "b9289c4679466c4e15ee79b2dfa55f5a",
+            "15118c8b99e5813a2239279f0d7fb7c6"
+          ],
+          "attributes": {
+            "mas_id": "mas_otel",
+            "source_name": "Miss-Marple",
+            "summarized_context": "Miss-Marple orchestrates the website_selector_agent to identify relevant websites for the query.",
+            "target_name": "website_selector_agent",
+            "wksp_id": "ws1"
+          }
+        },
+        {
+          "id": "7fd39271d0c182b1e849a32db7606522",
+          "relation": "USES_FUNCTION_TO_SEARCH",
+          "node_ids": [
+            "15118c8b99e5813a2239279f0d7fb7c6",
+            "9c3365fe98bfc211d092f9dd4bff9ad4"
+          ],
+          "attributes": {
+            "mas_id": "mas_otel",
+            "source_name": "website_selector_agent",
+            "summarized_context": "The website_selector_agent uses the search_serper function to perform internet searches for relevant websites.",
+            "target_name": "search_serper",
+            "wksp_id": "ws1"
+          }
+        }
+      ],
+      "concepts": [
+        {
+          "id": "b9289c4679466c4e15ee79b2dfa55f5a",
+          "name": "Miss-Marple",
+          "description": "A service that orchestrates various agents to collaboratively answer complex queries by leveraging internet searches, documentation, and reasoning capabilities.",
+          "attributes": {
+            "concept_type": "service",
+            "mas_id": "mas_otel",
+            "wksp_id": "ws1"
+          },
+          "embeddings": {
+            "name": "BAAI/bge-small-en-v1.5",
+            "data": [
+              /* intentionally neglected embeddings */
+            ]
+          }
+        },
+        {
+          "id": "9c3365fe98bfc211d092f9dd4bff9ad4",
+          "name": "search_serper",
+          "description": "A function used to search the internet for information on a given topic and return relevant results.",
+          "attributes": {
+            "concept_type": "function",
+            "mas_id": "mas_otel",
+            "wksp_id": "ws1"
+          },
+          "embeddings": {
+            "name": "BAAI/bge-small-en-v1.5",
+            "data": [
+              /* intentionally neglected embeddings */
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Notes:**

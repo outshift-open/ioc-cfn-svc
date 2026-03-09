@@ -514,7 +514,7 @@ const docTemplate = `{
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
-                "description": "Upserts shared memory entries (concepts and relations) for a given workspace and multi-agentic system.",
+                "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
                 "consumes": [
                     "application/json"
                 ],
@@ -524,7 +524,7 @@ const docTemplate = `{
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Upsert shared memories.",
+                "summary": "Create or update shared memories.",
                 "parameters": [
                     {
                         "type": "string",
@@ -541,19 +541,19 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Upsert request",
+                        "description": "Create or update shared memories request",
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreRequest"
+                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Shared memories successfully upserted",
+                        "description": "Shared memories successfully created or updated",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphStoreResponse"
+                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateResponse"
                         }
                     },
                     "400": {
@@ -610,7 +610,7 @@ const docTemplate = `{
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryRequest"
+                            "$ref": "#/definitions/sharedmemory.QueryRequest"
                         }
                     }
                 ],
@@ -618,7 +618,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Query executed successfully",
                         "schema": {
-                            "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponse"
+                            "$ref": "#/definitions/sharedmemory.QueryResponse"
                         }
                     },
                     "400": {
@@ -723,11 +723,37 @@ const docTemplate = `{
                 }
             }
         },
+        "cognitionagentclient.ExtractionPayload": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\" and \"openclaw\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
+                    "type": "object"
+                },
+                "metadata": {
+                    "description": "Metadata describes the format and interpretation of the payload.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cognitionagentclient.ExtractionPayloadMetadata"
+                        }
+                    ]
+                }
+            }
+        },
+        "cognitionagentclient.ExtractionPayloadMetadata": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "type": "string"
+                }
+            }
+        },
         "cognitionagents.ConceptsSearchRequest": {
             "type": "object",
             "properties": {
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 }
             }
         },
@@ -735,10 +761,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                    "$ref": "#/definitions/common.ErrorDetail"
                 },
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "response_id": {
                     "type": "string"
@@ -752,40 +778,11 @@ const docTemplate = `{
                 }
             }
         },
-        "cognitionagents.ErrorDetail": {
-            "type": "object",
-            "properties": {
-                "detail": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.Header": {
-            "type": "object",
-            "properties": {
-                "agent_id": {
-                    "description": "Optional",
-                    "type": "string"
-                },
-                "mas_id": {
-                    "description": "Mandatory",
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "description": "Mandatory",
-                    "type": "string"
-                }
-            }
-        },
         "cognitionagents.MemoryCreateRequest": {
             "type": "object",
             "properties": {
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 }
             }
         },
@@ -793,10 +790,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                    "$ref": "#/definitions/common.ErrorDetail"
                 },
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "response_id": {
                     "type": "string"
@@ -814,7 +811,7 @@ const docTemplate = `{
                     }
                 },
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "k": {
                     "type": "integer"
@@ -831,10 +828,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                    "$ref": "#/definitions/common.ErrorDetail"
                 },
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "response_id": {
                     "type": "string"
@@ -914,7 +911,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "payload": {
                     "$ref": "#/definitions/cognitionagents.PathsSearchPayload"
@@ -925,10 +922,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "$ref": "#/definitions/cognitionagents.ErrorDetail"
+                    "$ref": "#/definitions/common.ErrorDetail"
                 },
                 "header": {
-                    "$ref": "#/definitions/cognitionagents.Header"
+                    "$ref": "#/definitions/common.Header"
                 },
                 "paths": {
                     "type": "array",
@@ -952,6 +949,35 @@ const docTemplate = `{
                     }
                 },
                 "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "Optional",
+                    "type": "string"
+                },
+                "mas_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "description": "Mandatory",
                     "type": "string"
                 }
             }
@@ -983,14 +1009,6 @@ const docTemplate = `{
                 }
             }
         },
-        "iocmemoryprovider.ConceptRecord": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
         "iocmemoryprovider.EmbeddingConfig": {
             "type": "object",
             "properties": {
@@ -1005,63 +1023,6 @@ const docTemplate = `{
                 }
             }
         },
-        "iocmemoryprovider.KnowledgeGraphQueryCriteria": {
-            "type": "object",
-            "properties": {
-                "depth": {
-                    "type": "integer"
-                },
-                "query_type": {
-                    "type": "string"
-                },
-                "use_direction": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryRequest": {
-            "type": "object",
-            "properties": {
-                "mas_id": {
-                    "type": "string"
-                },
-                "memory_type": {
-                    "type": "string"
-                },
-                "query_criteria": {
-                    "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryCriteria"
-                },
-                "records": {
-                    "$ref": "#/definitions/iocmemoryprovider.QueryRecords"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "wksp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
-                    }
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
-                }
-            }
-        },
         "iocmemoryprovider.KnowledgeGraphQueryResponseRecord": {
             "type": "object",
             "properties": {
@@ -1072,71 +1033,6 @@ const docTemplate = `{
                     }
                 },
                 "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Relation"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreRequest": {
-            "type": "object",
-            "properties": {
-                "force_replace": {
-                    "type": "boolean"
-                },
-                "mas_id": {
-                    "type": "string"
-                },
-                "memory_type": {
-                    "type": "string"
-                },
-                "records": {
-                    "$ref": "#/definitions/iocmemoryprovider.Records"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "wksp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphStoreResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "request_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/iocmemoryprovider.ResponseStatus"
-                }
-            }
-        },
-        "iocmemoryprovider.QueryRecords": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.ConceptRecord"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.Records": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Concept"
-                    }
-                },
-                "relations": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/iocmemoryprovider.Relation"
@@ -1167,21 +1063,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "iocmemoryprovider.ResponseStatus": {
-            "type": "string",
-            "enum": [
-                "success",
-                "failure",
-                "validation error",
-                "not found"
-            ],
-            "x-enum-varnames": [
-                "ResponseStatusSuccess",
-                "ResponseStatusFailure",
-                "ResponseStatusValidationError",
-                "ResponseStatusNotFound"
-            ]
         },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
@@ -1237,6 +1118,78 @@ const docTemplate = `{
                 },
                 "http-status": {
                     "type": "integer"
+                }
+            }
+        },
+        "sharedmemory.CreateOrUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "optional",
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.CreateOrUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryRequest": {
+            "type": "object",
+            "properties": {
+                "additional_context": {
+                    "description": "TODO: not sure if we allow users to specify query type along with specified node IDs\nNodeIDs           *[]string                                      ` + "`" + `json:\"node_ids,omitempty\"` + "`" + `        // node ID(s) must be provided if query_type is \"neighbor\" or \"path\". Node ID(s) is ignored is query_type is set to be \"concept\"\nQueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria ` + "`" + `json:\"query_criteria,omitempty\"` + "`" + `",
+                    "type": "array",
+                    "items": {}
+                },
+                "agent_id": {
+                    "type": "string"
+                },
+                "intent": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "search_strategy": {
+                    "description": "only supported search strategy: \"semantic_graph_traversal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
+                    }
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }
