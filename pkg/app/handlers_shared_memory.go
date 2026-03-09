@@ -387,25 +387,6 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	// Audit: start of knowledge query
-	startAuditInfo, _ := json.Marshal(map[string]string{
-		"status": "STARTED",
-	})
-	startAudit := &audit.Audit{
-		OperationID:        &operationID,
-		ResourceType:       audit.ResourceTypeMAS,
-		ResourceIdentifier: masID,
-		AuditType:          audit.AuditTypeKnowledgeQuery,
-		// TODO: AuditResourceIdentifier may change to a different identifier if required.
-		AuditResourceIdentifier: masID,
-		AuditInformation:        datatypes.JSON(startAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
-	}
-	if err := a.db.CreateAuditEvent(startAudit); err != nil {
-		log.Errorf("failed to create start audit event: %v", err)
-	}
-
 	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphQueryRequest{
 		RequestID: *requestId,
 		WkspID:    &workspaceID,

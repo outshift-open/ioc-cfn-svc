@@ -193,13 +193,16 @@ Emits two audit rows per operation: a **start** event before the call and an **e
 
 ### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
 
-Emits two audit rows per operation: a **start** event before the call and an **end** event on completion. (todo: keep as is for now, need to change soon and have single entry for success/failure)
+Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED).
 
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"SUCCESS"}` |
-| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+| Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier |
+|--------------|------------|---------------------|---------------------------|
+| `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` |
+
+| Outcome | Audit Information |
+|---------|-------------------|
+| Success | `{"status":"SUCCESS"}` |
+| Failure | `{"status":"FAILED","error":"..."}` |
 
 ### Memory Operations (`memoryOperationsHandler`)
 
