@@ -73,8 +73,6 @@ curl http://localhost:9002/api/internal/diagnostics/health
 curl http://localhost:9002/api/internal/diagnostics/info
 # Response: {"git":{"commit":{"time":"2025-01-01T00:00:00-08:00","id":"abc1234"},"branch":"main"}}
 
-# CFN dummy API
-curl http://localhost:9002/api/cfn/dummy
 ```
 
 ### Shared Memory APIs

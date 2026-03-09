@@ -664,18 +664,6 @@ paths:
       summary: Get an audit event by ID
       tags:
       - audit
-  /api/v1/cfn/dummy:
-    get:
-      description: Returns mock CFN data
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema: {}
-      summary: Get CFN dummy data
-      tags:
-      - cfn
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:

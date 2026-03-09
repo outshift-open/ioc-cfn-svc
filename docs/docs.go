@@ -421,24 +421,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/cfn/dummy": {
-            "get": {
-                "description": "Returns mock CFN data",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "cfn"
-                ],
-                "summary": "Get CFN dummy data",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {}
-                    }
-                }
-            }
-        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
             "post": {
                 "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe ` + "`" + `http-url` + "`" + ` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**POST example** — add memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `",
