@@ -4,6 +4,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,11 +45,17 @@ type Client struct {
 	config *Config
 }
 
+// insecureTransport is a shared transport that skips TLS certificate verification.
+// TODO: TEMPORARY — remove once corporate CA certs are added to the container.
+var insecureTransport = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // temporary workaround
+}
+
 // New creates a client with the given timeout.
 func New(timeout time.Duration) *Client {
 	cfg := DefaultConfig()
 	cfg.Timeout = timeout
-	return &Client{http: &http.Client{Timeout: timeout}, config: cfg}
+	return &Client{http: &http.Client{Timeout: timeout, Transport: insecureTransport}, config: cfg}
 }
 
 // NewWithConfig creates a client with custom config.
@@ -56,7 +63,7 @@ func NewWithConfig(cfg *Config) *Client {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Client{http: &http.Client{Timeout: cfg.Timeout}, config: cfg}
+	return &Client{http: &http.Client{Timeout: cfg.Timeout, Transport: insecureTransport}, config: cfg}
 }
 
 // Do executes an HTTP request with retries.
