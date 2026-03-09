@@ -359,49 +359,51 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	// TODO: operationID is currently a random UUID; replace with a consistent request ID
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
-	// Audit: start of memory operation
-	startAuditInfo, _ := json.Marshal(map[string]string{
-		"status": "STARTED",
-	})
-	startAudit := &audit.Audit{
-		OperationID:        &operationID,
-		ResourceType:       audit.ResourceTypeMASAgent,
-		ResourceIdentifier: masID,
-		AuditType:          audit.AuditTypeMemoryOperation,
-		// TODO: AuditResourceIdentifier may change to a different identifier if required.
-		AuditResourceIdentifier: agentID,
-		AuditInformation:        datatypes.JSON(startAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
+
+	// Build the audit request snapshot (included in all audit entries for this handler)
+	auditRequest := map[string]interface{}{
+		"http_method": req.Payload.HTTPRequestType,
+		"http_url":    targetURL,
 	}
-	if auditErr := a.db.CreateAuditEvent(startAudit); auditErr != nil {
-		log.Errorf("failed to create start audit event: %v", auditErr)
+	if req.Payload.HTTPRequestBody != nil {
+		auditRequest["http_request_body"] = req.Payload.HTTPRequestBody
 	}
 
-	// Forward the request via the memory proxy client
-	if a.memoryProxyClient == nil {
-		// Audit: end of memory operation (failure - client not configured)
-		errMsg := "memory proxy client is not configured"
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		endAudit := &audit.Audit{
+	// helper to create a single audit entry for this operation
+	createAudit := func(status string, extra map[string]interface{}) {
+		info := map[string]interface{}{
+			"status":  status,
+			"request": auditRequest,
+		}
+		for k, v := range extra {
+			info[k] = v
+		}
+		auditInfo, _ := json.Marshal(info)
+		auditEvt := &audit.Audit{
 			OperationID:        &operationID,
 			ResourceType:       audit.ResourceTypeMemoryProvider,
 			ResourceIdentifier: masID,
 			AuditType:          audit.AuditTypeMemoryOperation,
 			// TODO: AuditResourceIdentifier may change to a different identifier if required.
 			AuditResourceIdentifier: agentID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
+			AuditInformation:        datatypes.JSON(auditInfo),
 			CreatedBy:               uuid.Nil,
 			LastModifiedBy:          uuid.Nil,
 		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create end audit event: %v", auditErr)
+		if status == "FAILED" {
+			if errVal, ok := info["error"]; ok {
+				errStr := fmt.Sprintf("%v", errVal)
+				auditEvt.AuditExtraInformation = &errStr
+			}
 		}
+		if auditErr := a.db.CreateAuditEvent(auditEvt); auditErr != nil {
+			log.Errorf("failed to create audit event: %v", auditErr)
+		}
+	}
 
+	// Forward the request via the memory proxy client
+	if a.memoryProxyClient == nil {
+		createAudit("FAILED", map[string]interface{}{"error": "memory proxy client is not configured"})
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"error": "memory proxy client is not configured",
 		})
@@ -410,28 +412,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	method := strings.ToUpper(strings.TrimSpace(req.Payload.HTTPRequestType))
 	proxyResp, err := a.memoryProxyClient.Do(r.Context(), method, targetURL, requestBody, headers)
 	if err != nil {
-		// Audit: end of memory operation (failure)
-		errMsg := err.Error()
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		endAudit := &audit.Audit{
-			OperationID:        &operationID,
-			ResourceType:       audit.ResourceTypeMemoryProvider,
-			ResourceIdentifier: masID,
-			AuditType:          audit.AuditTypeMemoryOperation,
-			// TODO: AuditResourceIdentifier may change to a different identifier if required.
-			AuditResourceIdentifier: agentID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create end audit event: %v", auditErr)
-		}
-
+		createAudit("FAILED", map[string]interface{}{"error": err.Error()})
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("failed to forward request to memory provider: %v", err),
 		})
@@ -442,24 +423,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 	respBody, err := io.ReadAll(proxyResp.Body)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to read memory provider response: %v", err)
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMemoryProvider,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeMemoryOperation,
-			AuditResourceIdentifier: agentID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create end audit event: %v", auditErr)
-		}
+		createAudit("FAILED", map[string]interface{}{"error": errMsg})
 		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
 			"error": errMsg,
 		})
@@ -489,25 +453,11 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 
 	log.Infof("memory provider responded with status: %d", proxyResp.StatusCode)
 
-	// Audit: end of memory operation (success)
-	endAuditInfo, _ := json.Marshal(map[string]string{
-		"status":      "SUCCESS",
-		"http_status": fmt.Sprintf("%d", proxyResp.StatusCode),
+	// Audit: single entry with request + response
+	createAudit("SUCCESS", map[string]interface{}{
+		"http_status": proxyResp.StatusCode,
+		"response":    respJSON,
 	})
-	endAudit := &audit.Audit{
-		OperationID:        &operationID,
-		ResourceType:       audit.ResourceTypeMemoryProvider,
-		ResourceIdentifier: masID,
-		AuditType:          audit.AuditTypeMemoryOperation,
-		// TODO: AuditResourceIdentifier may change to a different identifier if required.
-		AuditResourceIdentifier: agentID,
-		AuditInformation:        datatypes.JSON(endAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
-	}
-	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		log.Errorf("failed to create end audit event: %v", auditErr)
-	}
 
 	// Return the response with 200 status (the actual HTTP status from the memory provider is in the response body)
 	return eh.RespondWithJSON(w, http.StatusOK, response)

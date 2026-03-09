@@ -179,9 +179,11 @@ Tests HTTP handlers using `MockDatabase`.
 
 ## Handler Audit Trails
 
-Each handler emits a **start** audit event before the operation and an **end** audit event on success or failure. All audit information is stored as JSON in the `audit_information` field.
+All audit information is stored as JSON in the `audit_information` field.
 
 ### Crete or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
+
+Emits two audit rows per operation: a **start** event before the call and an **end** event on completion. (todo: keep as is for now, need to revisit later)
 
 | Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
 |-------|--------------|------------|---------------------|--------------------------|-------------------|
@@ -191,6 +193,8 @@ Each handler emits a **start** audit event before the operation and an **end** a
 
 ### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
 
+Emits two audit rows per operation: a **start** event before the call and an **end** event on completion. (todo: keep as is for now, need to change soon and have single entry for success/failure)
+
 | Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
 |-------|--------------|------------|---------------------|--------------------------|-------------------|
 | Start | `MAS` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"STARTED"}` |
@@ -199,17 +203,46 @@ Each handler emits a **start** audit event before the operation and an **end** a
 
 ### Memory Operations (`memoryOperationsHandler`)
 
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS-AGENT` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"SUCCESS","http_status":"..."}` |
-| Failure | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"FAILED","error":"..."}` |
+Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED) and includes the full request and response in `audit_information`.
+
+| Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier |
+|--------------|------------|---------------------|---------------------------|
+| `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` |
+
+#### `audit_information` structure
+
+**Success:**
+```json
+{
+  "status": "SUCCESS",
+  "http_status": 200,
+  "request": {
+    "http_method": "POST",
+    "http_url": "https://provider.example.com/v1/memories/add",
+    "http_request_body": { ... }
+  },
+  "response": { ... }
+}
+```
+
+**Failure:**
+```json
+{
+  "status": "FAILED",
+  "error": "...",
+  "request": {
+    "http_method": "POST",
+    "http_url": "https://provider.example.com/v1/memories/add",
+    "http_request_body": { ... }
+  }
+}
+```
 
 ### Common Fields
 
-- **`OperationID`**: Random UUID linking start/end events for the same request (TBD — will be replaced with trace/correlation ID)
+- **`OperationID`**: Random UUID identifying the operation (TBD — will be replaced with trace/correlation ID)
 - **`CreatedBy` / `LastModifiedBy`**: Currently `uuid.Nil` (placeholder)
-- **`AuditExtraInformation`**: Set to the error message string on failure events; absent on start/success
+- **`AuditExtraInformation`**: Set to the error message string on failure events; absent on success
 
 ## Key Design Decisions
 
