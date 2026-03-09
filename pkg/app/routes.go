@@ -32,9 +32,6 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(internalPrefix+"/diagnostics/loggers", a.diagnosticsLoggersHandler)
 	rtr.Post(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
-	// cfn endpoints
-	rtr.Get(apiPrefix+"/cfn/dummy", a.getCfnDummyHandler)
-
 	// shared memories
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.upsertSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
