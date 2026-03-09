@@ -8,7 +8,7 @@ import (
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
-type UpsertRequest struct {
+type CreateOrUpdateRequest struct {
 	// optional
 	AgentId   *string `json:"agent_id,omitempty"`
 	RequestId *string `json:"request_id,omitempty"`
@@ -16,7 +16,7 @@ type UpsertRequest struct {
 	Payload cognitionagentclient.ExtractionPayload `json:"payload"`
 }
 
-type UpsertResponse struct {
+type CreateOrUpdateResponse struct {
 	ResponseID *string `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
 	Status     string  `json:"status" description:"Status of the request"`
 	Message    *string `json:"message,omitempty" description:"Optional message providing additional information"`

@@ -514,7 +514,7 @@ const docTemplate = `{
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
-                "description": "Upserts shared memory with entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.",
+                "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
                 "consumes": [
                     "application/json"
                 ],
@@ -524,7 +524,7 @@ const docTemplate = `{
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Upsert shared memories.",
+                "summary": "Create or update shared memories.",
                 "parameters": [
                     {
                         "type": "string",
@@ -541,19 +541,19 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Upsert request",
+                        "description": "Create or update shared memories request",
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/sharedmemory.UpsertRequest"
+                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Shared memories successfully upserted",
+                        "description": "Shared memories successfully created or updated",
                         "schema": {
-                            "$ref": "#/definitions/sharedmemory.UpsertResponse"
+                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateResponse"
                         }
                     },
                     "400": {
@@ -1121,6 +1121,35 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.CreateOrUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "optional",
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.CreateOrUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.QueryRequest": {
             "type": "object",
             "properties": {
@@ -1155,35 +1184,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
                     }
-                },
-                "response_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.UpsertRequest": {
-            "type": "object",
-            "properties": {
-                "agent_id": {
-                    "description": "optional",
-                    "type": "string"
-                },
-                "payload": {
-                    "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
-                },
-                "request_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.UpsertResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
                 },
                 "response_id": {
                     "type": "string"

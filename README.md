@@ -77,7 +77,7 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 ### Shared Memory APIs
 
-**Upsert Shared Memories** - Store memories and relationships for inter-agent communication
+**Create or Update Shared Memories** - Store or update concepts and relationships for inter-agent communication
 
 This API accepts both Otel Trace and Open Claw output.
 

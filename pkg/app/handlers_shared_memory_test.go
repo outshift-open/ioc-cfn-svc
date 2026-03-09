@@ -17,7 +17,7 @@ import (
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
-func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *testing.T) {
+func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *testing.T) {
 	// --- setup ---
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
 	cognitionAgentsClient := cognitionagentclient.New(
@@ -34,7 +34,7 @@ func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *tes
 	mux.HandleFunc(
 		"POST /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories",
 		func(w http.ResponseWriter, r *http.Request) {
-			app.upsertSharedMemoriesHandler(w, r)
+			app.createOrUpdateSharedMemoriesHandler(w, r)
 		},
 	)
 
@@ -79,7 +79,7 @@ func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *tes
 	}
 }
 
-func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integration(t *testing.T) {
+func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integration(t *testing.T) {
 	// --- setup ---
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
 	cognitionAgentsClient := cognitionagentclient.New(
@@ -96,7 +96,7 @@ func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integration(t 
 	mux.HandleFunc(
 		"POST /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories",
 		func(w http.ResponseWriter, r *http.Request) {
-			app.upsertSharedMemoriesHandler(w, r)
+			app.createOrUpdateSharedMemoriesHandler(w, r)
 		},
 	)
 

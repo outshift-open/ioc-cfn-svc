@@ -335,6 +335,25 @@ definitions:
       http-status:
         type: integer
     type: object
+  sharedmemory.CreateOrUpdateRequest:
+    properties:
+      agent_id:
+        description: optional
+        type: string
+      payload:
+        $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
+      request_id:
+        type: string
+    type: object
+  sharedmemory.CreateOrUpdateResponse:
+    properties:
+      message:
+        type: string
+      response_id:
+        type: string
+      status:
+        type: string
+    type: object
   sharedmemory.QueryRequest:
     properties:
       additional_context:
@@ -362,25 +381,6 @@ definitions:
         items:
           $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord'
         type: array
-      response_id:
-        type: string
-      status:
-        type: string
-    type: object
-  sharedmemory.UpsertRequest:
-    properties:
-      agent_id:
-        description: optional
-        type: string
-      payload:
-        $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
-      request_id:
-        type: string
-    type: object
-  sharedmemory.UpsertResponse:
-    properties:
-      message:
-        type: string
       response_id:
         type: string
       status:
@@ -762,9 +762,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Upserts shared memory with entries (concepts and relations) extracted
-        from provided trace or openclaw output for a given workspace and multi-agentic
-        system.
+      description: Creates or updates shared memories with entries (concepts and relations)
+        extracted from the provided trace or OpenClaw output for a given workspace
+        and multi-agentic system.
       parameters:
       - description: Workspace ID
         in: path
@@ -776,18 +776,18 @@ paths:
         name: masId
         required: true
         type: string
-      - description: Upsert request
+      - description: Create or update shared memories request
         in: body
         name: body
         schema:
-          $ref: '#/definitions/sharedmemory.UpsertRequest'
+          $ref: '#/definitions/sharedmemory.CreateOrUpdateRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Shared memories successfully upserted
+          description: Shared memories successfully created or updated
           schema:
-            $ref: '#/definitions/sharedmemory.UpsertResponse'
+            $ref: '#/definitions/sharedmemory.CreateOrUpdateResponse'
         "400":
           description: Invalid request
           schema:
@@ -800,7 +800,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Upsert shared memories.
+      summary: Create or update shared memories.
       tags:
       - shared-memories
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query:

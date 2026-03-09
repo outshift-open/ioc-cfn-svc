@@ -129,10 +129,10 @@ func TransformReasonerResponseToRecords(resp *cognitionagentclient.ReasonerCogni
 	return records
 }
 
-// upsertSharedMemoriesHandler godoc
+// createOrUpdateSharedMemoriesHandler godoc
 //
-// @Summary     Upsert shared memories.
-// @Description Upserts shared memory with entries (concepts and relations) extracted from provided trace or openclaw output for a given workspace and multi-agentic system.
+// @Summary     Create or update shared memories.
+// @Description Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.
 //
 // @Tags        shared-memories
 // @Accept      json
@@ -140,14 +140,14 @@ func TransformReasonerResponseToRecords(resp *cognitionagentclient.ReasonerCogni
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body sharedmemory.UpsertRequest false "Upsert request"
+// @Param       body        body sharedmemory.CreateOrUpdateRequest false "Create or update shared memories request"
 //
-// @Success     201 {object} sharedmemory.UpsertResponse "Shared memories successfully upserted"
+// @Success     201 {object} sharedmemory.CreateOrUpdateResponse "Shared memories successfully created or updated"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
-func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
 
@@ -155,11 +155,11 @@ func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request
 	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
-		"Upserting shared memories | workspace=%s mas=%s",
+		"Creating or updating shared memories | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
 
-	var reqPayload sharedmemory.UpsertRequest
+	var reqPayload sharedmemory.CreateOrUpdateRequest
 	if r.Body != nil {
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
@@ -263,7 +263,7 @@ func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to upsert shared memories, error: %v", err)},
+			map[string]string{"error": fmt.Sprintf("failed to create or update shared memories, error: %v", err)},
 		)
 	}
 
@@ -286,7 +286,7 @@ func (a *App) upsertSharedMemoriesHandler(w http.ResponseWriter, r *http.Request
 		log.Errorf("failed to create end audit event: %v", auditErr)
 	}
 
-	resp := &sharedmemory.UpsertResponse{
+	resp := &sharedmemory.CreateOrUpdateResponse{
 		ResponseID: knowledgeGraphResp.RequestID,
 		Status:     string(knowledgeGraphResp.Status),
 		Message:    knowledgeGraphResp.Message,
