@@ -22,7 +22,7 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integratio
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
 	cognitionAgentsClient := cognitionagentclient.New(
 		"http://localhost:9004",
-		30*time.Second,
+		120*time.Second,
 	)
 
 	app := &App{
@@ -84,7 +84,7 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integr
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
 	cognitionAgentsClient := cognitionagentclient.New(
 		"http://localhost:9004",
-		30*time.Second,
+		120*time.Second,
 	)
 
 	app := &App{

@@ -488,6 +488,19 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		Records:    knowledgeGraphResp.Records,
 	}
 
+	// Remove embeddings from final response
+	for i := range resp.Records {
+		// Remove concept embeddings
+		for j := range resp.Records[i].Concepts {
+			resp.Records[i].Concepts[j].Embeddings = nil
+		}
+
+		// Remove relation embeddings
+		for k := range resp.Records[i].Relationships {
+			resp.Records[i].Relationships[k].Embeddings = nil
+		}
+	}
+
 	log.Infof(
 		"Shared memories query succeeded | status=%s records=%d",
 		resp.Status,
