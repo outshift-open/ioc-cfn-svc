@@ -97,7 +97,7 @@ func TestUpsertSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integration(t 
 		},
 	)
 
-	dataBytes, err := os.ReadFile("testdata/another_openclaw.json")
+	dataBytes, err := os.ReadFile("testdata/openclaw.json")
 	if err != nil {
 		t.Fatalf("failed to read test payload: %v", err)
 	}
@@ -159,6 +159,7 @@ func TestFetchSharedMemoriesHandler_EvidenceAndReasoning_Integration(t *testing.
 		},
 	)
 
+	// Test for query from Otel trace ingestion
 	body := `{
         "agent_id": "agent-2",
 		"search_strategy": "semantic_graph_traversal",
@@ -167,11 +168,36 @@ func TestFetchSharedMemoriesHandler_EvidenceAndReasoning_Integration(t *testing.
 
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/workspaces/ws1/multi-agentic-systems/mas1/shared-memories/query",
+		"/api/workspaces/ws1/multi-agentic-systems/mas_otel/shared-memories/query",
 		strings.NewReader(body),
 	)
 
 	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf(
+			"unexpected status code: got=%d want=%d\nresponse body:\n%s",
+			w.Code,
+			http.StatusOK,
+			w.Body.String(),
+		)
+	}
+
+	// Test for query from Open Claw ingestion
+	body = `{
+        "agent_id": "agent-2",
+		"search_strategy": "semantic_graph_traversal",
+		"intent": "Tell me something about Q2 budget planning"
+    }`
+
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"/api/workspaces/ws1/multi-agentic-systems/mas_openclaw/shared-memories/query",
+		strings.NewReader(body),
+	)
+
+	w = httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {

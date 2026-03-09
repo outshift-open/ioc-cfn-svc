@@ -338,7 +338,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			)
 		}
 
-		if err := req.Validate(); err != nil {
+		if err := req.ValidateAndApplyDefault(); err != nil {
 			return eh.RespondWithJSON(
 				w,
 				http.StatusBadRequest,
@@ -489,7 +489,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	log.Infof(
-		"Share memoried query succeeded | status=%s records=%d",
+		"Shared memories query succeeded | status=%s records=%d",
 		resp.Status,
 		len(resp.Records),
 	)

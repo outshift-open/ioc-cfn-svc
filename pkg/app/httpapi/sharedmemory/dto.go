@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
@@ -41,7 +42,11 @@ var SearchStrategyConvertMap = map[string]string{
 	SearchStrategySemanticGraphTraversal: "Semantic Graph Traversal",
 }
 
-func (r *QueryRequest) Validate() error {
+func (r *QueryRequest) ValidateAndApplyDefault() error {
+	if r.SearchStrategy == nil {
+		r.SearchStrategy = common.StrToPtr(SearchStrategySemanticGraphTraversal)
+	}
+
 	if r.SearchStrategy != nil && *r.SearchStrategy != SearchStrategySemanticGraphTraversal {
 		return fmt.Errorf("invalid search_strategy, valid value is %s", SearchStrategySemanticGraphTraversal)
 	}
