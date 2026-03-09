@@ -59,6 +59,8 @@ pkg/client/database/database.go — Real (Postgres) Database implementation
 | `AuditTypeKnowledgeIngestion` | `KNOWLEDGE_INGESTION` |
 | `AuditTypeKnowledgeQuery` | `KNOWLEDGE_QUERY` |
 | `AuditTypeMemoryOperation` | `MEMORY_OPERATION` |
+| `AuditTypeSharedMemoryOperation` | `SHARED_MEMORY_OPERATION` |
+| `AuditTypeAgentMemoryOperation` | `AGENT_MEMORY_OPERATION` |
 
 Both enums are validated on create and list operations. Invalid values return an error with the list of valid options.
 
@@ -181,23 +183,17 @@ Tests HTTP handlers using `MockDatabase`.
 
 All audit information is stored as JSON in the `audit_information` field.
 
-### Crete or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
+### Create or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
 
-Emits two audit rows per operation: a **start** event before the call and an **end** event on completion. (todo: keep as is for now, need to revisit later)
-
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"SUCCESS"}` |
-| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+> **Status: Audit code is fully commented out.** TODO: Revisit later — decide on audit type, resource identifiers, and single-row vs dual-row pattern.
 
 ### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
 
 Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED).
 
-| Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier |
-|--------------|------------|---------------------|---------------------------|
-| `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` |
+| Resource Type | Audit Type                 | Resource Identifier | Audit Resource Identifier |
+|---------------|----------------------------|---------------------|---------------------------|
+| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `masId` (TODO: replace with `shared_memory_id` from CfnConfig global map once available) |
 
 | Outcome | Audit Information |
 |---------|-------------------|
@@ -208,9 +204,9 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED) and includes the full request and response in `audit_information`.
 
-| Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier |
-|--------------|------------|---------------------|---------------------------|
-| `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` |
+| Resource Type | Audit Type                | Resource Identifier | Audit Resource Identifier |
+|---------------|---------------------------|---------------------|---------------------------|
+| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentId` (TODO: replace with `memory-provider-id` from CfnConfig global map once available) |
 
 #### `audit_information` structure
 

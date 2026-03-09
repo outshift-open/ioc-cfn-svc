@@ -238,4 +238,6 @@ func TestEnumConstants(t *testing.T) {
 	assert.Equal(t, "KNOWLEDGE_INGESTION", AuditTypeKnowledgeIngestion)
 	assert.Equal(t, "KNOWLEDGE_QUERY", AuditTypeKnowledgeQuery)
 	assert.Equal(t, "MEMORY_OPERATION", AuditTypeMemoryOperation)
+	assert.Equal(t, "SHARED_MEMORY_OPERATION", AuditTypeSharedMemoryOperation)
+	assert.Equal(t, "AGENT_MEMORY_OPERATION", AuditTypeAgentMemoryOperation)
 }

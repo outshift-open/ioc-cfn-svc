@@ -381,10 +381,10 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 		auditInfo, _ := json.Marshal(info)
 		auditEvt := &audit.Audit{
 			OperationID:        &operationID,
-			ResourceType:       audit.ResourceTypeMemoryProvider,
-			ResourceIdentifier: masID,
-			AuditType:          audit.AuditTypeMemoryOperation,
-			// TODO: AuditResourceIdentifier may change to a different identifier if required.
+			ResourceType:       audit.ResourceTypeMASAgent,
+			ResourceIdentifier: agentID,
+			AuditType:          audit.AuditTypeAgentMemoryOperation,
+			// TODO: Replace with memory-provider-id from CfnConfig global map once available.
 			AuditResourceIdentifier: agentID,
 			AuditInformation:        datatypes.JSON(auditInfo),
 			CreatedBy:               uuid.Nil,

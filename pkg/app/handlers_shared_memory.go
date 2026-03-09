@@ -415,7 +415,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			iocmemoryprovider.QueryTypeConcept, workspaceID, masID, err,
 		)
 
-		// Audit: end of knowledge query (failure)
+		// Audit: shared memory query (failure)
 		errMsg := err.Error()
 		endAuditInfo, _ := json.Marshal(map[string]string{
 			"status": "FAILED",
@@ -423,10 +423,10 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		})
 		endAudit := &audit.Audit{
 			OperationID:        &operationID,
-			ResourceType:       audit.ResourceTypeMemoryProvider,
+			ResourceType:       audit.ResourceTypeMAS,
 			ResourceIdentifier: masID,
-			AuditType:          audit.AuditTypeKnowledgeQuery,
-			// TODO: AuditResourceIdentifier may change to a different identifier if required.
+			AuditType:          audit.AuditTypeSharedMemoryOperation,
+			// TODO: Replace with shared_memory_id from CfnConfig global map once available.
 			AuditResourceIdentifier: masID,
 			AuditInformation:        datatypes.JSON(endAuditInfo),
 			AuditExtraInformation:   &errMsg,
@@ -434,7 +434,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			LastModifiedBy:          uuid.Nil,
 		}
 		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create end audit event: %v", auditErr)
+			log.Errorf("failed to create audit event: %v", auditErr)
 		}
 
 		return eh.RespondWithJSON(
@@ -444,23 +444,23 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		)
 	}
 
-	// Audit: end of knowledge query (success)
+	// Audit: shared memory query (success)
 	endAuditInfo, _ := json.Marshal(map[string]string{
 		"status": "SUCCESS",
 	})
 	endAudit := &audit.Audit{
 		OperationID:        &operationID,
-		ResourceType:       audit.ResourceTypeMemoryProvider,
+		ResourceType:       audit.ResourceTypeMAS,
 		ResourceIdentifier: masID,
-		AuditType:          audit.AuditTypeKnowledgeQuery,
-		// TODO: AuditResourceIdentifier may change to a different identifier if required.
+		AuditType:          audit.AuditTypeSharedMemoryOperation,
+		// TODO: Replace with shared_memory_id from CfnConfig global map once available.
 		AuditResourceIdentifier: masID,
 		AuditInformation:        datatypes.JSON(endAuditInfo),
 		CreatedBy:               uuid.Nil,
 		LastModifiedBy:          uuid.Nil,
 	}
 	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		log.Errorf("failed to create end audit event: %v", auditErr)
+		log.Errorf("failed to create audit event: %v", auditErr)
 	}
 
 	resp := sharedmemory.QueryResponse{
