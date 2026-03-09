@@ -222,7 +222,7 @@ func (a *App) registerOnStartup() {
 		log.Fatalf("registration prereqs missing: cfnName=%q appIP=%q appPort=%d", cfnName, appIP, appPort)
 	}
 
-	registerURL := mgmtURL + "/api/cognitive-fabric-nodes/register"
+	registerURL := mgmtURL + "/api/cognition-fabric-nodes/register"
 	log.Infof("registering CFN at %s", registerURL)
 
 	body, _ := json.Marshal(map[string]any{
@@ -282,7 +282,7 @@ func (a *App) registerOnStartup() {
 func (a *App) RefreshConfig(mgmtURL string) error {
 	log := getLogger()
 
-	cfnURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID
+	cfnURL := mgmtURL + "/api/cognition-fabric-nodes/" + CfnID
 
 	client := httpclient.New(30 * time.Second)
 	ctx := context.Background()
@@ -330,7 +330,7 @@ func (a *App) startHeartbeat(mgmtURL string) {
 	log := getLogger()
 
 	// Build heartbeat endpoint URL using the globally stored CfnID
-	heartbeatURL := mgmtURL + "/api/cognitive-fabric-nodes/" + CfnID + "/heartbeat"
+	heartbeatURL := mgmtURL + "/api/cognition-fabric-nodes/" + CfnID + "/heartbeat"
 
 	// Get heartbeat interval from env or use default of 29 seconds
 	intervalStr := getEnvOrDefault("HEARTBEAT_INTERVAL_SECONDS", "29")
