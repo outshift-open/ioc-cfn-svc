@@ -178,7 +178,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	cognitionAgentsURL := getEnvOrDefault("COGNITION_AGENTS_SVC_URL", "http://localhost:9004")
 	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
-	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 30*time.Second)
+	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
 	a := &App{
 		buildVersion:          buildVersion,
