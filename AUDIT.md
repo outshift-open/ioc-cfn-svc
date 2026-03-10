@@ -5,13 +5,14 @@ The audit system provides an immutable audit trail for tracking operations acros
 ## Architecture
 
 ```
-pkg/audit/audit.go            — Model, enums, validation, DB operations (GORM)
-pkg/audit/audit_test.go        — Unit tests (SQLite in-memory)
-pkg/app/handlers_audit.go      — HTTP handlers (create, get, list, delete)
-pkg/app/handlers_audit_test.go — Handler tests
-pkg/app/routes.go              — Route registration
-pkg/client/database.go         — Database interface + MockDatabase
-pkg/client/database/database.go — Real (Postgres) Database implementation
+pkg/audit/audit.go              — Model, enums, validation, DB operations (GORM)
+pkg/audit/audit_test.go          — Unit tests (SQLite in-memory)
+pkg/app/audit_resource_ids.go    — Fetches shared_memory.id & agentic_memory.id from summary API
+pkg/app/handlers_audit.go        — HTTP handlers (create, get, list, delete)
+pkg/app/handlers_audit_test.go   — Handler tests
+pkg/app/routes.go                — Route registration
+pkg/client/database.go           — Database interface + MockDatabase
+pkg/client/database/database.go  — Real (Postgres) Database implementation
 ```
 
 ## Data Model
@@ -59,6 +60,8 @@ pkg/client/database/database.go — Real (Postgres) Database implementation
 | `AuditTypeKnowledgeIngestion` | `KNOWLEDGE_INGESTION` |
 | `AuditTypeKnowledgeQuery` | `KNOWLEDGE_QUERY` |
 | `AuditTypeMemoryOperation` | `MEMORY_OPERATION` |
+| `AuditTypeSharedMemoryOperation` | `SHARED_MEMORY_OPERATION` |
+| `AuditTypeAgentMemoryOperation` | `AGENT_MEMORY_OPERATION` |
 
 Both enums are validated on create and list operations. Invalid values return an error with the list of valid options.
 
@@ -179,37 +182,67 @@ Tests HTTP handlers using `MockDatabase`.
 
 ## Handler Audit Trails
 
-Each handler emits a **start** audit event before the operation and an **end** audit event on success or failure. All audit information is stored as JSON in the `audit_information` field.
+All audit information is stored as JSON in the `audit_information` field.
 
-### Crete or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
+### Create or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
 
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"SUCCESS"}` |
-| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_INGESTION` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+> **Status: Audit code is fully commented out.** TODO: Revisit later — decide on audit type, resource identifiers, and single-row vs dual-row pattern.
 
 ### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
 
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"SUCCESS"}` |
-| Failure | `MEMORY_PROVIDER` | `KNOWLEDGE_QUERY` | `masId` | `masId` | `{"status":"FAILED","error":"..."}` |
+Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED).
+
+| Resource Type | Audit Type                 | Resource Identifier | Audit Resource Identifier |
+|---------------|----------------------------|---------------------|---------------------------|
+| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `shared_memory.id` from summary API (falls back to `masId` if not yet fetched) |
+
+| Outcome | Audit Information |
+|---------|-------------------|
+| Success | `{"status":"SUCCESS"}` |
+| Failure | `{"status":"FAILED","error":"..."}` |
 
 ### Memory Operations (`memoryOperationsHandler`)
 
-| Phase | Resource Type | Audit Type | Resource Identifier | Audit Resource Identifier | Audit Information |
-|-------|--------------|------------|---------------------|--------------------------|-------------------|
-| Start | `MAS-AGENT` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"STARTED"}` |
-| Success | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"SUCCESS","http_status":"..."}` |
-| Failure | `MEMORY_PROVIDER` | `MEMORY_OPERATION` | `masId` | `agentId` | `{"status":"FAILED","error":"..."}` |
+Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED) and includes the full request and response in `audit_information`.
+
+| Resource Type | Audit Type                | Resource Identifier | <br/>|
+|---------------|---------------------------|---------------------|---------------------------|
+| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentic_memory.id` from summary API (falls back to `agentId` if not yet fetched) |
+
+#### `audit_information` structure
+
+**Success:**
+```json
+{
+  "status": "SUCCESS",
+  "http_status": 200,
+  "request": {
+    "http_method": "POST",
+    "http_url": "https://provider.example.com/v1/memories/add",
+    "http_request_body": { ... }
+  },
+  "response": { ... }
+}
+```
+
+**Failure:**
+```json
+{
+  "status": "FAILED",
+  "error": "...",
+  "request": {
+    "http_method": "POST",
+    "http_url": "https://provider.example.com/v1/memories/add",
+    "http_request_body": { ... }
+  }
+}
+```
 
 ### Common Fields
 
-- **`OperationID`**: Random UUID linking start/end events for the same request (TBD — will be replaced with trace/correlation ID)
+- **`OperationID`**: Random UUID identifying the operation (TBD — will be replaced with trace/correlation ID)
 - **`CreatedBy` / `LastModifiedBy`**: Currently `uuid.Nil` (placeholder)
-- **`AuditExtraInformation`**: Set to the error message string on failure events; absent on start/success
+- **`AuditExtraInformation`**: Set to the error message string on failure events; absent on success
 
 ## Key Design Decisions
 
