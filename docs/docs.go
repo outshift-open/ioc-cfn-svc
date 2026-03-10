@@ -797,7 +797,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "CFN Service API",
-	Description:      "IoC Cognition Fabric Node service — shared memory routing, memory operations proxy, and audit trail.",
+	Description:      "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

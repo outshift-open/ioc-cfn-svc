@@ -388,8 +388,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: IoC Cognition Fabric Node service — shared memory routing, memory operations
-    proxy, and audit trail.
+  description: IoC Cognition Fabric Node service — shared memory routing and memory
+    operations proxy.
   title: CFN Service API
   version: "1.0"
 paths:
