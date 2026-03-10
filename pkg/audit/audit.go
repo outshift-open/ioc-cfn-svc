@@ -28,9 +28,11 @@ const (
 	AuditTypeResourceDeleted    = "RESOURCE_DELETED"
 	AuditTypeResourcePurged     = "RESOURCE_PURGED"
 	AuditTypeResourcePruned     = "RESOURCE_PRUNED"
-	AuditTypeKnowledgeIngestion = "KNOWLEDGE_INGESTION"
-	AuditTypeKnowledgeQuery     = "KNOWLEDGE_QUERY"
-	AuditTypeMemoryOperation    = "MEMORY_OPERATION"
+	AuditTypeKnowledgeIngestion    = "KNOWLEDGE_INGESTION"
+	AuditTypeKnowledgeQuery        = "KNOWLEDGE_QUERY"
+	AuditTypeMemoryOperation       = "MEMORY_OPERATION"
+	AuditTypeSharedMemoryOperation = "SHARED_MEMORY_OPERATION"
+	AuditTypeAgentMemoryOperation  = "AGENT_MEMORY_OPERATION"
 )
 
 var validResourceTypes = map[string]bool{
@@ -49,9 +51,11 @@ var validAuditTypes = map[string]bool{
 	AuditTypeResourceDeleted:    true,
 	AuditTypeResourcePurged:     true,
 	AuditTypeResourcePruned:     true,
-	AuditTypeKnowledgeIngestion: true,
-	AuditTypeKnowledgeQuery:     true,
-	AuditTypeMemoryOperation:    true,
+	AuditTypeKnowledgeIngestion:    true,
+	AuditTypeKnowledgeQuery:        true,
+	AuditTypeMemoryOperation:       true,
+	AuditTypeSharedMemoryOperation: true,
+	AuditTypeAgentMemoryOperation:  true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.
