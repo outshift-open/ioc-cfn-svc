@@ -25,7 +25,6 @@ import (
 // @Success		201		{object}	cognitionagents.MemoryCreateResponse
 // @Failure		400		{object}	cognitionagents.MemoryCreateResponse
 // @Failure		500		{object}	cognitionagents.MemoryCreateResponse
-// @Router		/api/cfn/{cfnId}/memory [post]
 func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -68,7 +67,6 @@ func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.
 // @Success		200		{object}	cognitionagents.ConceptsSearchResponse
 // @Failure		400		{object}	cognitionagents.ConceptsSearchResponse
 // @Failure		500		{object}	cognitionagents.ConceptsSearchResponse
-// @Router		/api/cfn/{cfnId}/memory/concepts/search [post]
 func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -112,7 +110,6 @@ func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *htt
 // @Success		200		{object}	cognitionagents.PathsSearchResponse
 // @Failure		400		{object}	cognitionagents.PathsSearchResponse
 // @Failure		500		{object}	cognitionagents.PathsSearchResponse
-// @Router		/api/cfn/{cfnId}/memory/paths/search [post]
 func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -166,7 +163,6 @@ func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.R
 // @Success		200		{object}	cognitionagents.MemorySearchResponse
 // @Failure		400		{object}	cognitionagents.MemorySearchResponse
 // @Failure		500		{object}	cognitionagents.MemorySearchResponse
-// @Router		/api/cfn/{cfnId}/memory/search [post]
 func (a *App) cognitionAgentsMemorySearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
