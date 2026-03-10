@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "IoC Cognitive Fabric Node service — shared memory routing, memory operations proxy, and audit trail.",
+        "description": "IoC Cognition Fabric Node service — shared memory routing, memory operations proxy, and audit trail.",
         "title": "CFN Service API",
         "contact": {},
         "version": "1.0"
