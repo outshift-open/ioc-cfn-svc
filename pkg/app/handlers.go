@@ -379,13 +379,19 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 			info[k] = v
 		}
 		auditInfo, _ := json.Marshal(info)
+		// Hacky: fetch agentic_memory.id from summary API on first audit call.
+		// TODO: Remove once IDs are available directly in CfnConfig global map.
+		ensureAuditResourceIDs()
+		auditResID := AgentMemoryID
+		if auditResID == "" {
+			auditResID = agentID
+		}
 		auditEvt := &audit.Audit{
-			OperationID:        &operationID,
-			ResourceType:       audit.ResourceTypeMASAgent,
-			ResourceIdentifier: agentID,
-			AuditType:          audit.AuditTypeAgentMemoryOperation,
-			// TODO: Replace with memory-provider-id from CfnConfig global map once available.
-			AuditResourceIdentifier: agentID,
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMASAgent,
+			ResourceIdentifier:      agentID,
+			AuditType:               audit.AuditTypeAgentMemoryOperation,
+			AuditResourceIdentifier: auditResID,
 			AuditInformation:        datatypes.JSON(auditInfo),
 			CreatedBy:               uuid.Nil,
 			LastModifiedBy:          uuid.Nil,

@@ -421,13 +421,19 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			"status": "FAILED",
 			"error":  errMsg,
 		})
+		// Hacky: fetch shared_memory.id from summary API on first audit call.
+		// TODO: Remove once IDs are available directly in CfnConfig global map.
+		ensureAuditResourceIDs()
+		auditResID := SharedMemoryID
+		if auditResID == "" {
+			auditResID = masID
+		}
 		endAudit := &audit.Audit{
-			OperationID:        &operationID,
-			ResourceType:       audit.ResourceTypeMAS,
-			ResourceIdentifier: masID,
-			AuditType:          audit.AuditTypeSharedMemoryOperation,
-			// TODO: Replace with shared_memory_id from CfnConfig global map once available.
-			AuditResourceIdentifier: masID,
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMAS,
+			ResourceIdentifier:      masID,
+			AuditType:               audit.AuditTypeSharedMemoryOperation,
+			AuditResourceIdentifier: auditResID,
 			AuditInformation:        datatypes.JSON(endAuditInfo),
 			AuditExtraInformation:   &errMsg,
 			CreatedBy:               uuid.Nil,
@@ -448,13 +454,19 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	endAuditInfo, _ := json.Marshal(map[string]string{
 		"status": "SUCCESS",
 	})
+	// Hacky: fetch shared_memory.id from summary API on first audit call.
+	// TODO: Remove once IDs are available directly in CfnConfig global map.
+	ensureAuditResourceIDs()
+	successAuditResID := SharedMemoryID
+	if successAuditResID == "" {
+		successAuditResID = masID
+	}
 	endAudit := &audit.Audit{
-		OperationID:        &operationID,
-		ResourceType:       audit.ResourceTypeMAS,
-		ResourceIdentifier: masID,
-		AuditType:          audit.AuditTypeSharedMemoryOperation,
-		// TODO: Replace with shared_memory_id from CfnConfig global map once available.
-		AuditResourceIdentifier: masID,
+		OperationID:             &operationID,
+		ResourceType:            audit.ResourceTypeMAS,
+		ResourceIdentifier:      masID,
+		AuditType:               audit.AuditTypeSharedMemoryOperation,
+		AuditResourceIdentifier: successAuditResID,
 		AuditInformation:        datatypes.JSON(endAuditInfo),
 		CreatedBy:               uuid.Nil,
 		LastModifiedBy:          uuid.Nil,

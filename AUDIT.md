@@ -5,13 +5,14 @@ The audit system provides an immutable audit trail for tracking operations acros
 ## Architecture
 
 ```
-pkg/audit/audit.go            — Model, enums, validation, DB operations (GORM)
-pkg/audit/audit_test.go        — Unit tests (SQLite in-memory)
-pkg/app/handlers_audit.go      — HTTP handlers (create, get, list, delete)
-pkg/app/handlers_audit_test.go — Handler tests
-pkg/app/routes.go              — Route registration
-pkg/client/database.go         — Database interface + MockDatabase
-pkg/client/database/database.go — Real (Postgres) Database implementation
+pkg/audit/audit.go              — Model, enums, validation, DB operations (GORM)
+pkg/audit/audit_test.go          — Unit tests (SQLite in-memory)
+pkg/app/audit_resource_ids.go    — Fetches shared_memory.id & agentic_memory.id from summary API
+pkg/app/handlers_audit.go        — HTTP handlers (create, get, list, delete)
+pkg/app/handlers_audit_test.go   — Handler tests
+pkg/app/routes.go                — Route registration
+pkg/client/database.go           — Database interface + MockDatabase
+pkg/client/database/database.go  — Real (Postgres) Database implementation
 ```
 
 ## Data Model
@@ -193,7 +194,7 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 | Resource Type | Audit Type                 | Resource Identifier | Audit Resource Identifier |
 |---------------|----------------------------|---------------------|---------------------------|
-| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `masId` (TODO: replace with `shared_memory_id` from CfnConfig global map once available) |
+| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `shared_memory.id` from summary API (falls back to `masId` if not yet fetched) |
 
 | Outcome | Audit Information |
 |---------|-------------------|
@@ -204,9 +205,9 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED) and includes the full request and response in `audit_information`.
 
-| Resource Type | Audit Type                | Resource Identifier | Audit Resource Identifier |
+| Resource Type | Audit Type                | Resource Identifier | <br/>|
 |---------------|---------------------------|---------------------|---------------------------|
-| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentId` (TODO: replace with `memory-provider-id` from CfnConfig global map once available) |
+| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentic_memory.id` from summary API (falls back to `agentId` if not yet fetched) |
 
 #### `audit_information` structure
 
