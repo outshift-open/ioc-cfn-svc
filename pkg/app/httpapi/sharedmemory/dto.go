@@ -8,11 +8,20 @@ import (
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
+type Header struct {
+	// ID that represents the agent, optional
+	AgentID *string `json:"agent_id,omitempty"`
+}
+
 type CreateOrUpdateRequest struct {
-	// optional
-	AgentId   *string `json:"agent_id,omitempty"`
+	// Header(s) of the request, optional.
+	Header *Header `json:"header,omitempty"`
+	// ID of the request, optional.
+	// If not provided, a random UUID is used to represent the request.
 	RequestId *string `json:"request_id,omitempty"`
 
+	// Payload contains the extraction metadata and the raw data to be processed.
+	// The structure of the payload data is defined by Payload.Metadata.Format.
 	Payload cognitionagentclient.ExtractionPayload `json:"payload"`
 }
 
@@ -23,13 +32,29 @@ type CreateOrUpdateResponse struct {
 }
 
 type QueryRequest struct {
-	AgentId        *string `json:"agent_id,omitempty"`
-	RequestId      *string `json:"request_id,omitempty"`
-	SearchStrategy *string `json:"search_strategy,omitempty"` // only supported search strategy: "semantic_graph_traversal"
-	Intent         *string `json:"intent,omitempty" description:"user message/intent"`
+	// Header(s) of the request, optional.
+	Header *Header `json:"header,omitempty"`
+	// ID of the request, optional.
+	// If not provided, a random UUID is used to represent the request.
+	RequestId *string `json:"request_id,omitempty"`
+	// Search strategy to be used when executing the query.
+	// Currently supported values:
+	//   - "semantic_graph_traversal"
+	//
+	// If not specified, the service will use the default search strategy.
+	SearchStrategy *string `json:"search_strategy,omitempty"`
+
+	// User intent or natural-language query describing what information is being requested.
+	// This field is the primary signal used to construct and execute the query.
+	Intent *string `json:"intent,omitempty"`
+
 	// TODO: not sure if we allow users to specify query type along with specified node IDs
 	//NodeIDs           *[]string                                      `json:"node_ids,omitempty"`        // node ID(s) must be provided if query_type is "neighbor" or "path". Node ID(s) is ignored is query_type is set to be "concept"
 	//QueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria `json:"query_criteria,omitempty"`
+
+	// AdditionalContext provides optional contextual information to refine query execution.
+	// This may include prior conversation state, structured hints, or domain-specific metadata.
+	// The contents are treated as opaque by the API and interpreted by downstream components.
 	AdditionalContext []interface{} `json:"additional_context,omitempty"`
 }
 

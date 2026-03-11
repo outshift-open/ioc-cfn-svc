@@ -182,10 +182,13 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Header: common.Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
-			AgentID:     *reqPayload.AgentId,
 		},
 		RequestID: *requestId,
 		Payload:   extractionPayload,
+	}
+
+	if reqPayload.Header != nil && reqPayload.Header.AgentID != nil {
+		extractionReq.Header.AgentID = *reqPayload.Header.AgentID
 	}
 
 	extractionResp, err := a.cognitionAgentsClient.SendExtraction(r.Context(), extractionReq)
@@ -357,7 +360,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		Header: common.Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
-			AgentID:     *req.AgentId,
+			AgentID:     *req.Header.AgentID,
 		},
 		RequestID: requestId,
 		Payload: cognitionagentclient.ReasoningEvidencePayload{
@@ -368,6 +371,10 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			AdditionalContext: req.AdditionalContext,
 		},
 	}
+	if req.Header != nil && req.Header.AgentID != nil {
+		reasoningRequest.Header.AgentID = *req.Header.AgentID
+	}
+
 	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
 	if err != nil {
 		log.Errorf(
@@ -384,6 +391,15 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("reasoner response: %+v", reasonerResp)
 
+	conceptsFromReasonerResp := TransformReasonerResponseToRecords(reasonerResp)
+	if len(conceptsFromReasonerResp.Concepts) == 0 {
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("no relevant entities found from user message")},
+		)
+	}
+
 	// TODO: operationID is currently a random UUID; replace with a consistent request ID
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
@@ -392,7 +408,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		RequestID: *requestId,
 		WkspID:    &workspaceID,
 		MasID:     &masID,
-		Records:   *TransformReasonerResponseToRecords(reasonerResp),
+		Records:   *conceptsFromReasonerResp,
 		//QueryCriteria: req.QueryCriteria,
 	}
 

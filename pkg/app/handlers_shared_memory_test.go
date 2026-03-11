@@ -48,7 +48,9 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integratio
 	}
 
 	body, err := json.Marshal(map[string]any{
-		"agent_id": "agent-1",
+		"header": map[string]string{
+			"agent_id": "agent-1",
+		},
 		"payload": map[string]any{
 			"metadata": map[string]string{
 				"format": "observe-sdk-otel",
@@ -110,7 +112,9 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integr
 	}
 
 	body, err := json.Marshal(map[string]any{
-		"agent_id": "agent-1",
+		"header": map[string]string{
+			"agent_id": "agent-1",
+		},
 		"payload": map[string]any{
 			"metadata": map[string]string{
 				"format": "openclaw",
@@ -164,7 +168,9 @@ func TestFetchSharedMemoriesHandler_EvidenceAndReasoning_Integration(t *testing.
 
 	// Test for query from Otel trace ingestion
 	body := `{
-        "agent_id": "agent-2",
+		"header": {
+			"agent_id": "agent 2"
+		},
 		"search_strategy": "semantic_graph_traversal",
 		"intent": "what does the website_selector_agent do?"
     }`
@@ -189,7 +195,9 @@ func TestFetchSharedMemoriesHandler_EvidenceAndReasoning_Integration(t *testing.
 
 	// Test for query from Open Claw ingestion
 	body = `{
-        "agent_id": "agent-2",
+		"header": {
+			"agent_id": "agent 2"
+		},
 		"search_strategy": "semantic_graph_traversal",
 		"intent": "Tell me something about Q2 budget planning"
     }`
