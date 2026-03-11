@@ -20,7 +20,7 @@ var gitBranch = "unknown"
 
 // @title		CFN Service API
 // @version		1.0
-// @description	IoC Cognitive Fabric Node service — shared memory routing, memory operations proxy, and audit trail.
+// @description	IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.
 // @BasePath	/
 func main() {
 	// Load .env file if it exists (ignore error if not found)
