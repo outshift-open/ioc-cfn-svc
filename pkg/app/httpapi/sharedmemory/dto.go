@@ -5,7 +5,6 @@ import (
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
 type Header struct {
@@ -110,8 +109,28 @@ func (r *QueryRequest) ValidateAndApplyDefault() error {
 }
 
 type QueryResponse struct {
-	ResponseID *string                                               `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
-	Status     string                                                `json:"status" description:"Status of the request"`
-	Message    *string                                               `json:"message,omitempty" description:"Optional message providing additional information"`
-	Records    []iocmemoryprovider.KnowledgeGraphQueryResponseRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
+	ResponseID *string               `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
+	Status     string                `json:"status" description:"Status of the request"`
+	Message    *string               `json:"message,omitempty" description:"Optional message providing additional information"`
+	Records    []QueryResponseRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
+}
+
+type QueryResponseRecord struct {
+	Relationships []QueryRelation `json:"relationships,omitempty"`
+	Concepts      []QueryConcept  `json:"concepts,omitempty"`
+}
+
+type QueryConcept struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description *string                `json:"description,omitempty"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+}
+
+type QueryRelation struct {
+	ID         string                 `json:"id"`
+	Relation   string                 `json:"relation"`
+	NodeIDs    []string               `json:"node_ids"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }

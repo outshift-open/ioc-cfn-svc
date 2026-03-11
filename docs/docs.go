@@ -576,88 +576,6 @@ const docTemplate = `{
                 }
             }
         },
-        "iocmemoryprovider.Concept": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "description": {
-                    "type": "string"
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.EmbeddingConfig": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "number"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryResponseRecord": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Concept"
-                    }
-                },
-                "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Relation"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.Relation": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "relation": {
-                    "type": "string"
-                }
-            }
-        },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
         },
@@ -763,6 +681,51 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.QueryConcept": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.QueryRelation": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relation": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.QueryRequest": {
             "type": "object",
             "properties": {
@@ -802,7 +765,7 @@ const docTemplate = `{
                 "records": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
+                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
                     }
                 },
                 "response_id": {
@@ -810,6 +773,23 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponseRecord": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryConcept"
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryRelation"
+                    }
                 }
             }
         }

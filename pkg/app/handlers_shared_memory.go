@@ -299,6 +299,32 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
 }
 
+func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRecord) sharedmemory.QueryResponseRecord {
+
+	out := sharedmemory.QueryResponseRecord{}
+
+	for _, c := range r.Concepts {
+		out.Concepts = append(out.Concepts, sharedmemory.QueryConcept{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: c.Description,
+			Attributes:  c.Attributes,
+			Tags:        c.Tags,
+		})
+	}
+
+	for _, rel := range r.Relationships {
+		out.Relationships = append(out.Relationships, sharedmemory.QueryRelation{
+			ID:         rel.ID,
+			Relation:   rel.Relation,
+			NodeIDs:    rel.NodeIDs,
+			Attributes: rel.Attributes,
+		})
+	}
+
+	return out
+}
+
 // fetchSharedMemoriesHandler godoc
 //
 // @Summary     Fetch shared memories
@@ -312,7 +338,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 // @Param       masId       path string true "Multi-Agentic System ID"
 // @Param       body        body sharedmemory.QueryRequest false "Query request"
 //
-// @Success     200 {object} sharedmemory.QueryResponse "Query executed successfully"
+// @Success     200 {object} sharedmemory.QueryResponse  "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
@@ -491,24 +517,16 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		log.Errorf("failed to create audit event: %v", auditErr)
 	}
 
+	records := make([]sharedmemory.QueryResponseRecord, 0, len(knowledgeGraphResp.Records))
+	for _, r := range knowledgeGraphResp.Records {
+		records = append(records, mapKGRecordToQueryRecord(r))
+	}
+
 	resp := sharedmemory.QueryResponse{
 		ResponseID: knowledgeGraphResp.RequestID,
 		Status:     string(knowledgeGraphResp.Status),
 		Message:    knowledgeGraphResp.Message,
-		Records:    knowledgeGraphResp.Records,
-	}
-
-	// Remove embeddings from final response
-	for i := range resp.Records {
-		// Remove concept embeddings
-		for j := range resp.Records[i].Concepts {
-			resp.Records[i].Concepts[j].Embeddings = nil
-		}
-
-		// Remove relation embeddings
-		for k := range resp.Records[i].Relationships {
-			resp.Records[i].Relationships[k].Embeddings = nil
-		}
+		Records:    records,
 	}
 
 	log.Infof(

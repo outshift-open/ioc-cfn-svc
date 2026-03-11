@@ -242,60 +242,6 @@ definitions:
         description: Mandatory
         type: string
     type: object
-  iocmemoryprovider.Concept:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      description:
-        type: string
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      name:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-    type: object
-  iocmemoryprovider.EmbeddingConfig:
-    properties:
-      data:
-        items:
-          type: number
-        type: array
-      name:
-        type: string
-    type: object
-  iocmemoryprovider.KnowledgeGraphQueryResponseRecord:
-    properties:
-      concepts:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Concept'
-        type: array
-      relationships:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Relation'
-        type: array
-    type: object
-  iocmemoryprovider.Relation:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      node_ids:
-        items:
-          type: string
-        type: array
-      relation:
-        type: string
-    type: object
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -368,6 +314,36 @@ definitions:
         description: ID that represents the agent, optional
         type: string
     type: object
+  sharedmemory.QueryConcept:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.QueryRelation:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      node_ids:
+        items:
+          type: string
+        type: array
+      relation:
+        type: string
+    type: object
   sharedmemory.QueryRequest:
     properties:
       additional_context:
@@ -406,12 +382,23 @@ definitions:
         type: string
       records:
         items:
-          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord'
+          $ref: '#/definitions/sharedmemory.QueryResponseRecord'
         type: array
       response_id:
         type: string
       status:
         type: string
+    type: object
+  sharedmemory.QueryResponseRecord:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryConcept'
+        type: array
+      relationships:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryRelation'
+        type: array
     type: object
 info:
   contact: {}
