@@ -28,7 +28,7 @@ func TestMemoryCreateHandler_Success(t *testing.T) {
 	body := cognitionagents.MemoryCreateRequest{Header: validHeader}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, err := app.cognitionAgentsMemoryCreateHandler(rr, req)
@@ -48,7 +48,7 @@ func TestMemoryCreateHandler_MissingHeader(t *testing.T) {
 	body := cognitionagents.MemoryCreateRequest{Header: common.Header{}}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsMemoryCreateHandler(rr, req)
@@ -62,7 +62,7 @@ func TestMemoryCreateHandler_MissingHeader(t *testing.T) {
 
 func TestMemoryCreateHandler_InvalidJSON(t *testing.T) {
 	app := &App{}
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory", strings.NewReader("{bad"))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsMemoryCreateHandler(rr, req)
@@ -86,7 +86,7 @@ func TestMemorySearchHandler_Success(t *testing.T) {
 	}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, err := app.cognitionAgentsMemorySearchHandler(rr, req)
@@ -113,7 +113,7 @@ func TestMemorySearchHandler_MissingHeader(t *testing.T) {
 	}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsMemorySearchHandler(rr, req)
@@ -127,7 +127,7 @@ func TestMemorySearchHandler_MissingHeader(t *testing.T) {
 
 func TestMemorySearchHandler_InvalidJSON(t *testing.T) {
 	app := &App{}
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/search", strings.NewReader("{bad"))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsMemorySearchHandler(rr, req)
@@ -146,7 +146,7 @@ func TestConceptsSearchHandler_Success(t *testing.T) {
 	body := cognitionagents.ConceptsSearchRequest{Header: validHeader}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/concepts/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, err := app.cognitionAgentsConceptsSearchHandler(rr, req)
@@ -166,7 +166,7 @@ func TestConceptsSearchHandler_MissingHeader(t *testing.T) {
 	body := cognitionagents.ConceptsSearchRequest{Header: common.Header{}}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/concepts/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsConceptsSearchHandler(rr, req)
@@ -180,7 +180,7 @@ func TestConceptsSearchHandler_MissingHeader(t *testing.T) {
 
 func TestConceptsSearchHandler_InvalidJSON(t *testing.T) {
 	app := &App{}
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/concepts/search", strings.NewReader("{bad"))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/concepts/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionAgentsConceptsSearchHandler(rr, req)
@@ -207,7 +207,7 @@ func TestPathsSearchHandler_Success(t *testing.T) {
 	}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, err := app.cognitionagentsPathsSearchHandler(rr, req)
@@ -233,7 +233,7 @@ func TestPathsSearchHandler_MissingHeader(t *testing.T) {
 	}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
@@ -253,7 +253,7 @@ func TestPathsSearchHandler_MissingPayloadIDs(t *testing.T) {
 	}
 	b, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/paths/search", bytes.NewReader(b))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
@@ -267,7 +267,7 @@ func TestPathsSearchHandler_MissingPayloadIDs(t *testing.T) {
 
 func TestPathsSearchHandler_InvalidJSON(t *testing.T) {
 	app := &App{}
-	req := httptest.NewRequest(http.MethodPost, "/api/cfn/cfn-1/memory/paths/search", strings.NewReader("{bad"))
+	req := httptest.NewRequest(http.MethodPost, "/api/internal/cognition-fabric-node/cfn-1/memory/paths/search", strings.NewReader("{bad"))
 	rr := httptest.NewRecorder()
 
 	code, _ := app.cognitionagentsPathsSearchHandler(rr, req)
