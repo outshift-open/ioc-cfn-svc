@@ -12,10 +12,7 @@
       "description": "\nBelow you find a question.\nReturn a list of links to websites that, together, contain all the information needed to answer that question.\nMake sure that the websites do ALLOW for scraping!\nMake sure",
       "type": "concept",
       "attributes": {
-        "concept_type": "query",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "query"
       }
     },
     {
@@ -24,10 +21,7 @@
       "description": "Agent: website_selector_agent",
       "type": "concept",
       "attributes": {
-        "concept_type": "agent",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "agent"
       }
     },
     {
@@ -36,10 +30,7 @@
       "description": "Service: Miss-Marple",
       "type": "concept",
       "attributes": {
-        "concept_type": "service",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "service"
       }
     },
     {
@@ -48,10 +39,7 @@
       "description": "Llm: gpt-4o",
       "type": "concept",
       "attributes": {
-        "concept_type": "llm",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "llm"
       }
     },
     {
@@ -60,10 +48,7 @@
       "description": "Useful to search the internet\nabout a given topic and return relevant results",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -72,10 +57,7 @@
       "description": "",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -84,10 +66,7 @@
       "description": "- https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States_by_home_state\n- https://www.presidentsusa.net/birth.html\n- https://www.census.gov/library/stories/2021/02/presidential-birth-sta",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -96,10 +75,7 @@
       "description": "Agent: website_expert_agent",
       "type": "concept",
       "attributes": {
-        "concept_type": "agent",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "agent"
       }
     },
     {
@@ -108,10 +84,7 @@
       "description": "Useful to scrape and summarize a website content\n:param query: the url of a website to visit",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -120,10 +93,7 @@
       "description": "A function to download a pdf file.\n:param query: the url of the pdf file.",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -132,10 +102,7 @@
       "description": "The relevant passages from the websites are as follows:\n\n1. From Wikipedia: \"The number of presidents per state in which they were born...\"",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -144,10 +111,7 @@
       "description": "Agent: documentation_agent",
       "type": "concept",
       "attributes": {
-        "concept_type": "agent",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "agent"
       }
     },
     {
@@ -156,10 +120,7 @@
       "description": "Searches the available documentation",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -168,10 +129,7 @@
       "description": "The context provided does not contain information about the birthplaces of U.S. presidents in relation to U.S. cities.",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -180,10 +138,7 @@
       "description": "The context does not provide information about the birthplaces of U.S. presidents or their geographical arrangement from west to east.",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -192,10 +147,7 @@
       "description": "The documentation does not contain information about the birthplaces of U.S. presidents in relation to U.S. cities or their geographical arrangement from west to east.",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     },
     {
@@ -204,10 +156,7 @@
       "description": "Agent: reasoning_agent",
       "type": "concept",
       "attributes": {
-        "concept_type": "agent",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "agent"
       }
     },
     {
@@ -216,10 +165,7 @@
       "description": "Useful to perform any mathematical calculations,\nlike sum, minus, multiplication, division, etc.",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -228,10 +174,7 @@
       "description": "A Python shell used to execute python commands.",
       "type": "concept",
       "attributes": {
-        "concept_type": "function",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "function"
       }
     },
     {
@@ -240,10 +183,7 @@
       "description": "Honolulu, Hawaii, Yorba Linda, California",
       "type": "concept",
       "attributes": {
-        "concept_type": "output",
-        "embedding": [
-          [ /* many floats */ ]
-        ]
+        "concept_type": "output"
       }
     }
   ],

@@ -576,88 +576,6 @@ const docTemplate = `{
                 }
             }
         },
-        "iocmemoryprovider.Concept": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "description": {
-                    "type": "string"
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.EmbeddingConfig": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "number"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "iocmemoryprovider.KnowledgeGraphQueryResponseRecord": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Concept"
-                    }
-                },
-                "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.Relation"
-                    }
-                }
-            }
-        },
-        "iocmemoryprovider.Relation": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "embeddings": {
-                    "$ref": "#/definitions/iocmemoryprovider.EmbeddingConfig"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "relation": {
-                    "type": "string"
-                }
-            }
-        },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
         },
@@ -718,14 +636,24 @@ const docTemplate = `{
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
-                "agent_id": {
-                    "description": "optional",
-                    "type": "string"
+                "header": {
+                    "description": "Header(s) of the request, optional.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.Header"
+                        }
+                    ]
                 },
                 "payload": {
-                    "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                    "description": "Payload contains the extraction metadata and the raw data to be processed.\nThe structure of the payload data is defined by Payload.Metadata.Format.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                        }
+                    ]
                 },
                 "request_id": {
+                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
                     "type": "string"
                 }
             }
@@ -744,25 +672,86 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "ID that represents the agent, optional",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryConcept": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.QueryRelation": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relation": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.QueryRequest": {
             "type": "object",
             "properties": {
                 "additional_context": {
-                    "description": "TODO: not sure if we allow users to specify query type along with specified node IDs\nNodeIDs           *[]string                                      ` + "`" + `json:\"node_ids,omitempty\"` + "`" + `        // node ID(s) must be provided if query_type is \"neighbor\" or \"path\". Node ID(s) is ignored is query_type is set to be \"concept\"\nQueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria ` + "`" + `json:\"query_criteria,omitempty\"` + "`" + `",
+                    "description": "AdditionalContext provides optional contextual information to refine query execution.\nThis may include prior conversation state, structured hints, or domain-specific metadata.\nThe contents are treated as opaque by the API and interpreted by downstream components.",
                     "type": "array",
                     "items": {}
                 },
-                "agent_id": {
-                    "type": "string"
+                "header": {
+                    "description": "Header(s) of the request, optional.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.Header"
+                        }
+                    ]
                 },
                 "intent": {
+                    "description": "User intent or natural-language query describing what information is being requested.\nThis field is the primary signal used to construct and execute the query.",
                     "type": "string"
                 },
                 "request_id": {
+                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
                     "type": "string"
                 },
                 "search_strategy": {
-                    "description": "only supported search strategy: \"semantic_graph_traversal\"",
+                    "description": "Search strategy to be used when executing the query.\nCurrently supported values:\n  - \"semantic_graph_traversal\"\n\nIf not specified, the service will use the default search strategy.",
                     "type": "string"
                 }
             }
@@ -776,7 +765,7 @@ const docTemplate = `{
                 "records": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord"
+                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
                     }
                 },
                 "response_id": {
@@ -784,6 +773,23 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponseRecord": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryConcept"
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryRelation"
+                    }
                 }
             }
         }

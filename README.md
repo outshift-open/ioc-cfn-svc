@@ -109,7 +109,9 @@ Example with [OpenClaw output](./pkg/app/testdata/openclaw.json):
 
 ```bash
 cat pkg/app/testdata/openclaw.json | jq -s '{
-  agent_id: "agent-1",
+  header: {
+    agent_id: "agent-1"
+  },
   payload: {
     metadata: {
       format: "openclaw"
@@ -135,10 +137,12 @@ cat pkg/app/testdata/openclaw.json | jq -s '{
 curl -X POST http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_otel/shared-memories/query \
   -H "Content-Type: application/json" \
   -d '{
-        "agent_id": "agent-1",
-		    "search_strategy": "semantic_graph_traversal",
-		    "intent": "what does the website_selector_agent do?"
-    }'
+    "header": {
+      "agent_id": "agent-1"
+    },
+		"search_strategy": "semantic_graph_traversal",
+		"intent": "what does the website_selector_agent do?"
+  }'
 
 # Response (200 OK):
 {
@@ -188,12 +192,6 @@ curl -X POST http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_
             "concept_type": "service",
             "mas_id": "mas_otel",
             "wksp_id": "ws1"
-          },
-          "embeddings": {
-            "name": "BAAI/bge-small-en-v1.5",
-            "data": [
-              /* intentionally neglected embeddings */
-            ]
           }
         },
         {
@@ -204,12 +202,6 @@ curl -X POST http://localhost:9002/api/workspaces/ws1/multi-agentic-systems/mas_
             "concept_type": "function",
             "mas_id": "mas_otel",
             "wksp_id": "ws1"
-          },
-          "embeddings": {
-            "name": "BAAI/bge-small-en-v1.5",
-            "data": [
-              /* intentionally neglected embeddings */
-            ]
           }
         }
       ]

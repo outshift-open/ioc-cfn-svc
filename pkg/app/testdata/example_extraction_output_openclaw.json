@@ -12,12 +12,7 @@
       "description": "The user initiates a session for planning the budget allocation for Q2, with a total of $200,000 to be distributed among Engineering, Product, and Sales departments.",
       "type": "concept",
       "attributes": {
-        "concept_type": "query",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "query"
       }
     },
     {
@@ -26,12 +21,7 @@
       "description": "Alex is the Head of Engineering and a participant in the budget planning session, advocating for the department's funding needs.",
       "type": "concept",
       "attributes": {
-        "concept_type": "speaker",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "speaker"
       }
     },
     {
@@ -40,12 +30,7 @@
       "description": "Sam is the Head of Sales and a participant in the budget planning session, presenting the department's funding requests.",
       "type": "concept",
       "attributes": {
-        "concept_type": "speaker",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "speaker"
       }
     },
     {
@@ -54,12 +39,7 @@
       "description": "Jordan is the Head of Product and a participant in the budget planning session, outlining the department's funding priorities.",
       "type": "concept",
       "attributes": {
-        "concept_type": "speaker",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "speaker"
       }
     },
     {
@@ -68,12 +48,7 @@
       "description": "A protocol used for structured inter-agent communication during coordinated multi-agent sessions, facilitating negotiation and decision-making.",
       "type": "concept",
       "attributes": {
-        "concept_type": "tool",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "tool"
       }
     },
     {
@@ -82,12 +57,7 @@
       "description": "The process of distributing a fixed budget across multiple departments based on their priorities and funding requests.",
       "type": "concept",
       "attributes": {
-        "concept_type": "topic",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "topic"
       }
     },
     {
@@ -96,12 +66,7 @@
       "description": "The intent expressed by Alex, requesting $95,000 for cloud infrastructure upgrades, contract engineers, and developer tooling.",
       "type": "concept",
       "attributes": {
-        "concept_type": "intent",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "intent"
       }
     },
     {
@@ -110,12 +75,7 @@
       "description": "The intent expressed by Sam, requesting $80,000 for CRM upgrades, SDR contractors, and conference sponsorships.",
       "type": "concept",
       "attributes": {
-        "concept_type": "intent",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "intent"
       }
     },
     {
@@ -124,12 +84,7 @@
       "description": "The intent expressed by Jordan, requesting $70,000 for user research, design contractors, and analytics tooling.",
       "type": "concept",
       "attributes": {
-        "concept_type": "intent",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "intent"
       }
     },
     {
@@ -138,12 +93,7 @@
       "description": "The total budget cannot exceed $200,000, requiring departments to negotiate and compromise on their requests.",
       "type": "concept",
       "attributes": {
-        "concept_type": "fact",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "fact"
       }
     },
     {
@@ -152,12 +102,7 @@
       "description": "A proposed solution to combine analytics tooling needs from Product and Engineering, potentially saving costs and improving efficiency.",
       "type": "concept",
       "attributes": {
-        "concept_type": "other_concept",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "other_concept"
       }
     },
     {
@@ -166,12 +111,7 @@
       "description": "A system upgrade requested by the Sales department to enhance customer relationship management capabilities.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -180,12 +120,7 @@
       "description": "Funding requested by Sales for sponsoring conferences to generate leads and improve pipeline ROI.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -194,12 +129,7 @@
       "description": "A program proposed by the Product department to gather insights on user needs and preferences.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -208,12 +138,7 @@
       "description": "Tools requested by the Product department to measure feature adoption and usage, overlapping with Engineering's monitoring needs.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -222,12 +147,7 @@
       "description": "Enhancements to cloud infrastructure requested by Engineering to support operational efficiency and scalability.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -236,12 +156,7 @@
       "description": "Temporary engineering staff requested by Engineering to address backlog issues.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     },
     {
@@ -250,12 +165,7 @@
       "description": "A contractor proposed by the Product department to assist with design tasks.",
       "type": "concept",
       "attributes": {
-        "concept_type": "entity",
-        "embedding": [
-          [
-            /* many floats */
-          ]
-        ]
+        "concept_type": "entity"
       }
     }
   ],

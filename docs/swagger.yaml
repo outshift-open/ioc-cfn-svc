@@ -242,60 +242,6 @@ definitions:
         description: Mandatory
         type: string
     type: object
-  iocmemoryprovider.Concept:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      description:
-        type: string
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      name:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-    type: object
-  iocmemoryprovider.EmbeddingConfig:
-    properties:
-      data:
-        items:
-          type: number
-        type: array
-      name:
-        type: string
-    type: object
-  iocmemoryprovider.KnowledgeGraphQueryResponseRecord:
-    properties:
-      concepts:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Concept'
-        type: array
-      relationships:
-        items:
-          $ref: '#/definitions/iocmemoryprovider.Relation'
-        type: array
-    type: object
-  iocmemoryprovider.Relation:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      embeddings:
-        $ref: '#/definitions/iocmemoryprovider.EmbeddingConfig'
-      id:
-        type: string
-      node_ids:
-        items:
-          type: string
-        type: array
-      relation:
-        type: string
-    type: object
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -337,12 +283,20 @@ definitions:
     type: object
   sharedmemory.CreateOrUpdateRequest:
     properties:
-      agent_id:
-        description: optional
-        type: string
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, optional.
       payload:
-        $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
+        allOf:
+        - $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
+        description: |-
+          Payload contains the extraction metadata and the raw data to be processed.
+          The structure of the payload data is defined by Payload.Metadata.Format.
       request_id:
+        description: |-
+          ID of the request, optional.
+          If not provided, a random UUID is used to represent the request.
         type: string
     type: object
   sharedmemory.CreateOrUpdateResponse:
@@ -354,23 +308,72 @@ definitions:
       status:
         type: string
     type: object
+  sharedmemory.Header:
+    properties:
+      agent_id:
+        description: ID that represents the agent, optional
+        type: string
+    type: object
+  sharedmemory.QueryConcept:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.QueryRelation:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      node_ids:
+        items:
+          type: string
+        type: array
+      relation:
+        type: string
+    type: object
   sharedmemory.QueryRequest:
     properties:
       additional_context:
         description: |-
-          TODO: not sure if we allow users to specify query type along with specified node IDs
-          NodeIDs           *[]string                                      `json:"node_ids,omitempty"`        // node ID(s) must be provided if query_type is "neighbor" or "path". Node ID(s) is ignored is query_type is set to be "concept"
-          QueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria `json:"query_criteria,omitempty"`
+          AdditionalContext provides optional contextual information to refine query execution.
+          This may include prior conversation state, structured hints, or domain-specific metadata.
+          The contents are treated as opaque by the API and interpreted by downstream components.
         items: {}
         type: array
-      agent_id:
-        type: string
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, optional.
       intent:
+        description: |-
+          User intent or natural-language query describing what information is being requested.
+          This field is the primary signal used to construct and execute the query.
         type: string
       request_id:
+        description: |-
+          ID of the request, optional.
+          If not provided, a random UUID is used to represent the request.
         type: string
       search_strategy:
-        description: 'only supported search strategy: "semantic_graph_traversal"'
+        description: |-
+          Search strategy to be used when executing the query.
+          Currently supported values:
+            - "semantic_graph_traversal"
+
+          If not specified, the service will use the default search strategy.
         type: string
     type: object
   sharedmemory.QueryResponse:
@@ -379,12 +382,23 @@ definitions:
         type: string
       records:
         items:
-          $ref: '#/definitions/iocmemoryprovider.KnowledgeGraphQueryResponseRecord'
+          $ref: '#/definitions/sharedmemory.QueryResponseRecord'
         type: array
       response_id:
         type: string
       status:
         type: string
+    type: object
+  sharedmemory.QueryResponseRecord:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryConcept'
+        type: array
+      relationships:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryRelation'
+        type: array
     type: object
 info:
   contact: {}

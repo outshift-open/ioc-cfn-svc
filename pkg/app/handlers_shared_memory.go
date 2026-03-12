@@ -182,10 +182,13 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Header: common.Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
-			AgentID:     *reqPayload.AgentId,
 		},
 		RequestID: *requestId,
 		Payload:   extractionPayload,
+	}
+
+	if reqPayload.Header != nil && reqPayload.Header.AgentID != nil {
+		extractionReq.Header.AgentID = *reqPayload.Header.AgentID
 	}
 
 	extractionResp, err := a.cognitionAgentsClient.SendExtraction(r.Context(), extractionReq)
@@ -296,6 +299,32 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
 }
 
+func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRecord) sharedmemory.QueryResponseRecord {
+
+	out := sharedmemory.QueryResponseRecord{}
+
+	for _, c := range r.Concepts {
+		out.Concepts = append(out.Concepts, sharedmemory.QueryConcept{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: c.Description,
+			Attributes:  c.Attributes,
+			Tags:        c.Tags,
+		})
+	}
+
+	for _, rel := range r.Relationships {
+		out.Relationships = append(out.Relationships, sharedmemory.QueryRelation{
+			ID:         rel.ID,
+			Relation:   rel.Relation,
+			NodeIDs:    rel.NodeIDs,
+			Attributes: rel.Attributes,
+		})
+	}
+
+	return out
+}
+
 // fetchSharedMemoriesHandler godoc
 //
 // @Summary     Fetch shared memories
@@ -309,7 +338,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 // @Param       masId       path string true "Multi-Agentic System ID"
 // @Param       body        body sharedmemory.QueryRequest false "Query request"
 //
-// @Success     200 {object} sharedmemory.QueryResponse "Query executed successfully"
+// @Success     200 {object} sharedmemory.QueryResponse  "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
@@ -357,7 +386,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		Header: common.Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
-			AgentID:     *req.AgentId,
+			AgentID:     *req.Header.AgentID,
 		},
 		RequestID: requestId,
 		Payload: cognitionagentclient.ReasoningEvidencePayload{
@@ -368,6 +397,10 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			AdditionalContext: req.AdditionalContext,
 		},
 	}
+	if req.Header != nil && req.Header.AgentID != nil {
+		reasoningRequest.Header.AgentID = *req.Header.AgentID
+	}
+
 	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
 	if err != nil {
 		log.Errorf(
@@ -384,6 +417,15 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("reasoner response: %+v", reasonerResp)
 
+	conceptsFromReasonerResp := TransformReasonerResponseToRecords(reasonerResp)
+	if len(conceptsFromReasonerResp.Concepts) == 0 {
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("no relevant entities found from user message")},
+		)
+	}
+
 	// TODO: operationID is currently a random UUID; replace with a consistent request ID
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
@@ -392,7 +434,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		RequestID: *requestId,
 		WkspID:    &workspaceID,
 		MasID:     &masID,
-		Records:   *TransformReasonerResponseToRecords(reasonerResp),
+		Records:   *conceptsFromReasonerResp,
 		//QueryCriteria: req.QueryCriteria,
 	}
 
@@ -475,24 +517,16 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		log.Errorf("failed to create audit event: %v", auditErr)
 	}
 
+	records := make([]sharedmemory.QueryResponseRecord, 0, len(knowledgeGraphResp.Records))
+	for _, r := range knowledgeGraphResp.Records {
+		records = append(records, mapKGRecordToQueryRecord(r))
+	}
+
 	resp := sharedmemory.QueryResponse{
 		ResponseID: knowledgeGraphResp.RequestID,
 		Status:     string(knowledgeGraphResp.Status),
 		Message:    knowledgeGraphResp.Message,
-		Records:    knowledgeGraphResp.Records,
-	}
-
-	// Remove embeddings from final response
-	for i := range resp.Records {
-		// Remove concept embeddings
-		for j := range resp.Records[i].Concepts {
-			resp.Records[i].Concepts[j].Embeddings = nil
-		}
-
-		// Remove relation embeddings
-		for k := range resp.Records[i].Relationships {
-			resp.Records[i].Relationships[k].Embeddings = nil
-		}
+		Records:    records,
 	}
 
 	log.Infof(
