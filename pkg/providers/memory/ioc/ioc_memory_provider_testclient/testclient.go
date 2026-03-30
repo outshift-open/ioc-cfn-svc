@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
@@ -14,9 +15,13 @@ import (
 // This sample shows how to use the IOC Memory Provider to perform knowledge graph operations
 // using schema types.
 
-var log = logger.Default()
+var log *zap.SugaredLogger
 
 func main() {
+	// Initialize logger first
+	logger.Init()
+	log = logger.Default()
+
 	log.Info("Starting IOC Memory Provider Client Sample...")
 
 	// Load environment variables from .env file
@@ -75,6 +80,58 @@ func main() {
 	log.Info("Testing DeleteKnowledgeGraph...")
 	if err := testDeleteKnowledgeGraph(ctx, client); err != nil {
 		log.Errorf("Error in DeleteKnowledgeGraph: %v", err)
+		os.Exit(1)
+	}
+
+	// Test vector operations
+	log.Info("\n=== Testing Vector Operations ===")
+
+	// Test OnboardKnowledgeVectorStore method
+	log.Info("Testing OnboardKnowledgeVectorStore...")
+	if err := testOnboardKnowledgeVectorStore(ctx, client); err != nil {
+		log.Errorf("Error in OnboardKnowledgeVectorStore: %v", err)
+		os.Exit(1)
+	}
+
+	// Test UpsertKnowledgeVectors method
+	log.Info("Testing UpsertKnowledgeVectors...")
+	if err := testUpsertKnowledgeVectors(ctx, client); err != nil {
+		log.Errorf("Error in UpsertKnowledgeVectors: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeVectors method (Cosine)
+	log.Info("Testing QueryKnowledgeVectors (Cosine Distance)...")
+	if err := testQueryKnowledgeVectorsCosine(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeVectors (Cosine): %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeVectors method (L2)
+	log.Info("Testing QueryKnowledgeVectors (L2 Distance)...")
+	if err := testQueryKnowledgeVectorsL2(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeVectors (L2): %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeVectors method (Get By ID)
+	log.Info("Testing QueryKnowledgeVectors (Get By ID)...")
+	if err := testQueryKnowledgeVectorsGetByID(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeVectors (Get By ID): %v", err)
+		os.Exit(1)
+	}
+
+	// Test DeleteKnowledgeVectors method
+	log.Info("Testing DeleteKnowledgeVectors...")
+	if err := testDeleteKnowledgeVectors(ctx, client); err != nil {
+		log.Errorf("Error in DeleteKnowledgeVectors: %v", err)
+		os.Exit(1)
+	}
+
+	// Test DeleteKnowledgeVectorStore method
+	log.Info("Testing DeleteKnowledgeVectorStore...")
+	if err := testDeleteKnowledgeVectorStore(ctx, client); err != nil {
+		log.Errorf("Error in DeleteKnowledgeVectorStore: %v", err)
 		os.Exit(1)
 	}
 
@@ -342,6 +399,205 @@ func testDeleteKnowledgeGraph(ctx context.Context, client *iocmemoryprovider.Cli
 	log.Infof("Delete response status: %s", response.Status)
 	if response.Message != nil {
 		log.Infof("Delete response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+///////////////////////// VECTOR OPERATIONS /////////////////////////
+
+func testOnboardKnowledgeVectorStore(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	request := iocmemoryprovider.NewKnowledgeVectorStoreOnboardRequest(wkspID)
+
+	// Call the client method
+	response, err := client.OnboardKnowledgeVectorStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Onboard vector store response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Onboard vector store response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testUpsertKnowledgeVectors(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create vector records using schema types
+	records := []iocmemoryprovider.KnowledgeVectorStoreRequestRecord{
+		{
+			ID:      "123e4567-e89b-12d3-a456-426614174001",
+			Content: "content in plain text",
+			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{
+				Data: []float64{0.1, 0.2, 0.3},
+			},
+		},
+		{
+			ID:      "223e4567-e89b-12d3-a456-426614174001",
+			Content: "content in plain text",
+			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{
+				Data: []float64{0.4, 0.5, 0.6},
+			},
+		},
+		{
+			ID:      "323e4567-e89b-12d3-a456-426614174001",
+			Content: "content in plain text",
+			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{
+				Data: []float64{0.7, 0.8, 0.9},
+			},
+		},
+	}
+
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeVectorStoreRequest(wkspID, masID, records)
+
+	// Call the client method
+	response, err := client.UpsertKnowledgeVectors(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Upsert vectors response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Upsert vectors response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testQueryKnowledgeVectorsCosine(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for cosine distance
+	embedding := &iocmemoryprovider.VectorEmbeddingConfig{
+		Data: []float64{0.4, 0.5, 0.6},
+	}
+	limit := 2
+	queryCriteria := iocmemoryprovider.NewKnowledgeVectorQueryCriteria(
+		iocmemoryprovider.QueryTypeDistanceCosine,
+		embedding,
+		limit,
+	)
+
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeVectorQueryRequest(wkspID, masID, queryCriteria)
+
+	// Call the client method
+	response, err := client.QueryKnowledgeVectors(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Query vectors (cosine) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Query vectors (cosine) response message: %s", *response.Message)
+	}
+	log.Infof("Query vectors (cosine) response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeVectorsL2(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for L2 distance
+	embedding := &iocmemoryprovider.VectorEmbeddingConfig{
+		Data: []float64{0.4, 0.5, 0.6},
+	}
+	limit := 2
+	queryCriteria := iocmemoryprovider.NewKnowledgeVectorQueryCriteria(
+		iocmemoryprovider.QueryTypeDistanceL2,
+		embedding,
+		limit,
+	)
+
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeVectorQueryRequest(wkspID, masID, queryCriteria)
+
+	// Call the client method
+	response, err := client.QueryKnowledgeVectors(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Query vectors (L2) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Query vectors (L2) response message: %s", *response.Message)
+	}
+	log.Infof("Query vectors (L2) response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeVectorsGetByID(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for get by ID
+	vectorID := "223e4567-e89b-12d3-a456-426614174001"
+	queryCriteria := iocmemoryprovider.NewKnowledgeVectorQueryCriteria(
+		iocmemoryprovider.QueryTypeGetByID,
+		vectorID,
+	)
+
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeVectorQueryRequest(wkspID, masID, queryCriteria)
+
+	// Call the client method
+	response, err := client.QueryKnowledgeVectors(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Query vectors (Get By ID) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Query vectors (Get By ID) response message: %s", *response.Message)
+	}
+	log.Infof("Query vectors (Get By ID) response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testDeleteKnowledgeVectors(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	vectorID := "223e4567-e89b-12d3-a456-426614174001"
+	softDelete := false
+	request := iocmemoryprovider.NewKnowledgeVectorDeleteRequest(wkspID, masID, vectorID, softDelete)
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeVectors(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete vectors response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete vectors response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testDeleteKnowledgeVectorStore(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	wkspID := "7f136aa0-143c-46a6-82f2-249eac489e52"
+	request := iocmemoryprovider.NewKnowledgeVectorStoreOnboardDeleteRequest(wkspID)
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeVectorStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete vector store response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete vector store response message: %s", *response.Message)
 	}
 
 	return nil

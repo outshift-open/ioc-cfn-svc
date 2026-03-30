@@ -21,6 +21,8 @@ const (
 	ResponseStatusNotFound        ResponseStatus = "not found"
 )
 
+///////////////////////// GRAPH SCHEMA /////////////////////////
+
 // Query type constants
 const (
 	QueryTypeNeighbour = "neighbour"
@@ -315,6 +317,401 @@ func (k *KnowledgeGraphQueryResponse) MarshalJSON() ([]byte, error) {
 
 	if len(k.Records) > 0 {
 		aux.Records = k.Records
+	}
+
+	return json.Marshal(aux)
+}
+
+///////////////////////// VECTOR SCHEMA /////////////////////////
+
+// Vector query type constants
+const (
+	// Internal queries
+	QueryTypeInternalListByWkspID = "list_by_wksp_id"
+	QueryTypeInternalListByMasID  = "list_by_mas_id"
+	// External queries
+	QueryTypeGetByID        = "get_by_id"
+	QueryTypeDistanceL2     = "distance_l2"
+	QueryTypeDistanceCosine = "distance_cosine"
+)
+
+// KnowledgeVectorStoreOnboardRequest represents a request to setup the Vector store
+type KnowledgeVectorStoreOnboardRequest struct {
+	RequestID string `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID    string `json:"wksp_id" description:"ID for the Workspace"`
+}
+
+// NewKnowledgeVectorStoreOnboardRequest creates a new onboard request with auto-generated UUID
+func NewKnowledgeVectorStoreOnboardRequest(wkspID string) *KnowledgeVectorStoreOnboardRequest {
+	return &KnowledgeVectorStoreOnboardRequest{
+		RequestID: uuid.New().String(),
+		WkspID:    wkspID,
+	}
+}
+
+// Validate validates the onboard request
+func (k *KnowledgeVectorStoreOnboardRequest) Validate() error {
+	if k.WkspID == "" {
+		return fmt.Errorf("wksp_id is required")
+	}
+	return nil
+}
+
+// KnowledgeVectorStoreOnboardResponse represents a response from the create Container request
+type KnowledgeVectorStoreOnboardResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeVectorStoreOnboardResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorStoreOnboardResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeVectorStoreOnboardDeleteRequest represents a request to delete the Container
+type KnowledgeVectorStoreOnboardDeleteRequest struct {
+	RequestID string `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID    string `json:"wksp_id" description:"ID for the Workspace"`
+}
+
+// NewKnowledgeVectorStoreOnboardDeleteRequest creates a new onboard delete request with auto-generated UUID
+func NewKnowledgeVectorStoreOnboardDeleteRequest(wkspID string) *KnowledgeVectorStoreOnboardDeleteRequest {
+	return &KnowledgeVectorStoreOnboardDeleteRequest{
+		RequestID: uuid.New().String(),
+		WkspID:    wkspID,
+	}
+}
+
+// Validate validates the onboard delete request
+func (k *KnowledgeVectorStoreOnboardDeleteRequest) Validate() error {
+	if k.WkspID == "" {
+		return fmt.Errorf("wksp_id is required")
+	}
+	return nil
+}
+
+// KnowledgeVectorStoreOnboardDeleteResponse represents a response from the delete Container request
+type KnowledgeVectorStoreOnboardDeleteResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeVectorStoreOnboardDeleteResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorStoreOnboardDeleteResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// VectorEmbeddingConfig represents configuration for embeddings in the vector store
+type VectorEmbeddingConfig struct {
+	Data []float64 `json:"data" description:"Embedding vector data"`
+}
+
+// KnowledgeVectorStoreRequestRecord represents a vector in the knowledge vector store
+type KnowledgeVectorStoreRequestRecord struct {
+	ID        string                 `json:"id" description:"Unique identifier"`
+	Content   string                 `json:"content" description:"content in plain text"`
+	Embedding *VectorEmbeddingConfig `json:"embedding" description:"Embedding"`
+}
+
+// Validate validates the vector store request record
+func (k *KnowledgeVectorStoreRequestRecord) Validate() error {
+	if k.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	if k.Content == "" {
+		return fmt.Errorf("content is required")
+	}
+	if k.Embedding == nil {
+		return fmt.Errorf("embedding is required")
+	}
+	return nil
+}
+
+// KnowledgeVectorStoreRequest represents a request to the Store for storing and managing knowledge vector data
+type KnowledgeVectorStoreRequest struct {
+	RequestID string                              `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID    string                              `json:"wksp_id" description:"ID for the Multi-Agent System Workspace"`
+	MasID     string                              `json:"mas_id" description:"ID for the Multi-Agent System"`
+	Records   []KnowledgeVectorStoreRequestRecord `json:"records" description:"List of vector records"`
+}
+
+// NewKnowledgeVectorStoreRequest creates a new vector store request with auto-generated UUID
+func NewKnowledgeVectorStoreRequest(wkspID, masID string, records []KnowledgeVectorStoreRequestRecord) *KnowledgeVectorStoreRequest {
+	return &KnowledgeVectorStoreRequest{
+		RequestID: uuid.New().String(),
+		WkspID:    wkspID,
+		MasID:     masID,
+		Records:   records,
+	}
+}
+
+// Validate validates the vector store request
+func (k *KnowledgeVectorStoreRequest) Validate() error {
+	if k.MasID == "" {
+		return fmt.Errorf("mas_id is required")
+	}
+	if k.WkspID == "" {
+		return fmt.Errorf("wksp_id is required")
+	}
+
+	for i, record := range k.Records {
+		if err := record.Validate(); err != nil {
+			return fmt.Errorf("record at index %d validation failed: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// KnowledgeVectorStoreResponse represents a response from the Store after storing and managing knowledge vector data
+type KnowledgeVectorStoreResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeVectorStoreResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorStoreResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeVectorDeleteRequest represents a request to delete a vector
+type KnowledgeVectorDeleteRequest struct {
+	RequestID  string `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID     string `json:"wksp_id" description:"The workspace ID for the request"`
+	MasID      string `json:"mas_id" description:"ID for the Multi-Agent System"`
+	ID         string `json:"id" description:"ID of vector to delete"`
+	SoftDelete bool   `json:"soft_delete" description:"Soft delete the vector"`
+}
+
+// NewKnowledgeVectorDeleteRequest creates a new vector delete request with auto-generated UUID
+func NewKnowledgeVectorDeleteRequest(wkspID, masID, id string, softDelete bool) *KnowledgeVectorDeleteRequest {
+	return &KnowledgeVectorDeleteRequest{
+		RequestID:  uuid.New().String(),
+		WkspID:     wkspID,
+		MasID:      masID,
+		ID:         id,
+		SoftDelete: softDelete,
+	}
+}
+
+// Validate validates the vector delete request
+func (k *KnowledgeVectorDeleteRequest) Validate() error {
+	if k.MasID == "" {
+		return fmt.Errorf("mas_id is required")
+	}
+	if k.WkspID == "" {
+		return fmt.Errorf("wksp_id is required")
+	}
+	if k.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	return nil
+}
+
+// KnowledgeVectorDeleteResponse represents a response from the Store after deleting knowledge vector data
+type KnowledgeVectorDeleteResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeVectorDeleteResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorDeleteResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeVectorQueryCriteria represents query criteria for knowledge vector queries
+type KnowledgeVectorQueryCriteria struct {
+	QueryType *string                `json:"query_type,omitempty" description:"Type of query to execute"`
+	ID        *string                `json:"id,omitempty" description:"ID of vector to query"`
+	Embedding *VectorEmbeddingConfig `json:"embedding,omitempty" description:"Embedding for query"`
+	Limit     *int                   `json:"limit,omitempty" description:"limit used by queries"`
+}
+
+// NewKnowledgeVectorQueryCriteria creates new query criteria with specified values
+func NewKnowledgeVectorQueryCriteria(queryType string, options ...interface{}) *KnowledgeVectorQueryCriteria {
+	criteria := &KnowledgeVectorQueryCriteria{
+		QueryType: &queryType,
+	}
+
+	// Process optional parameters
+	for _, option := range options {
+		switch v := option.(type) {
+		case *string:
+			criteria.ID = v
+		case string:
+			criteria.ID = &v
+		case *VectorEmbeddingConfig:
+			criteria.Embedding = v
+		case *int:
+			criteria.Limit = v
+		case int:
+			criteria.Limit = &v
+		}
+	}
+
+	return criteria
+}
+
+// KnowledgeVectorQueryRequest represents a request to query the store
+type KnowledgeVectorQueryRequest struct {
+	RequestID     string                        `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID        string                        `json:"wksp_id" description:"ID for the Workspace"`
+	MasID         string                        `json:"mas_id" description:"ID for the Multi-Agent System"`
+	QueryCriteria *KnowledgeVectorQueryCriteria `json:"query_criteria,omitempty" description:"Query criteria"`
+}
+
+// NewKnowledgeVectorQueryRequest creates a new query request with auto-generated UUID
+func NewKnowledgeVectorQueryRequest(wkspID, masID string, queryCriteria *KnowledgeVectorQueryCriteria) *KnowledgeVectorQueryRequest {
+	return &KnowledgeVectorQueryRequest{
+		RequestID:     uuid.New().String(),
+		WkspID:        wkspID,
+		MasID:         masID,
+		QueryCriteria: queryCriteria,
+	}
+}
+
+// Validate validates the vector query request
+func (k *KnowledgeVectorQueryRequest) Validate() error {
+	if k.MasID == "" {
+		return fmt.Errorf("mas_id is required")
+	}
+	if k.WkspID == "" {
+		return fmt.Errorf("wksp_id is required")
+	}
+
+	if k.QueryCriteria == nil || k.QueryCriteria.QueryType == nil {
+		return fmt.Errorf("query_criteria with query_type is required")
+	}
+
+	queryType := *k.QueryCriteria.QueryType
+
+	// Similarity search queries require embedding
+	if queryType == QueryTypeDistanceL2 || queryType == QueryTypeDistanceCosine {
+		if k.QueryCriteria.Embedding == nil || len(k.QueryCriteria.Embedding.Data) == 0 {
+			return fmt.Errorf("query type '%s' requires embedding data", queryType)
+		}
+	}
+
+	// Get by ID query requires id
+	if queryType == QueryTypeGetByID {
+		if k.QueryCriteria.ID == nil || *k.QueryCriteria.ID == "" {
+			return fmt.Errorf("query type '%s' requires id field", queryType)
+		}
+	}
+
+	// Validate query_type is valid
+	validTypes := []string{
+		QueryTypeInternalListByWkspID,
+		QueryTypeInternalListByMasID,
+		QueryTypeGetByID,
+		QueryTypeDistanceL2,
+		QueryTypeDistanceCosine,
+	}
+
+	valid := false
+	for _, validType := range validTypes {
+		if queryType == validType {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		return fmt.Errorf("invalid query_type: '%s'", queryType)
+	}
+
+	return nil
+}
+
+// KnowledgeVectorQueryResponseRecord represents a record in the query response
+type KnowledgeVectorQueryResponseRecord struct {
+	ID        string                 `json:"id" description:"Unique identifier"`
+	Content   string                 `json:"content" description:"content in plain text"`
+	Embedding *VectorEmbeddingConfig `json:"embedding" description:"Embedding configuration"`
+	Distance  *float64               `json:"distance,omitempty" description:"Distance between query and record"`
+	CreatedAt *int64                 `json:"created_at,omitempty" description:"Timestamp of record creation in epoch time"`
+	UpdatedAt *int64                 `json:"updated_at,omitempty" description:"Timestamp of record update in epoch time"`
+}
+
+// MarshalJSON custom marshaling to exclude None fields
+func (k *KnowledgeVectorQueryResponseRecord) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorQueryResponseRecord
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeVectorQueryResponse represents a response from the Store after querying knowledge vector data
+type KnowledgeVectorQueryResponse struct {
+	RequestID *string                              `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus                       `json:"status" description:"Status of the request"`
+	Message   *string                              `json:"message,omitempty" description:"Optional message providing additional information"`
+	Records   []KnowledgeVectorQueryResponseRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeVectorQueryResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeVectorQueryResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
 	}
 
 	return json.Marshal(aux)

@@ -420,12 +420,393 @@ func deleteKnowledgeGraph(client *httpclient.Client) error {
 	return nil
 }
 
+// onboardKnowledgeVectorStore sends a POST request to onboard knowledge vector store
+func onboardKnowledgeVectorStore(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "bbc2fea0-5e6c-4cf9-b7b4-fe6418c041a0"
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := getServiceURL() + "/api/knowledge/vectors/stores/7f136aa0-143c-46a6-82f2-249eac489e52"
+	resp, err := client.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("POST request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// upsertKnowledgeVectors sends a POST request to upsert knowledge vectors
+func upsertKnowledgeVectors(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "bbc2fea0-5e6c-4cf9-b7b4-fe6418c041a0",
+	"wksp_id": "7f136aa0-143c-46a6-82f2-249eac489e52",
+	"mas_id": "223e4567-e89b-12d3-a456-426614174001",
+	"records": [
+		{
+			"id": "123e4567-e89b-12d3-a456-426614174001",
+			"content": "content in plain text",
+			"embedding": {
+				"data": [
+					0.1,
+					0.2,
+					0.3
+				]
+			}
+		},
+		{
+			"id": "223e4567-e89b-12d3-a456-426614174001",
+			"content": "content in plain text",
+			"embedding": {
+				"data": [
+					0.4,
+					0.5,
+					0.6
+				]
+			}
+		},
+		{
+			"id": "323e4567-e89b-12d3-a456-426614174001",
+			"content": "content in plain text",
+			"embedding": {
+				"data": [
+					0.7,
+					0.8,
+					0.9
+				]
+			}
+		}
+	]
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := getServiceURL() + "/api/knowledge/vectors"
+	resp, err := client.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("POST request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// queryKnowledgeVectorsDistanceCosine sends a POST request to query knowledge vectors using cosine distance
+func queryKnowledgeVectorsDistanceCosine(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "fbc2fea0-5e6c-4cf9-b7b4-fe6418c041a4",
+	"wksp_id": "7f136aa0-143c-46a6-82f2-249eac489e52",
+	"mas_id": "223e4567-e89b-12d3-a456-426614174001",
+	"query_criteria": {
+		"query_type": "distance_cosine",
+		"embedding": {
+			"data": [
+				0.4,
+				0.5,
+				0.6
+			]
+		},
+		"limit": 2
+	}
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := getServiceURL() + "/api/knowledge/vectors/query"
+	resp, err := client.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("POST request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// queryKnowledgeVectorsDistanceL2 sends a POST request to query knowledge vectors using L2 distance
+func queryKnowledgeVectorsDistanceL2(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "fbc2fea0-5e6c-4cf9-b7b4-fe6418c041a4",
+	"wksp_id": "7f136aa0-143c-46a6-82f2-249eac489e52",
+	"mas_id": "223e4567-e89b-12d3-a456-426614174001",
+	"query_criteria": {
+		"query_type": "distance_l2",
+		"embedding": {
+			"data": [
+				0.4,
+				0.5,
+				0.6
+			]
+		},
+		"limit": 2
+	}
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := getServiceURL() + "/api/knowledge/vectors/query"
+	resp, err := client.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("POST request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// queryKnowledgeVectorsGetByID sends a POST request to query knowledge vectors by ID
+func queryKnowledgeVectorsGetByID(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "fbc2fea0-5e6c-4cf9-b7b4-fe6418c041a4",
+	"wksp_id": "7f136aa0-143c-46a6-82f2-249eac489e52",
+	"mas_id": "223e4567-e89b-12d3-a456-426614174001",
+	"query_criteria": {
+		"query_type": "get_by_id",
+		"id": "223e4567-e89b-12d3-a456-426614174001"
+	}
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := getServiceURL() + "/api/knowledge/vectors/query"
+	resp, err := client.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("POST request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// deleteKnowledgeVectors sends a DELETE request to delete knowledge vectors
+func deleteKnowledgeVectors(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "bbc2fea0-5e6c-4cf9-b7b4-fe6418c041a0",
+	"wksp_id": "7f136aa0-143c-46a6-82f2-249eac489e52",
+	"mas_id": "223e4567-e89b-12d3-a456-426614174001",
+	"id": "223e4567-e89b-12d3-a456-426614174001",
+	"soft_delete": false
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	url := getServiceURL() + "/api/knowledge/vectors"
+	resp, err := client.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("DELETE request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
+// deleteKnowledgeVectorStore sends a DELETE request to delete knowledge vector store
+func deleteKnowledgeVectorStore(client *httpclient.Client) error {
+	ctx := context.Background()
+
+	// Mock JSON request body matching the curl example
+	jsonData := []byte(`{
+	"request_id": "bbc2fea0-5e6c-4cf9-b7b4-fe6418c041a0"
+}`)
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	url := getServiceURL() + "/api/internal/knowledge/vectors/stores/7f136aa0-143c-46a6-82f2-249eac489e52"
+	resp, err := client.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fmt.Printf("DELETE request to %s completed\n", url)
+	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Response headers: %v\n", resp.Header)
+	fmt.Printf("Response body: %s\n", string(body))
+
+	// Pretty print JSON response
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
+			fmt.Printf("Pretty JSON:\n%s\n", string(formatted))
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	fmt.Println("Starting HTTP Client Sample...")
 
 	// Load environment variables from .env file
 	if err := godotenv.Load(); err != nil {
-		fmt.Printf("No .env file found or error loading .env file: %v", err)
+		fmt.Printf("No .env file found or error loading .env file: %v\n", err)
 	} else {
 		fmt.Println("Loaded environment variables from .env file")
 	}
@@ -478,6 +859,58 @@ func main() {
 	fmt.Println("\nTesting deleteKnowledgeGraph...")
 	if err := deleteKnowledgeGraph(client); err != nil {
 		log.Printf("Error in deleteKnowledgeGraph: %v", err)
+		os.Exit(1)
+	}
+
+	// Test vector operations
+	fmt.Println("\n=== Testing Vector Operations ===")
+
+	// Test onboardKnowledgeVectorStore method
+	fmt.Println("\nTesting onboardKnowledgeVectorStore...")
+	if err := onboardKnowledgeVectorStore(client); err != nil {
+		log.Printf("Error in onboardKnowledgeVectorStore: %v", err)
+		os.Exit(1)
+	}
+
+	// Test upsertKnowledgeVectors method
+	fmt.Println("\nTesting upsertKnowledgeVectors...")
+	if err := upsertKnowledgeVectors(client); err != nil {
+		log.Printf("Error in upsertKnowledgeVectors: %v", err)
+		os.Exit(1)
+	}
+
+	// Test queryKnowledgeVectorsDistanceCosine method
+	fmt.Println("\nTesting queryKnowledgeVectorsDistanceCosine...")
+	if err := queryKnowledgeVectorsDistanceCosine(client); err != nil {
+		log.Printf("Error in queryKnowledgeVectorsDistanceCosine: %v", err)
+		os.Exit(1)
+	}
+
+	// Test queryKnowledgeVectorsDistanceL2 method
+	fmt.Println("\nTesting queryKnowledgeVectorsDistanceL2...")
+	if err := queryKnowledgeVectorsDistanceL2(client); err != nil {
+		log.Printf("Error in queryKnowledgeVectorsDistanceL2: %v", err)
+		os.Exit(1)
+	}
+
+	// Test queryKnowledgeVectorsGetByID method
+	fmt.Println("\nTesting queryKnowledgeVectorsGetByID...")
+	if err := queryKnowledgeVectorsGetByID(client); err != nil {
+		log.Printf("Error in queryKnowledgeVectorsGetByID: %v", err)
+		os.Exit(1)
+	}
+
+	// Test deleteKnowledgeVectors method
+	fmt.Println("\nTesting deleteKnowledgeVectors...")
+	if err := deleteKnowledgeVectors(client); err != nil {
+		log.Printf("Error in deleteKnowledgeVectors: %v", err)
+		os.Exit(1)
+	}
+
+	// Test deleteKnowledgeVectorStore method
+	fmt.Println("\nTesting deleteKnowledgeVectorStore...")
+	if err := deleteKnowledgeVectorStore(client); err != nil {
+		log.Printf("Error in deleteKnowledgeVectorStore: %v", err)
 		os.Exit(1)
 	}
 
