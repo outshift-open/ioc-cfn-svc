@@ -289,6 +289,266 @@ func (c *Client) prettyPrintJSON(data []byte) {
 	}
 }
 
+// OnboardKnowledgeVectorStore sends a POST request to onboard knowledge vector store using schema types
+func (c *Client) OnboardKnowledgeVectorStore(ctx context.Context, request *KnowledgeVectorStoreOnboardRequest) (*KnowledgeVectorStoreOnboardResponse, error) {
+	log := getLogger()
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := c.baseURL + "/api/knowledge/vectors/stores/" + request.WkspID
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeVectorStoreOnboardResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpsertKnowledgeVectors sends a POST request to upsert knowledge vectors using schema types
+func (c *Client) UpsertKnowledgeVectors(ctx context.Context, request *KnowledgeVectorStoreRequest) (*KnowledgeVectorStoreResponse, error) {
+	log := getLogger()
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := c.baseURL + "/api/knowledge/vectors"
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeVectorStoreResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// QueryKnowledgeVectors sends a POST request to query knowledge vectors using schema types
+func (c *Client) QueryKnowledgeVectors(ctx context.Context, request *KnowledgeVectorQueryRequest) (*KnowledgeVectorQueryResponse, error) {
+	log := getLogger()
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := c.baseURL + "/api/knowledge/vectors/query"
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeVectorQueryResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteKnowledgeVectors sends a DELETE request to delete knowledge vectors using schema types
+func (c *Client) DeleteKnowledgeVectors(ctx context.Context, request *KnowledgeVectorDeleteRequest) (*KnowledgeVectorDeleteResponse, error) {
+	log := getLogger()
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	url := c.baseURL + "/api/knowledge/vectors"
+	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("DELETE request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeVectorDeleteResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteKnowledgeVectorStore sends a DELETE request to delete knowledge vector store using schema types
+func (c *Client) DeleteKnowledgeVectorStore(ctx context.Context, request *KnowledgeVectorStoreOnboardDeleteRequest) (*KnowledgeVectorStoreOnboardDeleteResponse, error) {
+	log := getLogger()
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	url := c.baseURL + "/api/internal/knowledge/vectors/stores/" + request.WkspID
+	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("DELETE request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeVectorStoreOnboardDeleteResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // stringPtr is a helper function to get a pointer to a string
 func stringPtr(s string) *string {
 	return &s
