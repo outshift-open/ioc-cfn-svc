@@ -137,6 +137,11 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -219,6 +224,11 @@ func (c *Client) DeleteKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -272,6 +282,11 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 	var response KnowledgeGraphQueryResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}
 
 	return &response, nil
@@ -338,6 +353,11 @@ func (c *Client) OnboardKnowledgeVectorStore(ctx context.Context, request *Knowl
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -388,6 +408,11 @@ func (c *Client) UpsertKnowledgeVectors(ctx context.Context, request *KnowledgeV
 	var response KnowledgeVectorStoreResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}
 
 	return &response, nil
@@ -442,6 +467,11 @@ func (c *Client) QueryKnowledgeVectors(ctx context.Context, request *KnowledgeVe
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -494,6 +524,11 @@ func (c *Client) DeleteKnowledgeVectors(ctx context.Context, request *KnowledgeV
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -544,6 +579,11 @@ func (c *Client) DeleteKnowledgeVectorStore(ctx context.Context, request *Knowle
 	var response KnowledgeVectorStoreOnboardDeleteResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}
 
 	return &response, nil

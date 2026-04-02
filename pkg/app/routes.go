@@ -33,6 +33,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
 	// shared memories
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
+	rtr.Delete(internalPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}", a.deleteSharedMemoriesVectorStoreHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
@@ -43,6 +45,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/search", a.cognitionAgentsMemoryCreateHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/concepts/search", a.cognitionAgentsMemorySearchHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/paths/search", a.cognitionagentsPathsSearchHandler)
+
+	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
+	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
 	// audit events (internal API)
 	rtr.Post(internalPrefix+"/audit-events", a.createAuditEventHandler)
