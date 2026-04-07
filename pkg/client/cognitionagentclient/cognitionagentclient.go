@@ -353,8 +353,10 @@ var jsonHeaders = map[string]string{
 	"Accept":       "application/json",
 }
 
-// post sends a POST request with a JSON body to baseURL+path, checks for a
-// 200 OK response, and decodes the JSON body into dest.
+// post sends a POST request with a JSON body to baseURL+path and decodes the
+// JSON response into dest. If the server returns a non-200 response, we attempt
+// to decode the body as the same response envelope (which may contain an
+// error field) so callers get actionable error details.
 func (c *Client) post(ctx context.Context, path string, body []byte, dest interface{}) error {
 	url := fmt.Sprintf("%s%s", c.baseURL, path)
 
@@ -364,12 +366,19 @@ func (c *Client) post(ctx context.Context, path string, body []byte, dest interf
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		errBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status %d from %s: %s", resp.StatusCode, path, string(errBody))
+	respBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return fmt.Errorf("failed to read response body from %s: %w", path, readErr)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		if err := json.Unmarshal(respBody, dest); err == nil {
+			return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, path)
+		}
+		return fmt.Errorf("unexpected status %d from %s: %s", resp.StatusCode, path, string(respBody))
+	}
+
+	if err := json.Unmarshal(respBody, dest); err != nil {
 		return fmt.Errorf("failed to decode response from %s: %w", path, err)
 	}
 
