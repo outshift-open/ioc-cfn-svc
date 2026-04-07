@@ -46,4 +46,4 @@ temp/
 .jfrog
 *.tgz
 
-cfn-svc.bin
+ioc-cfn-svc.bin

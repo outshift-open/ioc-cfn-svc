@@ -36,6 +36,10 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
+	// semantic negotiation
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide", a.decideSemanticNegotiationHandler)
+
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
 	// cognition agents
