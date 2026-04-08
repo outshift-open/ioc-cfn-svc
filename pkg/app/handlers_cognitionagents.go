@@ -14,17 +14,8 @@ import (
 // core logic implementation and final API design.
 // TODO: Add audit CRUD operations for cognition agents memory queries.
 
-// cognitionAgentsMemoryCreateHandler godoc
-// @Summary		Create cognition agent memory
-// @Description	Creates a new memory record for a cognition agent
-// @Tags			cognition-agents
-// @Accept		json
-// @Produce		json
-// @Param		cfnId	path		string									true	"CFN ID"
-// @Param		body	body		cognitionagents.MemoryCreateRequest		true	"Memory create request"
-// @Success		201		{object}	cognitionagents.MemoryCreateResponse
-// @Failure		400		{object}	cognitionagents.MemoryCreateResponse
-// @Failure		500		{object}	cognitionagents.MemoryCreateResponse
+// cognitionAgentsMemoryCreateHandler creates a new memory record for a cognition agent.
+// Internal API - not exposed in public Swagger documentation.
 func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -56,17 +47,8 @@ func (a *App) cognitionAgentsMemoryCreateHandler(w http.ResponseWriter, r *http.
 	})
 }
 
-// cognitionAgentsConceptsSearchHandler godoc
-// @Summary		Search cognition agent memory concepts
-// @Description	Searches memory concepts for a cognition agent
-// @Tags			cognition-agents
-// @Accept		json
-// @Produce		json
-// @Param		cfnId	path		string										true	"CFN ID"
-// @Param		body	body		cognitionagents.ConceptsSearchRequest		true	"Concepts search request"
-// @Success		200		{object}	cognitionagents.ConceptsSearchResponse
-// @Failure		400		{object}	cognitionagents.ConceptsSearchResponse
-// @Failure		500		{object}	cognitionagents.ConceptsSearchResponse
+// cognitionAgentsConceptsSearchHandler searches memory concepts for a cognition agent.
+// Internal API - not exposed in public Swagger documentation.
 func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -99,17 +81,8 @@ func (a *App) cognitionAgentsConceptsSearchHandler(w http.ResponseWriter, r *htt
 	})
 }
 
-// cognitionagentsPathsSearchHandler godoc
-// @Summary		Search memory paths
-// @Description	Searches for paths between two nodes in cognition agent memory
-// @Tags			cognition-agents
-// @Accept		json
-// @Produce		json
-// @Param		cfnId	path		string									true	"CFN ID"
-// @Param		body	body		cognitionagents.PathsSearchRequest		true	"Paths search request"
-// @Success		200		{object}	cognitionagents.PathsSearchResponse
-// @Failure		400		{object}	cognitionagents.PathsSearchResponse
-// @Failure		500		{object}	cognitionagents.PathsSearchResponse
+// cognitionagentsPathsSearchHandler searches for paths between two nodes in cognition agent memory.
+// Internal API - not exposed in public Swagger documentation.
 func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -152,17 +125,8 @@ func (a *App) cognitionagentsPathsSearchHandler(w http.ResponseWriter, r *http.R
 	})
 }
 
-// cognitionAgentsMemorySearchHandler godoc
-// @Summary		Search cognition agent memory
-// @Description	Searches cognition agent memory with natural-language queries and embeddings
-// @Tags			cognition-agents
-// @Accept		json
-// @Produce		json
-// @Param		cfnId	path		string									true	"CFN ID"
-// @Param		body	body		cognitionagents.MemorySearchRequest		true	"Memory search request"
-// @Success		200		{object}	cognitionagents.MemorySearchResponse
-// @Failure		400		{object}	cognitionagents.MemorySearchResponse
-// @Failure		500		{object}	cognitionagents.MemorySearchResponse
+// cognitionAgentsMemorySearchHandler searches cognition agent memory with natural-language queries and embeddings.
+// Internal API - not exposed in public Swagger documentation.
 func (a *App) cognitionAgentsMemorySearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
