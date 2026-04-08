@@ -203,6 +203,7 @@ const docTemplate = `{
                         "description": "Query request",
                         "name": "body",
                         "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/sharedmemory.QueryRequest"
                         }
@@ -325,7 +326,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "header": {
-                    "description": "Header(s) of the request, optional.",
+                    "description": "Header(s) of the request, optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/sharedmemory.Header"
@@ -333,7 +334,7 @@ const docTemplate = `{
                     ]
                 },
                 "payload": {
-                    "description": "Payload contains the extraction metadata and the raw data to be processed.\nThe structure of the payload data is defined by Payload.Metadata.Format.",
+                    "description": "Payload contains the extraction metadata and the raw data to be processed. The structure of the payload data is defined by Payload.Metadata.Format",
                     "allOf": [
                         {
                             "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
@@ -341,7 +342,7 @@ const docTemplate = `{
                     ]
                 },
                 "request_id": {
-                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
                     "type": "string"
                 }
             }
@@ -350,12 +351,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "description": "Optional message providing additional information",
                     "type": "string"
                 },
                 "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
                 },
                 "status": {
+                    "description": "Status of the request",
                     "type": "string"
                 }
             }
@@ -364,7 +368,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agent_id": {
-                    "description": "ID that represents the agent, optional",
+                    "description": "ID that represents the agent, required for query operations",
                     "type": "string"
                 }
             }
@@ -418,12 +422,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "additional_context": {
-                    "description": "AdditionalContext provides optional contextual information to refine query execution.\nThis may include prior conversation state, structured hints, or domain-specific metadata.\nThe contents are treated as opaque by the API and interpreted by downstream components.",
+                    "description": "AdditionalContext provides optional contextual information to refine query execution. This may include prior conversation state, structured hints, or domain-specific metadata. The contents are treated as opaque by the API and interpreted by downstream components. Each element must be a structured object",
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
                 },
                 "header": {
-                    "description": "Header(s) of the request, optional.",
+                    "description": "Header(s) of the request, required (must include agent_id)",
                     "allOf": [
                         {
                             "$ref": "#/definitions/sharedmemory.Header"
@@ -431,15 +438,15 @@ const docTemplate = `{
                     ]
                 },
                 "intent": {
-                    "description": "User intent or natural-language query describing what information is being requested.\nThis field is the primary signal used to construct and execute the query.",
+                    "description": "User intent or natural-language query describing what information is being requested. This field is required and is the primary signal used to construct and execute the query",
                     "type": "string"
                 },
                 "request_id": {
-                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
                     "type": "string"
                 },
                 "search_strategy": {
-                    "description": "Search strategy to be used when executing the query.\nCurrently supported values:\n  - \"semantic_graph_traversal\"\n\nIf not specified, the service will use the default search strategy.",
+                    "description": "Search strategy to be used when executing the query. Currently supported values: \"semantic_graph_traversal\". If not specified, defaults to \"semantic_graph_traversal\"",
                     "type": "string"
                 }
             }
@@ -448,18 +455,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "description": "Optional message providing additional information",
                     "type": "string"
                 },
                 "records": {
+                    "description": "Query response records (only included for success status)",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
                     }
                 },
                 "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
                 },
                 "status": {
+                    "description": "Status of the request",
                     "type": "string"
                 }
             }

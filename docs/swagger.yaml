@@ -81,32 +81,33 @@ definitions:
       header:
         allOf:
         - $ref: '#/definitions/sharedmemory.Header'
-        description: Header(s) of the request, optional.
+        description: Header(s) of the request, optional
       payload:
         allOf:
         - $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
-        description: |-
-          Payload contains the extraction metadata and the raw data to be processed.
-          The structure of the payload data is defined by Payload.Metadata.Format.
+        description: Payload contains the extraction metadata and the raw data to
+          be processed. The structure of the payload data is defined by Payload.Metadata.Format
       request_id:
-        description: |-
-          ID of the request, optional.
-          If not provided, a random UUID is used to represent the request.
+        description: ID of the request, optional. If not provided, a random UUID is
+          used to represent the request
         type: string
     type: object
   sharedmemory.CreateOrUpdateResponse:
     properties:
       message:
+        description: Optional message providing additional information
         type: string
       response_id:
+        description: ID of the response, this gets populated from request_id
         type: string
       status:
+        description: Status of the request
         type: string
     type: object
   sharedmemory.Header:
     properties:
       agent_id:
-        description: ID that represents the agent, optional
+        description: ID that represents the agent, required for query operations
         type: string
     type: object
   sharedmemory.QueryConcept:
@@ -142,46 +143,49 @@ definitions:
   sharedmemory.QueryRequest:
     properties:
       additional_context:
-        description: |-
-          AdditionalContext provides optional contextual information to refine query execution.
-          This may include prior conversation state, structured hints, or domain-specific metadata.
-          The contents are treated as opaque by the API and interpreted by downstream components.
-        items: {}
+        description: AdditionalContext provides optional contextual information to
+          refine query execution. This may include prior conversation state, structured
+          hints, or domain-specific metadata. The contents are treated as opaque by
+          the API and interpreted by downstream components. Each element must be a
+          structured object
+        items:
+          additionalProperties: true
+          type: object
         type: array
       header:
         allOf:
         - $ref: '#/definitions/sharedmemory.Header'
-        description: Header(s) of the request, optional.
+        description: Header(s) of the request, required (must include agent_id)
       intent:
-        description: |-
-          User intent or natural-language query describing what information is being requested.
-          This field is the primary signal used to construct and execute the query.
+        description: User intent or natural-language query describing what information
+          is being requested. This field is required and is the primary signal used
+          to construct and execute the query
         type: string
       request_id:
-        description: |-
-          ID of the request, optional.
-          If not provided, a random UUID is used to represent the request.
+        description: ID of the request, optional. If not provided, a random UUID is
+          used to represent the request
         type: string
       search_strategy:
-        description: |-
-          Search strategy to be used when executing the query.
-          Currently supported values:
-            - "semantic_graph_traversal"
-
-          If not specified, the service will use the default search strategy.
+        description: 'Search strategy to be used when executing the query. Currently
+          supported values: "semantic_graph_traversal". If not specified, defaults
+          to "semantic_graph_traversal"'
         type: string
     type: object
   sharedmemory.QueryResponse:
     properties:
       message:
+        description: Optional message providing additional information
         type: string
       records:
+        description: Query response records (only included for success status)
         items:
           $ref: '#/definitions/sharedmemory.QueryResponseRecord'
         type: array
       response_id:
+        description: ID of the response, this gets populated from request_id
         type: string
       status:
+        description: Status of the request
         type: string
     type: object
   sharedmemory.QueryResponseRecord:
@@ -361,6 +365,7 @@ paths:
       - description: Query request
         in: body
         name: body
+        required: true
         schema:
           $ref: '#/definitions/sharedmemory.QueryRequest'
       produces:
