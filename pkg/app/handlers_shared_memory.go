@@ -336,7 +336,7 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body sharedmemory.QueryRequest false "Query request"
+// @Param       body        body sharedmemory.QueryRequest true "Query request"
 //
 // @Success     200 {object} sharedmemory.QueryResponse  "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
@@ -382,6 +382,13 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		requestId = common.StrToPtr(uuid.New().String())
 	}
 
+	// Convert []map[string]interface{} to []interface{} for the downstream client
+	// This maintains compatibility with the reasoning service which expects []interface{}
+	var additionalContext []interface{}
+	for _, v := range req.AdditionalContext {
+		additionalContext = append(additionalContext, v)
+	}
+
 	reasoningRequest := cognitionagentclient.ReasoningEvidenceRequest{
 		Header: common.Header{
 			WorkspaceID: workspaceID,
@@ -394,7 +401,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 				QueryType: sharedmemory.SearchStrategyConvertMap[*req.SearchStrategy], // TODO: reasoning endpoint need to its request payload to use "search_strategy"
 			},
 			Intent:            *req.Intent,
-			AdditionalContext: req.AdditionalContext,
+			AdditionalContext: additionalContext,
 		},
 	}
 	if req.Header != nil && req.Header.AgentID != nil {

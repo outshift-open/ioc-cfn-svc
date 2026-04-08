@@ -38,11 +38,6 @@ func (a *App) initializeRoutes() http.Handler {
 
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
-	// cognition agents
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory", a.cognitionAgentsMemoryCreateHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/search", a.cognitionAgentsMemoryCreateHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/concepts/search", a.cognitionAgentsMemorySearchHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/paths/search", a.cognitionagentsPathsSearchHandler)
 
 	// audit events (internal API)
 	rtr.Post(internalPrefix+"/audit-events", a.createAuditEventHandler)
