@@ -29,6 +29,30 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate OpenAPI spec
+        run: swag init --parseDependency --parseInternal --dir .
+
+      - name: Check OpenAPI spec is up-to-date
+        run: |
+          if ! git diff --exit-code docs/swagger.yaml docs/swagger.json docs/docs.go; then
+            echo "❌ ERROR: OpenAPI spec is out of sync with code!"
+            echo ""
+            echo "The swagger documentation needs to be regenerated."
+            echo "Please run the following command locally and commit the changes:"
+            echo ""
+            echo "  make docs"
+            echo ""
+            echo "Or manually run:"
+            echo "  swag init --parseDependency --parseInternal --dir ."
+            echo ""
+            git diff docs/swagger.yaml docs/swagger.json docs/docs.go
+            exit 1
+          fi
+          echo "✅ OpenAPI spec is up-to-date"
+
       - name: Unit Tests
         run: bash build/unit-test.sh
 

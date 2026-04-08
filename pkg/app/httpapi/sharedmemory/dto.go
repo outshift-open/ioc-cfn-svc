@@ -8,53 +8,39 @@ import (
 )
 
 type Header struct {
-	// ID that represents the agent, optional
+	// ID that represents the agent, required for query operations
 	AgentID *string `json:"agent_id,omitempty"`
 }
 
 type CreateOrUpdateRequest struct {
-	// Header(s) of the request, optional.
+	// Header(s) of the request, optional
 	Header *Header `json:"header,omitempty"`
-	// ID of the request, optional.
-	// If not provided, a random UUID is used to represent the request.
+	// ID of the request, optional. If not provided, a random UUID is used to represent the request
 	RequestId *string `json:"request_id,omitempty"`
-
-	// Payload contains the extraction metadata and the raw data to be processed.
-	// The structure of the payload data is defined by Payload.Metadata.Format.
+	// Payload contains the extraction metadata and the raw data to be processed. The structure of the payload data is defined by Payload.Metadata.Format
 	Payload cognitionagentclient.ExtractionPayload `json:"payload"`
 }
 
 type CreateOrUpdateResponse struct {
-	ResponseID *string `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
-	Status     string  `json:"status" description:"Status of the request"`
-	Message    *string `json:"message,omitempty" description:"Optional message providing additional information"`
+	// ID of the response, this gets populated from request_id
+	ResponseID *string `json:"response_id,omitempty"`
+	// Status of the request
+	Status string `json:"status"`
+	// Optional message providing additional information
+	Message *string `json:"message,omitempty"`
 }
 
 type QueryRequest struct {
-	// Header(s) of the request, optional.
-	Header *Header `json:"header,omitempty"`
-	// ID of the request, optional.
-	// If not provided, a random UUID is used to represent the request.
+	// Header(s) of the request, required (must include agent_id)
+	Header *Header `json:"header"`
+	// ID of the request, optional. If not provided, a random UUID is used to represent the request
 	RequestId *string `json:"request_id,omitempty"`
-	// Search strategy to be used when executing the query.
-	// Currently supported values:
-	//   - "semantic_graph_traversal"
-	//
-	// If not specified, the service will use the default search strategy.
+	// Search strategy to be used when executing the query. Currently supported values: "semantic_graph_traversal". If not specified, defaults to "semantic_graph_traversal"
 	SearchStrategy *string `json:"search_strategy,omitempty"`
-
-	// User intent or natural-language query describing what information is being requested.
-	// This field is the primary signal used to construct and execute the query.
-	Intent *string `json:"intent,omitempty"`
-
-	// TODO: not sure if we allow users to specify query type along with specified node IDs
-	//NodeIDs           *[]string                                      `json:"node_ids,omitempty"`        // node ID(s) must be provided if query_type is "neighbor" or "path". Node ID(s) is ignored is query_type is set to be "concept"
-	//QueryCriteria     *iocmemoryprovider.KnowledgeGraphQueryCriteria `json:"query_criteria,omitempty"`
-
-	// AdditionalContext provides optional contextual information to refine query execution.
-	// This may include prior conversation state, structured hints, or domain-specific metadata.
-	// The contents are treated as opaque by the API and interpreted by downstream components.
-	AdditionalContext []interface{} `json:"additional_context,omitempty"`
+	// User intent or natural-language query describing what information is being requested. This field is required and is the primary signal used to construct and execute the query
+	Intent *string `json:"intent"`
+	// AdditionalContext provides optional contextual information to refine query execution. This may include prior conversation state, structured hints, or domain-specific metadata. The contents are treated as opaque by the API and interpreted by downstream components. Each element must be a structured object
+	AdditionalContext []map[string]interface{} `json:"additional_context,omitempty"`
 }
 
 const (
@@ -67,6 +53,15 @@ var SearchStrategyConvertMap = map[string]string{
 }
 
 func (r *QueryRequest) ValidateAndApplyDefault() error {
+	// Validate required fields
+	if r.Header == nil || r.Header.AgentID == nil || *r.Header.AgentID == "" {
+		return fmt.Errorf("header.agent_id is required")
+	}
+	if r.Intent == nil || *r.Intent == "" {
+		return fmt.Errorf("intent is required")
+	}
+
+	// Apply defaults
 	if r.SearchStrategy == nil {
 		r.SearchStrategy = common.StrToPtr(SearchStrategySemanticGraphTraversal)
 	}
@@ -109,10 +104,14 @@ func (r *QueryRequest) ValidateAndApplyDefault() error {
 }
 
 type QueryResponse struct {
-	ResponseID *string               `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
-	Status     string                `json:"status" description:"Status of the request"`
-	Message    *string               `json:"message,omitempty" description:"Optional message providing additional information"`
-	Records    []QueryResponseRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
+	// ID of the response, this gets populated from request_id
+	ResponseID *string `json:"response_id,omitempty"`
+	// Status of the request
+	Status string `json:"status"`
+	// Optional message providing additional information
+	Message *string `json:"message,omitempty"`
+	// Query response records (only included for success status)
+	Records []QueryResponseRecord `json:"records,omitempty"`
 }
 
 type QueryResponseRecord struct {
