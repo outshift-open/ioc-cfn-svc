@@ -130,10 +130,10 @@ type SemanticNegotiationAgentReply struct {
 
 // SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/start.
 type SemanticNegotiationStartRequest struct {
-	SessionID   string                      `json:"session_id"`
-	ContentText string                      `json:"content_text"`
-	Agents      []SemanticNegotiationAgent  `json:"agents"`
-	NSteps      *int                        `json:"n_steps,omitempty"`
+	SessionID   string                     `json:"session_id"`
+	ContentText string                     `json:"content_text"`
+	Agents      []SemanticNegotiationAgent `json:"agents"`
+	NSteps      *int                       `json:"n_steps,omitempty"`
 }
 
 // SemanticNegotiationDecideRequest is the request body for POST /api/semantic-negotiation/decide.
@@ -200,7 +200,9 @@ type ReasonerContent struct {
 }
 
 type ReasonerEvidence struct {
-	Details ReasonerDetails `json:"details"`
+	Details       ReasonerDetails `json:"details"`
+	Status        string          `json:"status,omitempty"`
+	FinalResponse string          `json:"final_response,omitempty"`
 }
 
 type ReasonerDetails struct {
