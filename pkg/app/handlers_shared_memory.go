@@ -324,6 +324,11 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 
+	log.Infof(
+		"Fetching shared memories | workspace=%s mas=%s",
+		workspaceID, masID,
+	)
+
 	var req sharedmemory.QueryRequest
 	if r.Body != nil {
 		defer r.Body.Close()
