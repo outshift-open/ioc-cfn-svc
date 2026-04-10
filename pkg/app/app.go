@@ -120,6 +120,7 @@ type App struct {
 	gitCommitSHA  string
 	gitCommitTime string
 	gitBranch     string
+	startTime     time.Time
 	Cfg           config.Config
 	server        *easyhttp.EasyServer
 
@@ -185,6 +186,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		gitCommitSHA:          gitCommitSHA,
 		gitCommitTime:         gitCommitTime,
 		gitBranch:             gitBranch,
+		startTime:             time.Now(),
 		Cfg:                   *cfg,
 		readyForRequests:      &atomic.Bool{},
 		stopChan:              make(chan struct{}),

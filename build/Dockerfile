@@ -31,10 +31,15 @@ RUN echo "Build platform: $BUILDPLATFORM -> Target: $TARGETARCH" && \
 # Final minimal image
 FROM alpine:3.21
 
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 COPY --from=builder /app/cfn-svc .
 
 EXPOSE 9002
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:9002/api/internal/diagnostics/health || exit 1
 
 ENTRYPOINT ["./cfn-svc"]
