@@ -227,7 +227,7 @@ func testSendSemanticNegotiationStart(ctx context.Context, client *Client) {
 		NSteps: &nSteps,
 	}
 
-	resp, err := client.SendSemanticNegotiationStart(ctx, req)
+	resp, err := client.SendSemanticNegotiationStart(ctx, req, "sample-workspace-id", "sample-mas-id")
 	if err != nil {
 		fmt.Printf("  error: %v\n", err)
 		return
@@ -251,7 +251,7 @@ func testSendSemanticNegotiationDecide(ctx context.Context, client *Client) {
 		},
 	}
 
-	resp, err := client.SendSemanticNegotiationDecide(ctx, req)
+	resp, err := client.SendSemanticNegotiationDecide(ctx, req, "sample-workspace-id", "sample-mas-id")
 	if err != nil {
 		fmt.Printf("  error: %v\n", err)
 		return

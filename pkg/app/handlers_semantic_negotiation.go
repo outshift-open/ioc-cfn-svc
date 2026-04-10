@@ -90,7 +90,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		NSteps:      reqPayload.NSteps,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationStart(r.Context(), cogReq)
+	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationStart(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to start semantic negotiation, error: %s", err.Error())
 		return eh.RespondWithJSON(
@@ -100,10 +100,18 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 
+	// The initiate endpoint returns an SSTPNegotiateMessage envelope.
+	// Extract status from payload for convenience and surface the full envelope.
+	status := ""
+	if cogResp.Payload != nil {
+		if s, ok := cogResp.Payload["status"].(string); ok {
+			status = s
+		}
+	}
+
 	resp := &semanticnegotiation.Response{
-		Status:  cogResp.Status,
-		Message: cogResp.Message,
-		Result:  cogResp.Result,
+		Status:   status,
+		Envelope: cogResp.Payload,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
@@ -182,10 +190,9 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		AgentReplies: agentReplies,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq)
+	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to advance semantic negotiation, error: %s", err.Error())
-		// Check if it's a 404 error (session not found)
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
@@ -193,10 +200,13 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		)
 	}
 
+	// The decide endpoint returns a flat JSON object (not an SSTP envelope).
 	resp := &semanticnegotiation.Response{
-		Status:  cogResp.Status,
-		Message: cogResp.Message,
-		Result:  cogResp.Result,
+		Status:      cogResp.Status,
+		SessionID:   cogResp.SessionID,
+		Round:       cogResp.Round,
+		Messages:    cogResp.Messages,
+		FinalResult: cogResp.FinalResult,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)

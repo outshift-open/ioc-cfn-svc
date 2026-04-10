@@ -49,15 +49,32 @@ type DecideRequest struct {
 }
 
 // Response is the response from semantic negotiation endpoints.
-// The shape is defined by the semantic negotiation library.
+//
+// For /negotiate/initiate the upstream returns an SSTPNegotiateMessage envelope;
+// the full envelope is surfaced under Envelope and the negotiation status is
+// extracted into Status for convenience.
+//
+// For /negotiate/decide the upstream returns a flat JSON object; Status,
+// SessionID, Round, Messages, and FinalResult are populated directly.
 type Response struct {
 	// Status indicates the result of the negotiation step.
+	// Possible values: "ongoing", "agreed", "broken", "timeout", "broken" (error).
 	Status string `json:"status,omitempty"`
 
-	// Message provides additional information about the negotiation state.
-	Message string `json:"message,omitempty"`
+	// SessionID echoes the session identifier from the upstream response.
+	SessionID string `json:"session_id,omitempty"`
 
-	// Result contains the pipeline execution result.
-	// The structure depends on the semantic negotiation library implementation.
-	Result map[string]interface{} `json:"result,omitempty"`
+	// Round is the SAO round number that was evaluated.
+	Round *int `json:"round,omitempty"`
+
+	// Messages contains the next round's SSTP messages when Status is "ongoing"
+	// (returned by /negotiate/decide).
+	Messages []interface{} `json:"messages,omitempty"`
+
+	// FinalResult holds the terminal negotiation envelope when Status is
+	// "agreed", "broken", or "timeout" (returned by /negotiate/decide).
+	FinalResult map[string]interface{} `json:"final_result,omitempty"`
+
+	// Envelope is the full SSTPNegotiateMessage returned by /negotiate/initiate.
+	Envelope map[string]interface{} `json:"envelope,omitempty"`
 }
