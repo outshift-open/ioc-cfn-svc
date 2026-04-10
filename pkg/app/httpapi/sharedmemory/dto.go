@@ -8,7 +8,7 @@ import (
 )
 
 type Header struct {
-	// ID that represents the agent, required for query operations
+	// ID that represents the agent, optional for query operations
 	AgentID *string `json:"agent_id,omitempty"`
 }
 
@@ -54,9 +54,6 @@ var SearchStrategyConvertMap = map[string]string{
 
 func (r *QueryRequest) ValidateAndApplyDefault() error {
 	// Validate required fields
-	if r.Header == nil || r.Header.AgentID == nil || *r.Header.AgentID == "" {
-		return fmt.Errorf("header.agent_id is required")
-	}
 	if r.Intent == nil || *r.Intent == "" {
 		return fmt.Errorf("intent is required")
 	}
@@ -69,36 +66,6 @@ func (r *QueryRequest) ValidateAndApplyDefault() error {
 	if r.SearchStrategy != nil && *r.SearchStrategy != SearchStrategySemanticGraphTraversal {
 		return fmt.Errorf("invalid search_strategy, valid value is %s", SearchStrategySemanticGraphTraversal)
 	}
-	//
-	//if r.QueryCriteria == nil {
-	//	useDirection := false // false for undirected path, true for directed path
-	//	r.QueryCriteria = iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-	//		iocmemoryprovider.QueryTypeConcept,
-	//		nil, // unspecified depth will return paths of any length
-	//		&useDirection,
-	//	)
-	//}
-	//
-	//if r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypeConcept &&
-	//	r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypeNeighbour &&
-	//	r.QueryCriteria.QueryType != iocmemoryprovider.QueryTypePath {
-	//	return fmt.Errorf("invalid query_type, valid values are: %s, %s, %s",
-	//		iocmemoryprovider.QueryTypeConcept,
-	//		iocmemoryprovider.QueryTypeNeighbour,
-	//		iocmemoryprovider.QueryTypePath,
-	//	)
-	//}
-	//
-	//if r.QueryCriteria.QueryType == iocmemoryprovider.QueryTypeNeighbour ||
-	//	r.QueryCriteria.QueryType == iocmemoryprovider.QueryTypePath {
-	//
-	//	if r.NodeIDs == nil || strings.TrimSpace(*r.NodeIDs) == "" {
-	//		return fmt.Errorf("node_ids must be provided when query_type is %s or %s",
-	//			iocmemoryprovider.QueryTypeNeighbour,
-	//			iocmemoryprovider.QueryTypePath,
-	//		)
-	//	}
-	//}
 
 	return nil
 }
@@ -106,12 +73,8 @@ func (r *QueryRequest) ValidateAndApplyDefault() error {
 type QueryResponse struct {
 	// ID of the response, this gets populated from request_id
 	ResponseID *string `json:"response_id,omitempty"`
-	// Status of the request
-	Status string `json:"status"`
-	// Optional message providing additional information
-	Message *string `json:"message,omitempty"`
-	// Query response records (only included for success status)
-	Records []QueryResponseRecord `json:"records,omitempty"`
+	// Message provides detailed information from the query result
+	Message *string `json:"message"`
 }
 
 type QueryResponseRecord struct {
@@ -132,4 +95,59 @@ type QueryRelation struct {
 	Relation   string                 `json:"relation"`
 	NodeIDs    []string               `json:"node_ids"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+// NeighborsResponse is the response for GET /graph/neighbors/{conceptId}
+type NeighborsResponse struct {
+	Records []QueryResponseRecord `json:"records,omitempty"`
+}
+
+// ConceptsByIdsRequest is the request body for POST /graph/concepts/by_ids
+type ConceptsByIdsRequest struct {
+	IDs []string `json:"ids"`
+}
+
+// GraphConcept is a concept in a graph response (richer than QueryConcept)
+type GraphConcept struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// ConceptsByIdsResponse is the response for POST /graph/concepts/by_ids
+type ConceptsByIdsResponse struct {
+	Concepts []GraphConcept `json:"concepts,omitempty"`
+}
+
+// GraphPathsRequest is the request body for POST /graph/paths
+type GraphPathsRequest struct {
+	SourceID  string   `json:"source_id"`
+	TargetID  string   `json:"target_id"`
+	MaxDepth  *int     `json:"max_depth,omitempty"`
+	Relations []string `json:"relations,omitempty"`
+	Limit     *int     `json:"limit,omitempty"`
+}
+
+// PathEdge represents a single directed edge in a path
+type PathEdge struct {
+	FromID   string `json:"from_id"`
+	Relation string `json:"relation"`
+	ToID     string `json:"to_id"`
+	FromName string `json:"from_name,omitempty"`
+	ToName   string `json:"to_name,omitempty"`
+}
+
+// Path represents an ordered path through the knowledge graph
+type Path struct {
+	NodeIDs    []string   `json:"node_ids,omitempty"`
+	Edges      []PathEdge `json:"edges,omitempty"`
+	PathLength int        `json:"path_length"`
+	Symbolic   string     `json:"symbolic,omitempty"`
+}
+
+// GraphPathsResponse is the response for POST /graph/paths
+type GraphPathsResponse struct {
+	Status string `json:"status"`
+	Paths  []Path `json:"paths,omitempty"`
 }

@@ -1,20 +1,19 @@
 package app
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 )
 
 func jsonEscapeString(s string) string {
@@ -70,7 +69,7 @@ func transformConceptEmbedding(attrs cognitionagentclient.ConceptAttributes) *io
 	}
 
 	return &iocmemoryprovider.EmbeddingConfig{
-		Name: "BAAI/bge-small-en-v1.5", // TODO: it's hardcoded now, need to ask extraction service to return this in response
+		Name: "ibm-granite/granite-embedding-30m-english", // TODO: it's hardcoded now, need to ask extraction service to return this in response
 		Data: attrs.Embedding[0],
 	}
 }
@@ -103,30 +102,6 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 		Concepts:  transformExtractionConcepts(resp.Concepts),
 		Relations: transformExtractionRelations(resp.Relations),
 	}
-}
-
-func TransformReasonerResponseToRecords(resp *cognitionagentclient.ReasonerCognitionResponse) *iocmemoryprovider.QueryRecords {
-	if resp == nil {
-		return nil
-	}
-
-	records := &iocmemoryprovider.QueryRecords{
-		Concepts: []iocmemoryprovider.ConceptRecord{},
-	}
-
-	for _, rec := range resp.Records {
-		details := rec.Content.Evidence.Details
-
-		// Concepts
-		for _, c := range details.Concepts {
-			records.Concepts = append(records.Concepts, iocmemoryprovider.ConceptRecord{
-				ID:   c.ConceptID,
-				Name: c.Name,
-			})
-		}
-	}
-
-	return records
 }
 
 // createOrUpdateSharedMemoriesHandler godoc
@@ -345,7 +320,6 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
 func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
-	ctx := r.Context()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
@@ -360,14 +334,12 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
 			log.Errorf("invalid JSON body: %s", err)
-
 			return eh.RespondWithJSON(
 				w,
 				http.StatusBadRequest,
 				map[string]string{"error": "invalid JSON body"},
 			)
 		}
-
 		if err := req.ValidateAndApplyDefault(); err != nil {
 			return eh.RespondWithJSON(
 				w,
@@ -382,165 +354,461 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		requestId = common.StrToPtr(uuid.New().String())
 	}
 
-	// Convert []map[string]interface{} to []interface{} for the downstream client
-	// This maintains compatibility with the reasoning service which expects []interface{}
-	var additionalContext []interface{}
-	for _, v := range req.AdditionalContext {
-		additionalContext = append(additionalContext, v)
+	agentID := ""
+	if req.Header != nil && req.Header.AgentID != nil {
+		agentID = *req.Header.AgentID
 	}
+
+	log.Infof(
+		"Fetching shared memories | workspace=%s mas=%s request_id=%s agent_id=%s",
+		workspaceID, masID, *requestId, agentID,
+	)
 
 	reasoningRequest := cognitionagentclient.ReasoningEvidenceRequest{
 		Header: common.Header{
 			WorkspaceID: workspaceID,
 			MASID:       masID,
-			AgentID:     *req.Header.AgentID,
+			AgentID:     agentID,
 		},
 		RequestID: requestId,
 		Payload: cognitionagentclient.ReasoningEvidencePayload{
-			Metadata: cognitionagentclient.ReasoningEvidencePayloadMetadata{
-				QueryType: sharedmemory.SearchStrategyConvertMap[*req.SearchStrategy], // TODO: reasoning endpoint need to its request payload to use "search_strategy"
-			},
-			Intent:            *req.Intent,
-			AdditionalContext: additionalContext,
+			Intent: *req.Intent,
 		},
-	}
-	if req.Header != nil && req.Header.AgentID != nil {
-		reasoningRequest.Header.AgentID = *req.Header.AgentID
 	}
 
 	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
 	if err != nil {
 		log.Errorf(
-			"SendReasoningEvidence failed | workspace=%s mas=%s err=%v",
+			"Failed to process evidence | workspace=%s mas=%s err=%v",
 			workspaceID, masID, err,
 		)
-
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "unable to extract concepts from provided message"},
+			map[string]string{"error": fmt.Sprintf("failed to process evidence: %v", err)},
 		)
 	}
 
-	log.Infof("reasoner response: %+v", reasonerResp)
+	log.Debugf("Evidence gathering response: %+v", reasonerResp)
 
-	conceptsFromReasonerResp := TransformReasonerResponseToRecords(reasonerResp)
-	if len(conceptsFromReasonerResp.Concepts) == 0 {
+	// Extract evidence fields from first record
+	var evidenceStatus, finalResponse string
+	if len(reasonerResp.Records) > 0 {
+		ev := reasonerResp.Records[0].Content.Evidence
+		evidenceStatus = ev.Status
+		finalResponse = ev.FinalResponse
+	}
+
+	const insufficientEvidenceMsg = "The evidence does not support an answer to this question."
+	if finalResponse == insufficientEvidenceMsg {
+		log.Errorf(
+			"Insufficient evidence to answer user intent | workspace=%s mas=%s",
+			workspaceID, masID,
+		)
 		return eh.RespondWithJSON(
 			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("no relevant entities found from user message")},
+			http.StatusNotFound,
+			map[string]string{"error": "Insufficient evidence to answer provided user intent"},
 		)
 	}
 
-	// TODO: operationID is currently a random UUID; replace with a consistent request ID
-	// (e.g. trace ID or correlation ID from the incoming request) once available.
-	operationID := uuid.New().String()
+	var message string
+	switch {
+	case finalResponse != "":
+		message = finalResponse
+	case evidenceStatus != "":
+		message = fmt.Sprintf("Evidence status: %s", evidenceStatus)
+	default:
+		message = "evidence processed"
+	}
 
-	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphQueryRequest{
-		RequestID: *requestId,
+	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
+
+	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.QueryResponse{
+		ResponseID: requestId,
+		Message:    common.StrToPtr(message),
+	})
+}
+
+// Get neighbors by concept ID, returns the neighboring concepts of a given concept in the knowledge graph.
+// Internal API - not exposed in public Swagger documentation.
+func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+	conceptID := eh.PathParam(r, "conceptId")
+
+	log.Infof(
+		"Querying neighbors | workspace=%s mas=%s concept_id=%s",
+		workspaceID, masID, conceptID,
+	)
+
+	req := &iocmemoryprovider.KnowledgeGraphQueryRequest{
+		RequestID: uuid.New().String(),
 		WkspID:    &workspaceID,
 		MasID:     &masID,
-		Records:   *conceptsFromReasonerResp,
-		//QueryCriteria: req.QueryCriteria,
+		Records: iocmemoryprovider.QueryRecords{
+			Concepts: []iocmemoryprovider.ConceptRecord{{ID: conceptID}},
+		},
+		QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+			iocmemoryprovider.QueryTypeNeighbour, nil, nil,
+		),
 	}
 
-	queryFns := map[string]func(
-		context.Context,
-		*iocmemoryprovider.KnowledgeGraphQueryRequest,
-	) (*iocmemoryprovider.KnowledgeGraphQueryResponse, error){
-		iocmemoryprovider.QueryTypePath:      a.knowledgeMemSvcClient.QueryKnowledgeGraphPath,
-		iocmemoryprovider.QueryTypeNeighbour: a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor,
-		iocmemoryprovider.QueryTypeConcept:   a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept,
-	}
-
-	// TODO: not sure if we allow users to specify query type, hence always query "concept" for now
-	queryFn, _ := queryFns[iocmemoryprovider.QueryTypeConcept]
-
-	knowledgeGraphResp, err := queryFn(ctx, memoryProviderReq)
+	kgResp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor(ctx, req)
 	if err != nil {
 		log.Errorf(
-			"Knowledge graph query failed | type=%s workspace=%s mas=%s err=%v",
-			iocmemoryprovider.QueryTypeConcept, workspaceID, masID, err,
+			"Failed to fetch neighbors | workspace=%s mas=%s concept_id=%s err=%v",
+			workspaceID, masID, conceptID, err,
 		)
-
-		// Audit: shared memory query (failure)
-		errMsg := err.Error()
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		// Hacky: fetch shared_memory.id from summary API on first audit call.
-		// TODO: Remove once IDs are available directly in CfnConfig global map.
-		ensureAuditResourceIDs()
-		auditResID := SharedMemoryID
-		if auditResID == "" {
-			auditResID = masID
-		}
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMAS,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeSharedMemoryOperation,
-			AuditResourceIdentifier: auditResID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create audit event: %v", auditErr)
-		}
-
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to fetch shared memories: %v", err)},
+			map[string]string{"error": fmt.Sprintf("failed to fetch concept: %v", err)},
 		)
 	}
 
-	// Audit: shared memory query (success)
-	endAuditInfo, _ := json.Marshal(map[string]string{
-		"status": "SUCCESS",
-	})
-	// Hacky: fetch shared_memory.id from summary API on first audit call.
-	// TODO: Remove once IDs are available directly in CfnConfig global map.
-	ensureAuditResourceIDs()
-	successAuditResID := SharedMemoryID
-	if successAuditResID == "" {
-		successAuditResID = masID
-	}
-	endAudit := &audit.Audit{
-		OperationID:             &operationID,
-		ResourceType:            audit.ResourceTypeMAS,
-		ResourceIdentifier:      masID,
-		AuditType:               audit.AuditTypeSharedMemoryOperation,
-		AuditResourceIdentifier: successAuditResID,
-		AuditInformation:        datatypes.JSON(endAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
-	}
-	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		log.Errorf("failed to create audit event: %v", auditErr)
-	}
+	log.Infof("%d neighbor(s) found for concept %s", len(kgResp.Records), conceptID)
 
-	records := make([]sharedmemory.QueryResponseRecord, 0, len(knowledgeGraphResp.Records))
-	for _, r := range knowledgeGraphResp.Records {
+	records := make([]sharedmemory.QueryResponseRecord, 0, len(kgResp.Records))
+	for _, r := range kgResp.Records {
 		records = append(records, mapKGRecordToQueryRecord(r))
 	}
 
-	resp := sharedmemory.QueryResponse{
-		ResponseID: knowledgeGraphResp.RequestID,
-		Status:     string(knowledgeGraphResp.Status),
-		Message:    knowledgeGraphResp.Message,
-		Records:    records,
+	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.NeighborsResponse{Records: records})
+}
+
+// Fetch concepts by IDs, returns concept details for each of the provided concept IDs.
+// Internal API - not exposed in public Swagger documentation.
+func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var reqBody sharedmemory.ConceptsByIdsRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
 	}
 
 	log.Infof(
-		"Shared memories query succeeded | status=%s records=%d",
-		resp.Status,
-		len(resp.Records),
+		"Querying concepts | workspace=%s mas=%s concept_ids=%v",
+		workspaceID, masID, reqBody.IDs,
 	)
 
-	return eh.RespondWithJSON(w, http.StatusOK, resp)
+	type result struct {
+		resp *iocmemoryprovider.KnowledgeGraphQueryResponse
+		err  error
+	}
+
+	results := make([]result, len(reqBody.IDs))
+	var wg sync.WaitGroup
+	for i, id := range reqBody.IDs {
+		wg.Add(1)
+		go func(idx int, conceptID string) {
+			defer wg.Done()
+			req := &iocmemoryprovider.KnowledgeGraphQueryRequest{
+				RequestID: uuid.New().String(),
+				WkspID:    &workspaceID,
+				MasID:     &masID,
+				Records: iocmemoryprovider.QueryRecords{
+					Concepts: []iocmemoryprovider.ConceptRecord{{ID: conceptID}},
+				},
+				QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+					iocmemoryprovider.QueryTypeConcept, nil, nil,
+				),
+			}
+			resp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept(ctx, req)
+			results[idx] = result{resp: resp, err: err}
+		}(i, id)
+	}
+	wg.Wait()
+
+	var concepts []sharedmemory.GraphConcept
+	for i, r := range results {
+		if r.err != nil {
+			log.Errorf(
+				"Failed to fetch concept %s | workspace=%s mas=%s err=%v",
+				reqBody.IDs[i], workspaceID, masID, r.err,
+			)
+			return eh.RespondWithJSON(
+				w,
+				http.StatusInternalServerError,
+				map[string]string{"error": fmt.Sprintf("failed to fetch concepts by IDs: %v", r.err)},
+			)
+		}
+		for _, rec := range r.resp.Records {
+			for _, c := range rec.Concepts {
+				conceptType := ""
+				if v, ok := c.Attributes["concept_type"]; ok {
+					if s, ok := v.(string); ok {
+						conceptType = s
+					}
+				}
+				desc := ""
+				if c.Description != nil {
+					desc = *c.Description
+				}
+				concepts = append(concepts, sharedmemory.GraphConcept{
+					ID:          c.ID,
+					Name:        c.Name,
+					Type:        conceptType,
+					Description: desc,
+				})
+			}
+		}
+	}
+
+	log.Infof("%d concept(s) found for %v", len(concepts), reqBody.IDs)
+
+	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.ConceptsByIdsResponse{Concepts: concepts})
+}
+
+//	@Summary	Fetch paths between two concepts, returns ordered paths through the knowledge graph between a source and target concept.
+//
+// Internal API - not exposed in public Swagger documentation.
+func (a *App) fetchPathsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var reqBody sharedmemory.GraphPathsRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	log.Infof(
+		"Querying path | workspace=%s mas=%s source_id=%s target_id=%s",
+		workspaceID, masID, reqBody.SourceID, reqBody.TargetID,
+	)
+
+	kgReq := &iocmemoryprovider.KnowledgeGraphQueryRequest{
+		RequestID: uuid.New().String(),
+		WkspID:    &workspaceID,
+		MasID:     &masID,
+		Records: iocmemoryprovider.QueryRecords{
+			Concepts: []iocmemoryprovider.ConceptRecord{
+				{ID: reqBody.SourceID},
+				{ID: reqBody.TargetID},
+			},
+		},
+		QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+			iocmemoryprovider.QueryTypePath,
+			reqBody.MaxDepth,
+			common.BoolToPtr(false),
+		),
+	}
+
+	kgResp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphPath(ctx, kgReq)
+	if err != nil {
+		log.Errorf(
+			"Failed to fetch paths | workspace=%s mas=%s source=%s target=%s err=%v",
+			workspaceID, masID, reqBody.SourceID, reqBody.TargetID, err,
+		)
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to fetch paths: %v", err)},
+		)
+	}
+
+	allowedRelations := make(map[string]struct{}, len(reqBody.Relations))
+	for _, rel := range reqBody.Relations {
+		allowedRelations[rel] = struct{}{}
+	}
+
+	var paths []sharedmemory.Path
+
+	for _, rec := range kgResp.Records {
+		// Build concept id->name map
+		idToName := make(map[string]string, len(rec.Concepts))
+		for _, c := range rec.Concepts {
+			idToName[c.ID] = c.Name
+		}
+
+		// Filter relationships by allowed relations (if specified)
+		var rels []iocmemoryprovider.Relation
+		for _, rel := range rec.Relationships {
+			if len(rel.NodeIDs) < 2 {
+				continue
+			}
+			if len(allowedRelations) > 0 {
+				if _, ok := allowedRelations[rel.Relation]; !ok {
+					continue
+				}
+			}
+			rels = append(rels, rel)
+		}
+
+		if len(rels) == 0 {
+			continue
+		}
+
+		// Build adjacency map and in-degree for path chaining
+		type adjEntry struct{ rel iocmemoryprovider.Relation }
+		fromToRels := make(map[string][]iocmemoryprovider.Relation)
+		inDegree := make(map[string]int)
+		for _, rel := range rels {
+			from, to := rel.NodeIDs[0], rel.NodeIDs[1]
+			fromToRels[from] = append(fromToRels[from], rel)
+			inDegree[to]++
+			if _, exists := inDegree[from]; !exists {
+				inDegree[from] = 0
+			}
+		}
+
+		// Determine start node
+		startID := reqBody.SourceID
+		if _, ok := fromToRels[startID]; !ok {
+			for nid, deg := range inDegree {
+				if deg == 0 {
+					if _, ok := fromToRels[nid]; ok {
+						startID = nid
+						break
+					}
+				}
+			}
+			if _, ok := fromToRels[startID]; !ok {
+				startID = rels[0].NodeIDs[0]
+			}
+		}
+
+		// Greedy walk to produce ordered relation list
+		visitedRelIDs := make(map[string]struct{})
+		var orderedRels []iocmemoryprovider.Relation
+		current := startID
+		for {
+			candidates, ok := fromToRels[current]
+			if !ok {
+				break
+			}
+			var nextRel *iocmemoryprovider.Relation
+			for i := range candidates {
+				rid := candidates[i].ID
+				if rid == "" {
+					rid = fmt.Sprintf("%s->%s->%s", candidates[i].NodeIDs[0], candidates[i].Relation, candidates[i].NodeIDs[1])
+				}
+				if _, used := visitedRelIDs[rid]; !used {
+					visitedRelIDs[rid] = struct{}{}
+					nextRel = &candidates[i]
+					break
+				}
+			}
+			if nextRel == nil {
+				break
+			}
+			orderedRels = append(orderedRels, *nextRel)
+			current = nextRel.NodeIDs[1]
+			if current == reqBody.TargetID {
+				break
+			}
+		}
+		if len(orderedRels) == 0 {
+			orderedRels = rels
+		}
+
+		// Build edges and node_ids
+		var edges []sharedmemory.PathEdge
+		var nodeIDs []string
+		for _, rel := range orderedRels {
+			fromID, toID := rel.NodeIDs[0], rel.NodeIDs[1]
+
+			fromName := idToName[fromID]
+			toName := idToName[toID]
+			if attrs, ok := rel.Attributes["source_name"].(string); ok && attrs != "" {
+				fromName = attrs
+			}
+			if attrs, ok := rel.Attributes["target_name"].(string); ok && attrs != "" {
+				toName = attrs
+			}
+
+			edges = append(edges, sharedmemory.PathEdge{
+				FromID:   fromID,
+				Relation: rel.Relation,
+				ToID:     toID,
+				FromName: fromName,
+				ToName:   toName,
+			})
+
+			if len(nodeIDs) == 0 {
+				nodeIDs = append(nodeIDs, fromID, toID)
+			} else if nodeIDs[len(nodeIDs)-1] == fromID {
+				nodeIDs = append(nodeIDs, toID)
+			} else {
+				if !containsStr(nodeIDs, fromID) {
+					nodeIDs = append(nodeIDs, fromID)
+				}
+				if !containsStr(nodeIDs, toID) {
+					nodeIDs = append(nodeIDs, toID)
+				}
+			}
+		}
+
+		if len(edges) == 0 {
+			continue
+		}
+
+		// Build symbolic representation
+		parts := make([]string, 0, len(edges))
+		for _, e := range edges {
+			from := e.FromName
+			if from == "" {
+				from = e.FromID
+			}
+			to := e.ToName
+			if to == "" {
+				to = e.ToID
+			}
+			parts = append(parts, fmt.Sprintf("%s-[%s]->%s", from, e.Relation, to))
+		}
+
+		paths = append(paths, sharedmemory.Path{
+			NodeIDs:    nodeIDs,
+			Edges:      edges,
+			PathLength: len(edges),
+			Symbolic:   strings.Join(parts, " -> "),
+		})
+
+		if reqBody.Limit != nil && *reqBody.Limit > 0 && len(paths) >= *reqBody.Limit {
+			break
+		}
+	}
+
+	log.Infof(
+		"%d path(s) found between %s and %s",
+		len(paths), reqBody.SourceID, reqBody.TargetID,
+	)
+
+	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.GraphPathsResponse{
+		Status: "success",
+		Paths:  paths,
+	})
+}
+
+func containsStr(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

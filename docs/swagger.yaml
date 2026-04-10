@@ -76,6 +76,84 @@ definitions:
       http-status:
         type: integer
     type: object
+  semanticnegotiation.Agent:
+    properties:
+      id:
+        description: ID is the unique agent identifier.
+        type: string
+      name:
+        description: Name is the human-readable agent name.
+        type: string
+    type: object
+  semanticnegotiation.AgentReply:
+    properties:
+      action:
+        description: |-
+          Action is the agent action.
+          Allowed values: "accept", "reject", "counter_offer"
+        type: string
+      agent_id:
+        description: AgentID is the agent identifier (must match one of the initiated
+          agents).
+        type: string
+      offer:
+        additionalProperties: true
+        description: |-
+          Offer is an optional structured offer payload.
+          Required when Action is "counter_offer".
+        type: object
+    type: object
+  semanticnegotiation.DecideRequest:
+    properties:
+      agent_replies:
+        description: AgentReplies are the replies produced by agents since the last
+          step.
+        items:
+          $ref: '#/definitions/semanticnegotiation.AgentReply'
+        type: array
+      session_id:
+        description: SessionID is the session identifier previously provided to the
+          start endpoint.
+        type: string
+    type: object
+  semanticnegotiation.Response:
+    properties:
+      message:
+        description: Message provides additional information about the negotiation
+          state.
+        type: string
+      result:
+        additionalProperties: true
+        description: |-
+          Result contains the pipeline execution result.
+          The structure depends on the semantic negotiation library implementation.
+        type: object
+      status:
+        description: Status indicates the result of the negotiation step.
+        type: string
+    type: object
+  semanticnegotiation.StartRequest:
+    properties:
+      agents:
+        description: Agents is the list of participating agents.
+        items:
+          $ref: '#/definitions/semanticnegotiation.Agent'
+        type: array
+      content_text:
+        description: ContentText is the negotiation prompt/context used to initialize
+          the session.
+        type: string
+      n_steps:
+        description: |-
+          NSteps is the maximum number of negotiation steps.
+          If omitted, defaults to 20.
+        type: integer
+      session_id:
+        description: |-
+          SessionID is the client-provided session identifier.
+          Currently assumed globally unique (not scoped by workspace/mas).
+        type: string
+    type: object
   sharedmemory.CreateOrUpdateRequest:
     properties:
       header:
@@ -107,37 +185,7 @@ definitions:
   sharedmemory.Header:
     properties:
       agent_id:
-        description: ID that represents the agent, required for query operations
-        type: string
-    type: object
-  sharedmemory.QueryConcept:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-    type: object
-  sharedmemory.QueryRelation:
-    properties:
-      attributes:
-        additionalProperties: true
-        type: object
-      id:
-        type: string
-      node_ids:
-        items:
-          type: string
-        type: array
-      relation:
+        description: ID that represents the agent, optional for query operations
         type: string
     type: object
   sharedmemory.QueryRequest:
@@ -174,30 +222,11 @@ definitions:
   sharedmemory.QueryResponse:
     properties:
       message:
-        description: Optional message providing additional information
+        description: Message provides detailed information from the query result
         type: string
-      records:
-        description: Query response records (only included for success status)
-        items:
-          $ref: '#/definitions/sharedmemory.QueryResponseRecord'
-        type: array
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
-      status:
-        description: Status of the request
-        type: string
-    type: object
-  sharedmemory.QueryResponseRecord:
-    properties:
-      concepts:
-        items:
-          $ref: '#/definitions/sharedmemory.QueryConcept'
-        type: array
-      relationships:
-        items:
-          $ref: '#/definitions/sharedmemory.QueryRelation'
-        type: array
     type: object
 info:
   contact: {}
@@ -300,6 +329,100 @@ paths:
       summary: Proxy API requests to a remote memory provider
       tags:
       - memory-operations
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide:
+    post:
+      consumes:
+      - application/json
+      description: Advances an existing semantic negotiation session with agent replies.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Semantic negotiation decide request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/semanticnegotiation.DecideRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Negotiation step executed successfully
+          schema:
+            $ref: '#/definitions/semanticnegotiation.Response'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Advance semantic negotiation session
+      tags:
+      - semantic-negotiation
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a new semantic negotiation session with multiple agents.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Semantic negotiation start request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/semanticnegotiation.StartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Negotiation session started successfully
+          schema:
+            $ref: '#/definitions/semanticnegotiation.Response'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Start semantic negotiation session
+      tags:
+      - semantic-negotiation
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
     post:
       consumes:

@@ -99,6 +99,147 @@
                 }
             }
         },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide": {
+            "post": {
+                "description": "Advances an existing semantic negotiation session with agent replies.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "semantic-negotiation"
+                ],
+                "summary": "Advance semantic negotiation session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Semantic negotiation decide request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.DecideRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Negotiation step executed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start": {
+            "post": {
+                "description": "Initiates a new semantic negotiation session with multiple agents.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "semantic-negotiation"
+                ],
+                "summary": "Start semantic negotiation session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Semantic negotiation start request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.StartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Negotiation session started successfully",
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
                 "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
@@ -315,6 +456,95 @@
                 }
             }
         },
+        "semanticnegotiation.Agent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the unique agent identifier.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the human-readable agent name.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.AgentReply": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "Action is the agent action.\nAllowed values: \"accept\", \"reject\", \"counter_offer\"",
+                    "type": "string"
+                },
+                "agent_id": {
+                    "description": "AgentID is the agent identifier (must match one of the initiated agents).",
+                    "type": "string"
+                },
+                "offer": {
+                    "description": "Offer is an optional structured offer payload.\nRequired when Action is \"counter_offer\".",
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "semanticnegotiation.DecideRequest": {
+            "type": "object",
+            "properties": {
+                "agent_replies": {
+                    "description": "AgentReplies are the replies produced by agents since the last step.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.AgentReply"
+                    }
+                },
+                "session_id": {
+                    "description": "SessionID is the session identifier previously provided to the start endpoint.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.Response": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides additional information about the negotiation state.",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "Result contains the pipeline execution result.\nThe structure depends on the semantic negotiation library implementation.",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "status": {
+                    "description": "Status indicates the result of the negotiation step.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.StartRequest": {
+            "type": "object",
+            "properties": {
+                "agents": {
+                    "description": "Agents is the list of participating agents.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.Agent"
+                    }
+                },
+                "content_text": {
+                    "description": "ContentText is the negotiation prompt/context used to initialize the session.",
+                    "type": "string"
+                },
+                "n_steps": {
+                    "description": "NSteps is the maximum number of negotiation steps.\nIf omitted, defaults to 20.",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID is the client-provided session identifier.\nCurrently assumed globally unique (not scoped by workspace/mas).",
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
@@ -361,52 +591,7 @@
             "type": "object",
             "properties": {
                 "agent_id": {
-                    "description": "ID that represents the agent, required for query operations",
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.QueryConcept": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "sharedmemory.QueryRelation": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "id": {
-                    "type": "string"
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "relation": {
+                    "description": "ID that represents the agent, optional for query operations",
                     "type": "string"
                 }
             }
@@ -448,40 +633,12 @@
             "type": "object",
             "properties": {
                 "message": {
-                    "description": "Optional message providing additional information",
+                    "description": "Message provides detailed information from the query result",
                     "type": "string"
-                },
-                "records": {
-                    "description": "Query response records (only included for success status)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
-                    }
                 },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
-                },
-                "status": {
-                    "description": "Status of the request",
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.QueryResponseRecord": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryConcept"
-                    }
-                },
-                "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryRelation"
-                    }
                 }
             }
         }
