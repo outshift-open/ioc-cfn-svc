@@ -2,8 +2,11 @@ package app
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
+	"runtime"
 	"strings"
+	"time"
 
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
@@ -26,6 +29,25 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 // diagnosticsHealthHandler returns TKF standard health response
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+}
+
+// diagnosticsMetricsHandler returns process-level runtime metrics
+func (a *App) diagnosticsMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+
+	round2 := func(v float64) float64 {
+		return math.Round(v*100) / 100
+	}
+
+	metrics := map[string]any{
+		"uptime_seconds":      round2(time.Since(a.startTime).Seconds()),
+		"goroutines":          runtime.NumGoroutine(),
+		"memory_heap_alloc_mb": round2(float64(mem.HeapAlloc) / 1024 / 1024),
+		"memory_sys_mb":       round2(float64(mem.Sys) / 1024 / 1024),
+		"gc_runs":             mem.NumGC,
+	}
+	return eh.RespondWithJSON(w, http.StatusOK, metrics)
 }
 
 // diagnosticsLoggersHandler returns current log levels for ROOT and all packages
