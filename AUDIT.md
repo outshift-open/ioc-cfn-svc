@@ -125,18 +125,18 @@ Migration is handled via `audit.MigrateUp(db)` which calls `db.AutoMigrate(&Audi
 
 ### Interface (`pkg/client/database.go`)
 
+Audit-related methods on the `Database` interface:
+
 ```go
-type Database interface {
-    CreateAuditEvent(*audit.Audit) error
-    GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-    ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
-    DeleteAuditEventByID(uuid.UUID) error
-}
+CreateAuditEvent(*audit.Audit) error
+GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
+ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
+DeleteAuditEventByID(uuid.UUID) error
 ```
 
 ### Real Implementation (`pkg/client/database/database.go`)
 
-Delegates to package-level functions in `pkg/audit/audit.go` which operate on `*gorm.DB` directly. Uses PostgreSQL with GORM. Migration is handled via `audit.MigrateUp(db)` called from `Database.MigrateUp()`.
+Delegates to package-level functions in `pkg/audit/audit.go` which operate on `*gorm.DB` directly. Uses PostgreSQL with GORM. Connection is established with retry and exponential backoff at startup. Migration is handled via `audit.MigrateUp(db)` called from `Database.MigrateUp()`.
 
 ### Mock Implementation (`pkg/client/database.go`)
 

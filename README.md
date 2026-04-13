@@ -202,51 +202,36 @@ Response: `204 No Content` on success
 {"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
-### Audit Events
+### Audit Events (Internal API)
 
 > For full audit system documentation (architecture, schema, enums, design decisions), see [AUDIT.md](AUDIT.md).
 
-**POST /api/internal/audit-events** - Create an audit event
+Audit events are created internally by handlers (e.g. shared memory, memory operations) — there are no create or delete HTTP endpoints. The API is read-only.
 
-```bash
-curl -X POST http://localhost:9002/api/internal/audit-events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation_id": "op-12345",
-    "resource_type": "COGNITION_ENGINE",
-    "resource_identifier": "ce-123",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "ce-123",
-    "created_by": "00000000-0000-0000-0000-000000000001",
-    "last_modified_by": "00000000-0000-0000-0000-000000000001"
-  }'
-```
-
-Response: `200 OK`
-```json
-{"message": "entry created"}
-```
-
-**Request Body:**
-| Field | Required | Description |
-|-------|----------|-------------|
-| `resource_type` | Yes | `COGNITION_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
-| `resource_identifier` | Yes | Identifier of the resource |
-| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY`, `MEMORY_OPERATION` |
-| `audit_resource_identifier` | Yes | Identifier of the audited resource |
-| `operation_id` | No(TBD will change) | Optional operation correlation ID |
-| `audit_information` | No | Optional JSON object with additional details |
-| `audit_extra_information` | No | Optional string with extra context |
-| `created_by` | Yes | UUID of the creator |
-| `last_modified_by` | Yes | UUID of the last modifier |
-
-**GET /api/internal/audit-events** - List audit events (with optional filters)
+**GET /api/internal/mgmt/audit** - List audit events (with optional filters)
 
 ```bash
 # List all
-curl http://localhost:9002/api/internal/audit-events
+curl http://localhost:9002/api/internal/mgmt/audit
 
-# Response:
+# Filter by resource_type
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE"
+
+# Filter by audit_type
+curl "http://localhost:9002/api/internal/mgmt/audit?audit_type=RESOURCE_CREATED"
+
+# Filter by both
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+```
+
+**Query Parameters:**
+| Param | Required | Description |
+|-------|----------|-------------|
+| `resource_type` | No | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
+| `audit_type` | No | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
+
+**Response:** `200 OK`
+```json
 [
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -262,73 +247,15 @@ curl http://localhost:9002/api/internal/audit-events
     "last_modified_on": "2024-02-18T15:30:00Z"
   }
 ]
-
-# Filter by resource_type
-curl "http://localhost:9002/api/internal/audit-events?resource_type=COGNITION_ENGINE"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "operation_id": "op-12345",
-    "resource_type": "COGNITION_ENGINE",
-    "resource_identifier": "engine-123",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "cognitive-engine-456",
-    "created_by": "550e8400-e29b-41d4-a716-446655440001",
-    "created_on": "2024-02-18T15:30:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
-    "last_modified_on": "2024-02-18T15:30:00Z"
-  }
-]
-
-# Filter by audit_type
-curl "http://localhost:9002/api/internal/audit-events?audit_type=RESOURCE_CREATED"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440001",
-    "operation_id": "op-67890",
-    "resource_type": "MAS",
-    "resource_identifier": "mas-456",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "mas-agent-789",
-    "created_by": "550e8400-e29b-41d4-a716-446655440002",
-    "created_on": "2024-02-18T16:45:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440002",
-    "last_modified_on": "2024-02-18T16:45:00Z"
-  }
-]
-
-# Filter by both
-curl "http://localhost:9002/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440002",
-    "operation_id": "op-11111",
-    "resource_type": "MAS",
-    "resource_identifier": "mas-456",
-    "audit_type": "KNOWLEDGE_QUERY",
-    "audit_resource_identifier": "knowledge-query-123",
-    "audit_information": {"query": "test query", "results": 5},
-    "created_by": "550e8400-e29b-41d4-a716-446655440003",
-    "created_on": "2024-02-18T17:20:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440003",
-    "last_modified_on": "2024-02-18T17:20:00Z"
-  }
-]
 ```
 
-**GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
+**GET /api/internal/mgmt/audit/{eventId}** - Get a single audit event by UUID
 
 ```bash
-curl http://localhost:9002/api/internal/audit-events/<event-id>
+curl http://localhost:9002/api/internal/mgmt/audit/<event-id>
 ```
 
-**Response:**
+**Response:** `200 OK`
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -344,14 +271,6 @@ curl http://localhost:9002/api/internal/audit-events/<event-id>
   "last_modified_on": "2024-02-18T15:30:00Z"
 }
 ```
-
-**DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
-
-```bash
-curl -X DELETE http://localhost:9002/api/internal/audit-events/<event-id>
-```
-
-Response: `204 No Content`
 
 ## Environment Setup
 
