@@ -19,35 +19,21 @@ See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/i
 
 2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
 
-> **TODO:** Consolidate docker-compose with other CFN repos (e.g. shared docker-compose for mgmt-backend + cfn-svc + postgres)
-
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Option 1: Go directly
+
+`.env` is auto-loaded on startup via [godotenv](https://github.com/joho/godotenv).
 
 ```bash
-# HTTP mode (default)
-make dc-up
-
-# MCP mode
-make dc-up-mcp
-
-# Build locally and run
-make dc-up-build
-MCP_ENABLED=true make dc-up-build   # MCP mode with local build
-
-# Or without make
-docker compose --file build/docker-compose.yaml up                    # HTTP mode
-docker compose --file build/docker-compose.yaml up --build            # Build locally
-MCP_ENABLED=true docker compose --file build/docker-compose.yaml up   # MCP mode
+CGO_ENABLED=0 go run -ldflags "-X main.buildVersion=latest -X main.gitCommitSHA=$(git rev-parse --short HEAD) -X main.gitCommitTime=$(git log -1 --format=%cI) -X main.gitBranch=$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-### Option 2: Go directly
+### Option 2: Using Make
 
 ```bash
-# .env file is auto-loaded on startup
-go run .                    # HTTP mode
-MCP_ENABLED=true go run .   # MCP mode
+make dev                    # same as above
+MCP_ENABLED=true make dev   # MCP mode
 ```
 
 ### Option 3: Build binary
@@ -280,37 +266,25 @@ curl http://localhost:9002/api/internal/mgmt/audit/<event-id>
 cp .env.sample .env
 ```
 
-### 2. Get credentials from IoC Management Plane UI
-
-> **Note:** These credentials may not be needed in the future. Revisit when mgmt plane auth changes.
-
-1. **API Key**: Create an API key manually and copy it
-2. **Workspace ID**: Create a workspace and copy its ID
-
-### 3. Update .env with your values
-
-```bash
-# .env
-WORKSPACE_ID=your-workspace-id-here
-X_API_KEY=your-api-key-here
-```
-
-### 4. Run with .env
+### 2. Run the app
 
 The app automatically loads `.env` on startup via [godotenv](https://github.com/joho/godotenv).
 
-**Go local:**
+**Using Make:**
 ```bash
-go run .   # .env is auto-loaded
+make dev       # go run with git info injected
+make run       # build binary then run
+make run-mcp   # build and run in MCP mode
 ```
 
-**Docker Compose:** (uses port `9002`)
+**Using Go directly:**
 ```bash
-make dc-up           # Uses .env file
-make dc-up-build     # Build locally and run
+CGO_ENABLED=0 go run -ldflags "-X main.buildVersion=latest -X main.gitCommitSHA=$(git rev-parse --short HEAD) -X main.gitCommitTime=$(git log -1 --format=%cI) -X main.gitBranch=$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-### 5. Access API documentation
+The service starts on port `9002` by default.
+
+### 3. Access API documentation
 - **OpenAPI/Swagger UI**: http://localhost:9002/docs/index.html
 
 ## Startup Registration
@@ -361,9 +335,7 @@ Environment variables (uppercase):
 | `DB_USER` | - | Database user |
 | `DB_PASSWORD` | - | Database password |
 | `MGMT_URL` | http://localhost:9000 | Management plane URL |
-| `WORKSPACE_ID` | - | Workspace ID from IoC Mgmt Plane |
-| `X_API_KEY` | - | API key from IoC Mgmt Plane |
-| `CFN_NAME` | cfn-local | CFN instance name |
+| `CFN_NAME` | My Cognition Fabric Node | CFN instance name |
 | `HEARTBEAT_INTERVAL_SECONDS` | 29 | Heartbeat interval in seconds |
 | `MCP_ENABLED` | false | Enable MCP server mode |
 | `MCP_PORT` | 9002 | MCP server port |
@@ -373,16 +345,10 @@ Environment variables (uppercase):
 
 ```bash
 # Build & Run
+make dev            # go run with git info (loads .env)
 make build          # Build binary
-make run            # Run HTTP mode (default)
-make run-mcp        # Run MCP mode
-
-# Docker Compose
-make dc-up          # HTTP mode (default)
-make dc-up-mcp      # MCP mode
-make dc-up-build    # Build and run
-make dc-stop        # Stop containers
-make dc-down        # Remove containers
+make run            # Build and run binary
+make run-mcp        # Build and run in MCP mode
 
 # Other
 make test           # Run tests
@@ -411,7 +377,7 @@ pkg/
   model/            # Data models
   task/             # Task management
   tools/            # Utilities (logger, http)
-build/              # Dockerfile, docker-compose, scripts
+build/              # Dockerfile, build scripts
 deploy/             # Helm charts
 docs/               # Swagger docs
 ```
