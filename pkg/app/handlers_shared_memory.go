@@ -440,6 +440,33 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			"Insufficient evidence to answer user intent | workspace=%s mas=%s",
 			workspaceID, masID,
 		)
+
+		// Audit: shared memory query (insufficient evidence)
+		errMsg := "Insufficient evidence to answer provided user intent"
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		ensureAuditResourceIDs()
+		auditResID := SharedMemoryID
+		if auditResID == "" {
+			auditResID = masID
+		}
+		endAudit := &audit.Audit{
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMAS,
+			ResourceIdentifier:      masID,
+			AuditType:               audit.AuditTypeSharedMemoryOperation,
+			AuditResourceIdentifier: auditResID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create audit event: %v", auditErr)
+		}
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusNotFound,

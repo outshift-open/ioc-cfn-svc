@@ -180,7 +180,8 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 | Outcome | Audit Information |
 |---------|-------------------|
 | Success | `{"status":"SUCCESS"}` |
-| Failure | `{"status":"FAILED","error":"..."}` |
+| Failure (reasoning error) | `{"status":"FAILED","error":"<upstream error>"}` |
+| Failure (insufficient evidence) | `{"status":"FAILED","error":"Insufficient evidence to answer provided user intent"}` |
 
 ### Memory Operations (`memoryOperationsHandler`)
 
