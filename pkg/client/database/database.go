@@ -1,6 +1,8 @@
 package database
 
 import (
+	"fmt"
+
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
@@ -10,6 +12,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
 // Database wraps a GORM DB connection to PostgreSQL.
@@ -58,15 +61,21 @@ func (db *Database) Ping() error {
 }
 
 // HealthCheck verifies the database connection is alive and required tables exist.
-// This is used by the liveness probe — if a DB container restarts and loses its
-// volume, the table check fails, causing the orchestrator to restart the app
-// container which re-runs MigrateUp on startup.
+// If the DB is reachable but the audits table is missing (e.g. volume was lost),
+// it self-heals by re-running migration automatically — no pod restart needed.
+// Returns an error only if the DB is unreachable or migration itself fails.
 func (db *Database) HealthCheck() error {
+	log := logger.SubPkg("database")
+
 	if err := db.Ping(); err != nil {
-		return err
+		return fmt.Errorf("database ping failed: %w", err)
 	}
 	if !db.DB.Migrator().HasTable(&audit.Audit{}) {
-		return errors.New("required table 'audits' does not exist")
+		log.Warnf("required table 'audits' missing, attempting auto-recovery via migration")
+		if err := db.MigrateUp(); err != nil {
+			return fmt.Errorf("auto-migration failed: %w", err)
+		}
+		log.Infof("auto-recovery successful: 'audits' table recreated")
 	}
 	return nil
 }

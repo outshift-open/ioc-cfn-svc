@@ -27,9 +27,9 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 }
 
 // diagnosticsHealthHandler returns standard health response.
-// Checks DB connectivity and required tables — if the DB volume was lost and
-// recreated, this will fail and the orchestrator can restart the app container
-// to re-run MigrateUp.
+// Checks DB connectivity and required tables. If the DB volume was lost and
+// recreated, HealthCheck auto-recovers by re-running migration. Returns 503
+// only if the DB is unreachable or migration itself fails.
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	if err := a.db.HealthCheck(); err != nil {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
