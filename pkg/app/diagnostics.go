@@ -26,8 +26,17 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 	return eh.RespondWithJSON(w, http.StatusOK, info)
 }
 
-// diagnosticsHealthHandler returns TKF standard health response
+// diagnosticsHealthHandler returns standard health response.
+// Checks DB connectivity and required tables — if the DB volume was lost and
+// recreated, this will fail and the orchestrator can restart the app container
+// to re-run MigrateUp.
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	if err := a.db.HealthCheck(); err != nil {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"status": "DOWN",
+			"error":  err.Error(),
+		})
+	}
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
 }
 
@@ -41,11 +50,11 @@ func (a *App) diagnosticsMetricsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	metrics := map[string]any{
-		"uptime_seconds":      round2(time.Since(a.startTime).Seconds()),
-		"goroutines":          runtime.NumGoroutine(),
+		"uptime_seconds":       round2(time.Since(a.startTime).Seconds()),
+		"goroutines":           runtime.NumGoroutine(),
 		"memory_heap_alloc_mb": round2(float64(mem.HeapAlloc) / 1024 / 1024),
-		"memory_sys_mb":       round2(float64(mem.Sys) / 1024 / 1024),
-		"gc_runs":             mem.NumGC,
+		"memory_sys_mb":        round2(float64(mem.Sys) / 1024 / 1024),
+		"gc_runs":              mem.NumGC,
 	}
 	return eh.RespondWithJSON(w, http.StatusOK, metrics)
 }

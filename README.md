@@ -65,7 +65,7 @@ App runs on **http://localhost:9002**
 ### Health & Info
 
 ```bash
-# Health check (TKF standard diagnostic)
+# Health check (standard diagnostic)
 curl http://localhost:9002/api/internal/diagnostics/health
 # Response: {"status":"UP"}
 

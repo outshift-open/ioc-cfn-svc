@@ -57,6 +57,20 @@ func (db *Database) Ping() error {
 	return sqlDB.Ping()
 }
 
+// HealthCheck verifies the database connection is alive and required tables exist.
+// This is used by the liveness probe — if a DB container restarts and loses its
+// volume, the table check fails, causing the orchestrator to restart the app
+// container which re-runs MigrateUp on startup.
+func (db *Database) HealthCheck() error {
+	if err := db.Ping(); err != nil {
+		return err
+	}
+	if !db.DB.Migrator().HasTable(&audit.Audit{}) {
+		return errors.New("required table 'audits' does not exist")
+	}
+	return nil
+}
+
 // MigrateUp runs all auto-migrations (audit tables, etc.).
 func (db *Database) MigrateUp() error {
 	if err := audit.MigrateUp(db.DB); err != nil {

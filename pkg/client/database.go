@@ -29,6 +29,7 @@ func getLogger() *zap.SugaredLogger {
 type Database interface {
 	Close() error
 	Ping() error
+	HealthCheck() error
 	MigrateUp() error
 
 	Find_User_By_IDPUserID_And_Issuer(string, string) (*model.UserType, error)
@@ -73,6 +74,10 @@ func (m *MockDatabase) Close() error {
 
 func (m *MockDatabase) Ping() error {
 	return errors.New("mocked service - not connected to real service")
+}
+
+func (m *MockDatabase) HealthCheck() error {
+	return nil
 }
 
 func (m *MockDatabase) MigrateUp() error {

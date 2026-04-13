@@ -26,7 +26,7 @@ func (a *App) initializeRoutes() http.Handler {
 		})
 	})
 
-	// TKF standard diagnostic endpoints
+	// standard diagnostic endpoints
 	rtr.Get(internalPrefix+"/diagnostics/health", a.diagnosticsHealthHandler)
 	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
 	rtr.Get(internalPrefix+"/diagnostics/metrics", a.diagnosticsMetricsHandler)
