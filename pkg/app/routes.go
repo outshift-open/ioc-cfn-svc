@@ -26,11 +26,12 @@ func (a *App) initializeRoutes() http.Handler {
 		})
 	})
 
-	// TKF standard diagnostic endpoints
-	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
+	// standard diagnostic endpoints
 	rtr.Get(internalPrefix+"/diagnostics/health", a.diagnosticsHealthHandler)
+	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
+	rtr.Get(internalPrefix+"/diagnostics/metrics", a.diagnosticsMetricsHandler)
 	rtr.Get(internalPrefix+"/diagnostics/loggers", a.diagnosticsLoggersHandler)
-	rtr.Post(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
+	rtr.Put(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
 	// shared memories
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
@@ -48,10 +49,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
 
 	// audit events (internal API)
-	rtr.Post(internalPrefix+"/audit-events", a.createAuditEventHandler)
-	rtr.Get(internalPrefix+"/audit-events", a.listAuditEventsHandler)
-	rtr.Get(internalPrefix+"/audit-events/{eventId}", a.getAuditEventHandler)
-	rtr.Delete(internalPrefix+"/audit-events/{eventId}", a.deleteAuditEventHandler)
+	rtr.Get(internalPrefix+"/mgmt/audit", a.listAuditEventsHandler)
+	rtr.Get(internalPrefix+"/mgmt/audit/{eventId}", a.getAuditEventHandler)
 
 	// Swagger UI + spec
 	rtr.HandleHTTP("/docs/", httpSwagger.WrapHandler)

@@ -8,7 +8,7 @@ The audit system provides an immutable audit trail for tracking operations acros
 pkg/audit/audit.go              — Model, enums, validation, DB operations (GORM)
 pkg/audit/audit_test.go          — Unit tests (SQLite in-memory)
 pkg/app/audit_resource_ids.go    — Fetches shared_memory.id & agentic_memory.id from summary API
-pkg/app/handlers_audit.go        — HTTP handlers (create, get, list, delete)
+pkg/app/handlers_audit.go        — HTTP handlers (get, list)
 pkg/app/handlers_audit_test.go   — Handler tests
 pkg/app/routes.go                — Route registration
 pkg/client/database.go           — Database interface + MockDatabase
@@ -77,20 +77,8 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 
 | Method | Path | Handler | Description |
 |--------|------|---------|-------------|
-| `POST` | `/api/internal/audit-events` | `createAuditEventHandler` | Create an audit event |
-| `GET` | `/api/internal/audit-events` | `listAuditEventsHandler` | List events (optional filters) |
-| `GET` | `/api/internal/audit-events/{eventId}` | `getAuditEventHandler` | Get single event by UUID |
-| `DELETE` | `/api/internal/audit-events/{eventId}` | `deleteAuditEventHandler` | Delete event by UUID |
-
-### Create (`POST`)
-
-- Decodes `CreateAuditEventRequest` from JSON body
-- Requires: `resource_type`, `resource_identifier`, `audit_type`, `audit_resource_identifier`
-- Validates resource type and audit type enums
-- Auto-generates `id`, `created_on`, `last_modified_on`
-- Returns `200 OK` with `{"message": "entry created"}`
-- Returns `400` for invalid JSON, missing fields, or invalid enum values
-- Returns `500` for DB errors
+| `GET` | `/api/internal/mgmt/audit` | `listAuditEventsHandler` | List events (optional filters) |
+| `GET` | `/api/internal/mgmt/audit/{eventId}` | `getAuditEventHandler` | Get single event by UUID |
 
 ### List (`GET`)
 
@@ -104,13 +92,6 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 
 - Path param: `eventId` (UUID)
 - Returns `200 OK` with single audit event JSON
-- Returns `400` for invalid UUID
-- Returns `404` if not found
-
-### Delete (`DELETE`)
-
-- Path param: `eventId` (UUID)
-- Returns `204 No Content` on success
 - Returns `400` for invalid UUID
 - Returns `404` if not found
 
@@ -144,13 +125,13 @@ Migration is handled via `audit.MigrateUp(db)` which calls `db.AutoMigrate(&Audi
 
 ### Interface (`pkg/client/database.go`)
 
+Audit-related methods on the `Database` interface:
+
 ```go
-type Database interface {
-    CreateAuditEvent(*audit.Audit) error
-    GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-    ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
-    DeleteAuditEventByID(uuid.UUID) error
-}
+CreateAuditEvent(*audit.Audit) error
+GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
+ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
+DeleteAuditEventByID(uuid.UUID) error
 ```
 
 ### Real Implementation (`pkg/client/database/database.go`)
@@ -199,7 +180,8 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 | Outcome | Audit Information |
 |---------|-------------------|
 | Success | `{"status":"SUCCESS"}` |
-| Failure | `{"status":"FAILED","error":"..."}` |
+| Failure (reasoning error) | `{"status":"FAILED","error":"<upstream error>"}` |
+| Failure (insufficient evidence) | `{"status":"FAILED","error":"Insufficient evidence to answer provided user intent"}` |
 
 ### Memory Operations (`memoryOperationsHandler`)
 
@@ -246,7 +228,7 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 ## Key Design Decisions
 
-1. **Immutability**: No update endpoint exists. Events are append-only (delete is internal-only).
+1. **Append-only audit log**: No create, update, or delete HTTP endpoints are exposed. Audit events are created internally by handlers (e.g. `fetchSharedMemoriesHandler`, `memoryOperationsHandler`) via `a.db.CreateAuditEvent(...)`. Once written, entries are never modified or removed.
 2. **Enum validation**: Both resource types and audit types are validated server-side with clear error messages.
 3. **Error classification**: Handlers check for `"invalid"` in error messages to return 400 vs 500.
 4. **UUID primary keys**: All event IDs are UUIDs, auto-generated on creation.
