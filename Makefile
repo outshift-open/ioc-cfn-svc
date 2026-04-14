@@ -4,9 +4,6 @@ GO_FILES=$(shell go list ./... | grep -v /vendor/)
 
 GO_BUILD_ENV ?= CGO_ENABLED=0
 BUILD_VERSION ?= latest
-CONTAINER_IMAGE ?= ghcr.io/cisco-eti/$(PROJECT_NAME)
-CONTAINER_TAG ?= $(BUILD_VERSION)
-
 GIT_COMMIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_COMMIT_TIME ?= $(shell git log -1 --format=%cI 2>/dev/null || echo "unknown")
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
@@ -65,21 +62,15 @@ docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
 
 .PHONY: run
-run: ## Run in HTTP mode (default)
-	PORT="9002" \
-		DB_HOST=$${DB_HOST:-localhost} \
-		DB_PORT=$${DB_PORT:-5432} \
-		DB_NAME=$${DB_NAME:-cfn-svc} \
-		DB_USER=$${DB_USER:-cfn-svc} \
-		DB_PASSWORD=$${DB_PASSWORD} \
-		./$(PROJECT_NAME).bin
+run: build ## Build and run binary (loads .env via godotenv)
+	./$(PROJECT_NAME).bin
 
 .PHONY: run-mcp
-run-mcp: ## Run in MCP mode
+run-mcp: build ## Build and run in MCP mode
 	MCP_ENABLED=true MCP_PORT=9002 ./$(PROJECT_NAME).bin
 
 .PHONY: dev
-dev: ## Run with go run (picks up .env file, injects git info)
+dev: ## Run with go run (loads .env via godotenv, injects git info)
 	$(GO_BUILD_ENV) go run -ldflags "-X main.buildVersion=${BUILD_VERSION} -X main.gitCommitSHA=${GIT_COMMIT_SHA} -X main.gitCommitTime=${GIT_COMMIT_TIME} -X main.gitBranch=${GIT_BRANCH}" .
 
 ####################################################
@@ -93,31 +84,3 @@ docker:
 .PHONY: test-in-docker
 test-in-docker:
 	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) BUILD_VERSION=$(BUILD_VERSION) ./build/build-docker.sh --unit-test --code-coverage --static-analysis
-
-####################################################
-############## docker compose helpers ##############
-####################################################
-
-.PHONY: dc-up
-dc-up: ## Run in HTTP mode (default)
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --env-file .env --file build/docker-compose.yaml up
-
-.PHONY: dc-up-mcp
-dc-up-mcp: ## Run in MCP mode
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) MCP_ENABLED=true docker compose --env-file .env --file build/docker-compose.yaml up
-
-.PHONY: dc-up-build
-dc-up-build: ## Build and run
-	GIT_COMMIT_SHA=$(GIT_COMMIT_SHA) GIT_COMMIT_TIME=$(GIT_COMMIT_TIME) GIT_BRANCH=$(GIT_BRANCH) docker compose --env-file .env --file build/docker-compose.yaml up --build
-
-.PHONY: dc-stop
-dc-stop: ## Stop containers
-	docker compose --env-file .env --file build/docker-compose.yaml stop
-
-.PHONY: dc-down
-dc-down: ## Stop and remove containers
-	docker compose --env-file .env --file build/docker-compose.yaml down --volumes --rmi local
-
-.PHONY: exec-db
-exec-db:
-	docker compose --env-file .env --file build/docker-compose.yaml exec cfn-svc-db psql -U postgresUser -d cfn_cp

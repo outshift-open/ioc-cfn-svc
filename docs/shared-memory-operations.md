@@ -16,7 +16,7 @@ Send a payload to persist concepts/relationships.
 Source: [../pkg/app/testdata/otel.json](../pkg/app/testdata/otel.json)
 
 ```bash
-cat ../pkg/app//testdata/otel.json | jq -s '{
+cat ../pkg/app/testdata/otel.json | jq -s '{
   "header": {
     "agent_id": "agent-1"
   },

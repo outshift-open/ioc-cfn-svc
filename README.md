@@ -19,35 +19,21 @@ See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/i
 
 2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
 
-> **TODO:** Consolidate docker-compose with other CFN repos (e.g. shared docker-compose for mgmt-backend + cfn-svc + postgres)
-
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Option 1: Go directly
+
+`.env` is auto-loaded on startup via [godotenv](https://github.com/joho/godotenv).
 
 ```bash
-# HTTP mode (default)
-make dc-up
-
-# MCP mode
-make dc-up-mcp
-
-# Build locally and run
-make dc-up-build
-MCP_ENABLED=true make dc-up-build   # MCP mode with local build
-
-# Or without make
-docker compose --file build/docker-compose.yaml up                    # HTTP mode
-docker compose --file build/docker-compose.yaml up --build            # Build locally
-MCP_ENABLED=true docker compose --file build/docker-compose.yaml up   # MCP mode
+CGO_ENABLED=0 go run -ldflags "-X main.buildVersion=latest -X main.gitCommitSHA=$(git rev-parse --short HEAD) -X main.gitCommitTime=$(git log -1 --format=%cI) -X main.gitBranch=$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-### Option 2: Go directly
+### Option 2: Using Make
 
 ```bash
-# .env file is auto-loaded on startup
-go run .                    # HTTP mode
-MCP_ENABLED=true go run .   # MCP mode
+make dev                    # same as above
+MCP_ENABLED=true make dev   # MCP mode
 ```
 
 ### Option 3: Build binary
@@ -65,7 +51,7 @@ App runs on **http://localhost:9002**
 ### Health & Info
 
 ```bash
-# Health check (TKF standard diagnostic)
+# Health check (standard diagnostic)
 curl http://localhost:9002/api/internal/diagnostics/health
 # Response: {"status":"UP"}
 
@@ -202,51 +188,36 @@ Response: `204 No Content` on success
 {"error": "unknown module: typo. Use GET /api/internal/diagnostics/loggers to see available modules"}
 ```
 
-### Audit Events
+### Audit Events (Internal API)
 
 > For full audit system documentation (architecture, schema, enums, design decisions), see [AUDIT.md](AUDIT.md).
 
-**POST /api/internal/audit-events** - Create an audit event
+Audit events are created internally by handlers (e.g. shared memory, memory operations) — there are no create or delete HTTP endpoints. The API is read-only.
 
-```bash
-curl -X POST http://localhost:9002/api/internal/audit-events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation_id": "op-12345",
-    "resource_type": "COGNITION_ENGINE",
-    "resource_identifier": "ce-123",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "ce-123",
-    "created_by": "00000000-0000-0000-0000-000000000001",
-    "last_modified_by": "00000000-0000-0000-0000-000000000001"
-  }'
-```
-
-Response: `200 OK`
-```json
-{"message": "entry created"}
-```
-
-**Request Body:**
-| Field | Required | Description |
-|-------|----------|-------------|
-| `resource_type` | Yes | `COGNITION_ENGINE`, `POLICY_ENFORCER`, `MEMORY_PROVIDER`, `MAS`, `MAS-AGENT`, `WORKFLOW`, `TASK` |
-| `resource_identifier` | Yes | Identifier of the resource |
-| `audit_type` | Yes | `RESOURCE_CREATED`, `RESOURCE_UPDATED`, `RESOURCE_DELETED`, `RESOURCE_PURGED`, `RESOURCE_PRUNED`, `KNOWLEDGE_INGESTION`, `KNOWLEDGE_QUERY`, `MEMORY_OPERATION` |
-| `audit_resource_identifier` | Yes | Identifier of the audited resource |
-| `operation_id` | No(TBD will change) | Optional operation correlation ID |
-| `audit_information` | No | Optional JSON object with additional details |
-| `audit_extra_information` | No | Optional string with extra context |
-| `created_by` | Yes | UUID of the creator |
-| `last_modified_by` | Yes | UUID of the last modifier |
-
-**GET /api/internal/audit-events** - List audit events (with optional filters)
+**GET /api/internal/mgmt/audit** - List audit events (with optional filters)
 
 ```bash
 # List all
-curl http://localhost:9002/api/internal/audit-events
+curl http://localhost:9002/api/internal/mgmt/audit
 
-# Response:
+# Filter by resource_type
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE"
+
+# Filter by audit_type
+curl "http://localhost:9002/api/internal/mgmt/audit?audit_type=RESOURCE_CREATED"
+
+# Filter by both
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+```
+
+**Query Parameters:**
+| Param | Required | Description |
+|-------|----------|-------------|
+| `resource_type` | No | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
+| `audit_type` | No | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
+
+**Response:** `200 OK`
+```json
 [
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -262,73 +233,15 @@ curl http://localhost:9002/api/internal/audit-events
     "last_modified_on": "2024-02-18T15:30:00Z"
   }
 ]
-
-# Filter by resource_type
-curl "http://localhost:9002/api/internal/audit-events?resource_type=COGNITION_ENGINE"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "operation_id": "op-12345",
-    "resource_type": "COGNITION_ENGINE",
-    "resource_identifier": "engine-123",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "cognitive-engine-456",
-    "created_by": "550e8400-e29b-41d4-a716-446655440001",
-    "created_on": "2024-02-18T15:30:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
-    "last_modified_on": "2024-02-18T15:30:00Z"
-  }
-]
-
-# Filter by audit_type
-curl "http://localhost:9002/api/internal/audit-events?audit_type=RESOURCE_CREATED"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440001",
-    "operation_id": "op-67890",
-    "resource_type": "MAS",
-    "resource_identifier": "mas-456",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "mas-agent-789",
-    "created_by": "550e8400-e29b-41d4-a716-446655440002",
-    "created_on": "2024-02-18T16:45:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440002",
-    "last_modified_on": "2024-02-18T16:45:00Z"
-  }
-]
-
-# Filter by both
-curl "http://localhost:9002/api/internal/audit-events?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
-
-# Response:
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440002",
-    "operation_id": "op-11111",
-    "resource_type": "MAS",
-    "resource_identifier": "mas-456",
-    "audit_type": "KNOWLEDGE_QUERY",
-    "audit_resource_identifier": "knowledge-query-123",
-    "audit_information": {"query": "test query", "results": 5},
-    "created_by": "550e8400-e29b-41d4-a716-446655440003",
-    "created_on": "2024-02-18T17:20:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440003",
-    "last_modified_on": "2024-02-18T17:20:00Z"
-  }
-]
 ```
 
-**GET /api/internal/audit-events/{eventId}** - Get a single audit event by ID
+**GET /api/internal/mgmt/audit/{eventId}** - Get a single audit event by UUID
 
 ```bash
-curl http://localhost:9002/api/internal/audit-events/<event-id>
+curl http://localhost:9002/api/internal/mgmt/audit/<event-id>
 ```
 
-**Response:**
+**Response:** `200 OK`
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -345,14 +258,6 @@ curl http://localhost:9002/api/internal/audit-events/<event-id>
 }
 ```
 
-**DELETE /api/internal/audit-events/{eventId}** - Delete an audit event
-
-```bash
-curl -X DELETE http://localhost:9002/api/internal/audit-events/<event-id>
-```
-
-Response: `204 No Content`
-
 ## Environment Setup
 
 ### 1. Create .env file
@@ -361,37 +266,25 @@ Response: `204 No Content`
 cp .env.sample .env
 ```
 
-### 2. Get credentials from IoC Management Plane UI
-
-> **Note:** These credentials may not be needed in the future. Revisit when mgmt plane auth changes.
-
-1. **API Key**: Create an API key manually and copy it
-2. **Workspace ID**: Create a workspace and copy its ID
-
-### 3. Update .env with your values
-
-```bash
-# .env
-WORKSPACE_ID=your-workspace-id-here
-X_API_KEY=your-api-key-here
-```
-
-### 4. Run with .env
+### 2. Run the app
 
 The app automatically loads `.env` on startup via [godotenv](https://github.com/joho/godotenv).
 
-**Go local:**
+**Using Make:**
 ```bash
-go run .   # .env is auto-loaded
+make dev       # go run with git info injected
+make run       # build binary then run
+make run-mcp   # build and run in MCP mode
 ```
 
-**Docker Compose:** (uses port `9002`)
+**Using Go directly:**
 ```bash
-make dc-up           # Uses .env file
-make dc-up-build     # Build locally and run
+CGO_ENABLED=0 go run -ldflags "-X main.buildVersion=latest -X main.gitCommitSHA=$(git rev-parse --short HEAD) -X main.gitCommitTime=$(git log -1 --format=%cI) -X main.gitBranch=$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-### 5. Access API documentation
+The service starts on port `9002` by default.
+
+### 3. Access API documentation
 - **OpenAPI/Swagger UI**: http://localhost:9002/docs/index.html
 
 ## Startup Registration
@@ -442,9 +335,7 @@ Environment variables (uppercase):
 | `DB_USER` | - | Database user |
 | `DB_PASSWORD` | - | Database password |
 | `MGMT_URL` | http://localhost:9000 | Management plane URL |
-| `WORKSPACE_ID` | - | Workspace ID from IoC Mgmt Plane |
-| `X_API_KEY` | - | API key from IoC Mgmt Plane |
-| `CFN_NAME` | cfn-local | CFN instance name |
+| `CFN_NAME` | My Cognition Fabric Node | CFN instance name |
 | `HEARTBEAT_INTERVAL_SECONDS` | 29 | Heartbeat interval in seconds |
 | `MCP_ENABLED` | false | Enable MCP server mode |
 | `MCP_PORT` | 9002 | MCP server port |
@@ -454,16 +345,10 @@ Environment variables (uppercase):
 
 ```bash
 # Build & Run
+make dev            # go run with git info (loads .env)
 make build          # Build binary
-make run            # Run HTTP mode (default)
-make run-mcp        # Run MCP mode
-
-# Docker Compose
-make dc-up          # HTTP mode (default)
-make dc-up-mcp      # MCP mode
-make dc-up-build    # Build and run
-make dc-stop        # Stop containers
-make dc-down        # Remove containers
+make run            # Build and run binary
+make run-mcp        # Build and run in MCP mode
 
 # Other
 make test           # Run tests
@@ -492,7 +377,7 @@ pkg/
   model/            # Data models
   task/             # Task management
   tools/            # Utilities (logger, http)
-build/              # Dockerfile, docker-compose, scripts
+build/              # Dockerfile, build scripts
 deploy/             # Helm charts
 docs/               # Swagger docs
 ```
