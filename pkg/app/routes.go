@@ -26,11 +26,12 @@ func (a *App) initializeRoutes() http.Handler {
 		})
 	})
 
-	// TKF standard diagnostic endpoints
-	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
+	// standard diagnostic endpoints
 	rtr.Get(internalPrefix+"/diagnostics/health", a.diagnosticsHealthHandler)
+	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
+	rtr.Get(internalPrefix+"/diagnostics/metrics", a.diagnosticsMetricsHandler)
 	rtr.Get(internalPrefix+"/diagnostics/loggers", a.diagnosticsLoggersHandler)
-	rtr.Post(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
+	rtr.Put(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
 	// shared memories
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
@@ -38,22 +39,23 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
+	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}", a.getNeighborsByIdHandler)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids", a.fetchConceptsByIdsHandler)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", a.fetchPathsByIdsHandler)
+
+	// semantic negotiation
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide", a.decideSemanticNegotiationHandler)
+
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
-	// cognition agents
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory", a.cognitionAgentsMemoryCreateHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/search", a.cognitionAgentsMemoryCreateHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/concepts/search", a.cognitionAgentsMemorySearchHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/memory/paths/search", a.cognitionagentsPathsSearchHandler)
 
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
 	// audit events (internal API)
-	rtr.Post(internalPrefix+"/audit-events", a.createAuditEventHandler)
-	rtr.Get(internalPrefix+"/audit-events", a.listAuditEventsHandler)
-	rtr.Get(internalPrefix+"/audit-events/{eventId}", a.getAuditEventHandler)
-	rtr.Delete(internalPrefix+"/audit-events/{eventId}", a.deleteAuditEventHandler)
+	rtr.Get(internalPrefix+"/mgmt/audit", a.listAuditEventsHandler)
+	rtr.Get(internalPrefix+"/mgmt/audit/{eventId}", a.getAuditEventHandler)
 
 	// Swagger UI + spec
 	rtr.HandleHTTP("/docs/", httpSwagger.WrapHandler)

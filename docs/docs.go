@@ -106,6 +106,147 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide": {
+            "post": {
+                "description": "Advances an existing semantic negotiation session with agent replies.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "semantic-negotiation"
+                ],
+                "summary": "Advance semantic negotiation session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Semantic negotiation decide request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.DecideRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Negotiation step executed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start": {
+            "post": {
+                "description": "Initiates a new semantic negotiation session with multiple agents.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "semantic-negotiation"
+                ],
+                "summary": "Start semantic negotiation session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Semantic negotiation start request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.StartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Negotiation session started successfully",
+                        "schema": {
+                            "$ref": "#/definitions/semanticnegotiation.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
                 "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
@@ -203,6 +344,7 @@ const docTemplate = `{
                         "description": "Query request",
                         "name": "body",
                         "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/sharedmemory.QueryRequest"
                         }
@@ -238,85 +380,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "audit.Audit": {
-            "type": "object",
-            "properties": {
-                "audit_extra_information": {
-                    "type": "string"
-                },
-                "audit_information": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "audit_resource_identifier": {
-                    "type": "string"
-                },
-                "audit_type": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "created_on": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_modified_by": {
-                    "type": "string"
-                },
-                "last_modified_on": {
-                    "type": "string"
-                },
-                "operation_id": {
-                    "type": "string"
-                },
-                "resource_identifier": {
-                    "type": "string"
-                },
-                "resource_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "audit.CreateAuditEventRequest": {
-            "type": "object",
-            "properties": {
-                "audit_extra_information": {
-                    "type": "string"
-                },
-                "audit_information": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "audit_resource_identifier": {
-                    "type": "string"
-                },
-                "audit_type": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "last_modified_by": {
-                    "type": "string"
-                },
-                "operation_id": {
-                    "type": "string"
-                },
-                "resource_identifier": {
-                    "type": "string"
-                },
-                "resource_type": {
-                    "type": "string"
-                }
-            }
-        },
         "cognitionagentclient.ExtractionPayload": {
             "type": "object",
             "properties": {
@@ -339,239 +402,6 @@ const docTemplate = `{
             "properties": {
                 "format": {
                     "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.ConceptsSearchRequest": {
-            "type": "object",
-            "properties": {
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                }
-            }
-        },
-        "cognitionagents.ConceptsSearchResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "$ref": "#/definitions/common.ErrorDetail"
-                },
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "response_id": {
-                    "type": "string"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                    }
-                }
-            }
-        },
-        "cognitionagents.MemoryCreateRequest": {
-            "type": "object",
-            "properties": {
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                }
-            }
-        },
-        "cognitionagents.MemoryCreateResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "$ref": "#/definitions/common.ErrorDetail"
-                },
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "response_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.MemorySearchRequest": {
-            "type": "object",
-            "properties": {
-                "embeding": {
-                    "description": "Kept as \"embeding\" per API spec",
-                    "type": "array",
-                    "items": {
-                        "type": "number"
-                    }
-                },
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "k": {
-                    "type": "integer"
-                },
-                "queries": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "cognitionagents.MemorySearchResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "$ref": "#/definitions/common.ErrorDetail"
-                },
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "response_id": {
-                    "type": "string"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cognitionagents.QueryResult"
-                    }
-                }
-            }
-        },
-        "cognitionagents.PathEdge": {
-            "type": "object",
-            "properties": {
-                "from_id": {
-                    "type": "string"
-                },
-                "from_name": {
-                    "type": "string"
-                },
-                "relation": {
-                    "type": "string"
-                },
-                "to_id": {
-                    "type": "string"
-                },
-                "to_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.PathResult": {
-            "type": "object",
-            "properties": {
-                "edges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cognitionagents.PathEdge"
-                    }
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "path_length": {
-                    "type": "integer"
-                },
-                "symbolic": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.PathsSearchPayload": {
-            "type": "object",
-            "properties": {
-                "from_id": {
-                    "type": "string"
-                },
-                "max_depth": {
-                    "type": "integer"
-                },
-                "relations": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "to_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.PathsSearchRequest": {
-            "type": "object",
-            "properties": {
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "payload": {
-                    "$ref": "#/definitions/cognitionagents.PathsSearchPayload"
-                }
-            }
-        },
-        "cognitionagents.PathsSearchResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "$ref": "#/definitions/common.ErrorDetail"
-                },
-                "header": {
-                    "$ref": "#/definitions/common.Header"
-                },
-                "paths": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cognitionagents.PathResult"
-                    }
-                },
-                "response_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionagents.QueryResult": {
-            "type": "object",
-            "properties": {
-                "hits": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                    }
-                },
-                "query": {
-                    "type": "string"
-                }
-            }
-        },
-        "common.ErrorDetail": {
-            "type": "object",
-            "properties": {
-                "detail": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "common.Header": {
-            "type": "object",
-            "properties": {
-                "agent_id": {
-                    "description": "Optional",
-                    "type": "string"
-                },
-                "mas_id": {
-                    "description": "Mandatory",
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "description": "Mandatory",
                     "type": "string"
                 }
             }
@@ -633,11 +463,100 @@ const docTemplate = `{
                 }
             }
         },
+        "semanticnegotiation.Agent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the unique agent identifier.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the human-readable agent name.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.AgentReply": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "Action is the agent action.\nAllowed values: \"accept\", \"reject\", \"counter_offer\"",
+                    "type": "string"
+                },
+                "agent_id": {
+                    "description": "AgentID is the agent identifier (must match one of the initiated agents).",
+                    "type": "string"
+                },
+                "offer": {
+                    "description": "Offer is an optional structured offer payload.\nRequired when Action is \"counter_offer\".",
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "semanticnegotiation.DecideRequest": {
+            "type": "object",
+            "properties": {
+                "agent_replies": {
+                    "description": "AgentReplies are the replies produced by agents since the last step.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.AgentReply"
+                    }
+                },
+                "session_id": {
+                    "description": "SessionID is the session identifier previously provided to the start endpoint.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.Response": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides additional information about the negotiation state.",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "Result contains the pipeline execution result.\nThe structure depends on the semantic negotiation library implementation.",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "status": {
+                    "description": "Status indicates the result of the negotiation step.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.StartRequest": {
+            "type": "object",
+            "properties": {
+                "agents": {
+                    "description": "Agents is the list of participating agents.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.Agent"
+                    }
+                },
+                "content_text": {
+                    "description": "ContentText is the negotiation prompt/context used to initialize the session.",
+                    "type": "string"
+                },
+                "n_steps": {
+                    "description": "NSteps is the maximum number of negotiation steps.\nIf omitted, defaults to 20.",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID is the client-provided session identifier.\nCurrently assumed globally unique (not scoped by workspace/mas).",
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
                 "header": {
-                    "description": "Header(s) of the request, optional.",
+                    "description": "Header(s) of the request, optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/sharedmemory.Header"
@@ -645,7 +564,7 @@ const docTemplate = `{
                     ]
                 },
                 "payload": {
-                    "description": "Payload contains the extraction metadata and the raw data to be processed.\nThe structure of the payload data is defined by Payload.Metadata.Format.",
+                    "description": "Payload contains the extraction metadata and the raw data to be processed. The structure of the payload data is defined by Payload.Metadata.Format",
                     "allOf": [
                         {
                             "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
@@ -653,7 +572,7 @@ const docTemplate = `{
                     ]
                 },
                 "request_id": {
-                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
                     "type": "string"
                 }
             }
@@ -662,12 +581,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "description": "Optional message providing additional information",
                     "type": "string"
                 },
                 "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
                 },
                 "status": {
+                    "description": "Status of the request",
                     "type": "string"
                 }
             }
@@ -676,52 +598,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agent_id": {
-                    "description": "ID that represents the agent, optional",
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.QueryConcept": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "sharedmemory.QueryRelation": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "id": {
-                    "type": "string"
-                },
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "relation": {
+                    "description": "ID that represents the agent, optional for query operations",
                     "type": "string"
                 }
             }
@@ -730,12 +607,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "additional_context": {
-                    "description": "AdditionalContext provides optional contextual information to refine query execution.\nThis may include prior conversation state, structured hints, or domain-specific metadata.\nThe contents are treated as opaque by the API and interpreted by downstream components.",
+                    "description": "AdditionalContext provides optional contextual information to refine query execution. This may include prior conversation state, structured hints, or domain-specific metadata. The contents are treated as opaque by the API and interpreted by downstream components. Each element must be a structured object",
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
                 },
                 "header": {
-                    "description": "Header(s) of the request, optional.",
+                    "description": "Header(s) of the request, required (must include agent_id)",
                     "allOf": [
                         {
                             "$ref": "#/definitions/sharedmemory.Header"
@@ -743,15 +623,15 @@ const docTemplate = `{
                     ]
                 },
                 "intent": {
-                    "description": "User intent or natural-language query describing what information is being requested.\nThis field is the primary signal used to construct and execute the query.",
+                    "description": "User intent or natural-language query describing what information is being requested. This field is required and is the primary signal used to construct and execute the query",
                     "type": "string"
                 },
                 "request_id": {
-                    "description": "ID of the request, optional.\nIf not provided, a random UUID is used to represent the request.",
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
                     "type": "string"
                 },
                 "search_strategy": {
-                    "description": "Search strategy to be used when executing the query.\nCurrently supported values:\n  - \"semantic_graph_traversal\"\n\nIf not specified, the service will use the default search strategy.",
+                    "description": "Search strategy to be used when executing the query. Currently supported values: \"semantic_graph_traversal\". If not specified, defaults to \"semantic_graph_traversal\"",
                     "type": "string"
                 }
             }
@@ -760,36 +640,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "description": "Message provides detailed information from the query result",
                     "type": "string"
-                },
-                "records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
-                    }
                 },
                 "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.QueryResponseRecord": {
-            "type": "object",
-            "properties": {
-                "concepts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryConcept"
-                    }
-                },
-                "relationships": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/sharedmemory.QueryRelation"
-                    }
                 }
             }
         }

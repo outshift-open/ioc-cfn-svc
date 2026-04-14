@@ -3,7 +3,8 @@
 // It supports the following endpoints:
 //   - POST /api/knowledge-mgmt/extraction          — ingest agent telemetry data and extract knowledge.
 //   - POST /api/knowledge-mgmt/reasoning/evidence   — reasoning evidence request with an intent query.
-//   - POST /api/semantic-negotiation                 — semantic negotiation request.
+//   - POST /api/semantic-negotiation/start          — initiate a semantic negotiation session.
+//   - POST /api/semantic-negotiation/decide         — advance a semantic negotiation session.
 //
 // The client wraps httpclient.Client for retries and exponential backoff.
 //
@@ -114,17 +115,31 @@ type ReasoningEvidenceRequest struct {
 	Payload   ReasoningEvidencePayload `json:"payload"`
 }
 
-// SemanticNegotiationPayload holds the payload for a semantic negotiation request.
-// TODO: Define fields once the API contract is finalized.
-type SemanticNegotiationPayload struct {
-	// TBD
+// SemanticNegotiationAgent represents a participant in a semantic negotiation session.
+type SemanticNegotiationAgent struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
-// SemanticNegotiationRequest is the request body for POST /api/semantic-negotiation.
-type SemanticNegotiationRequest struct {
-	Header    common.Header              `json:"header"`
-	RequestID string                     `json:"request_id,omitempty"`
-	Payload   SemanticNegotiationPayload `json:"payload"`
+// SemanticNegotiationAgentReply represents a single agent reply in a negotiation session.
+type SemanticNegotiationAgentReply struct {
+	AgentID string                 `json:"agent_id"`
+	Action  string                 `json:"action"` // "accept", "reject", or "counter_offer"
+	Offer   map[string]interface{} `json:"offer,omitempty"`
+}
+
+// SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/start.
+type SemanticNegotiationStartRequest struct {
+	SessionID   string                     `json:"session_id"`
+	ContentText string                     `json:"content_text"`
+	Agents      []SemanticNegotiationAgent `json:"agents"`
+	NSteps      *int                       `json:"n_steps,omitempty"`
+}
+
+// SemanticNegotiationDecideRequest is the request body for POST /api/semantic-negotiation/decide.
+type SemanticNegotiationDecideRequest struct {
+	SessionID    string                          `json:"session_id"`
+	AgentReplies []SemanticNegotiationAgentReply `json:"agent_replies"`
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +200,9 @@ type ReasonerContent struct {
 }
 
 type ReasonerEvidence struct {
-	Details ReasonerDetails `json:"details"`
+	Details       ReasonerDetails `json:"details"`
+	Status        string          `json:"status,omitempty"`
+	FinalResponse string          `json:"final_response,omitempty"`
 }
 
 type ReasonerDetails struct {
@@ -217,12 +234,12 @@ type ReasonerCognitionResponse struct {
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// SemanticNegotiationResponse is the response from POST /api/semantic-negotiation.
-// TODO: Define additional fields once the API contract is finalized.
+// SemanticNegotiationResponse is the response from POST /api/semantic-negotiation/* endpoints.
 type SemanticNegotiationResponse struct {
-	Header     common.Header       `json:"header"`
-	ResponseID string              `json:"response_id"`
-	Error      *common.ErrorDetail `json:"error,omitempty"`
+	Status  string                 `json:"status,omitempty"`
+	Message string                 `json:"message,omitempty"`
+	Result  map[string]interface{} `json:"result,omitempty"`
+	Error   *common.ErrorDetail    `json:"error,omitempty"`
 }
 
 // Meta contains metadata about the knowledge cognition processing.
@@ -298,16 +315,31 @@ func (c *Client) SendReasoningEvidence(ctx context.Context, req *ReasoningEviden
 	return &result, nil
 }
 
-// SendSemanticNegotiation sends a semantic negotiation request to POST /api/semantic-negotiation
-// and returns the semantic negotiation response.
-func (c *Client) SendSemanticNegotiation(ctx context.Context, req *SemanticNegotiationRequest) (*SemanticNegotiationResponse, error) {
+// SendSemanticNegotiationStart initiates a new semantic negotiation session.
+// POST /api/semantic-negotiation/start
+func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *SemanticNegotiationStartRequest) (*SemanticNegotiationResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal semantic negotiation request: %w", err)
+		return nil, fmt.Errorf("failed to marshal semantic negotiation start request: %w", err)
 	}
 
 	var result SemanticNegotiationResponse
-	if err := c.post(ctx, "/api/semantic-negotiation", body, &result); err != nil {
+	if err := c.post(ctx, "/api/semantic-negotiation/start", body, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// SendSemanticNegotiationDecide advances an existing semantic negotiation session.
+// POST /api/semantic-negotiation/decide
+func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *SemanticNegotiationDecideRequest) (*SemanticNegotiationResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal semantic negotiation decide request: %w", err)
+	}
+
+	var result SemanticNegotiationResponse
+	if err := c.post(ctx, "/api/semantic-negotiation/decide", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -323,8 +355,10 @@ var jsonHeaders = map[string]string{
 	"Accept":       "application/json",
 }
 
-// post sends a POST request with a JSON body to baseURL+path, checks for a
-// 200 OK response, and decodes the JSON body into dest.
+// post sends a POST request with a JSON body to baseURL+path and decodes the
+// JSON response into dest. If the server returns a non-200 response, we attempt
+// to decode the body as the same response envelope (which may contain an
+// error field) so callers get actionable error details.
 func (c *Client) post(ctx context.Context, path string, body []byte, dest interface{}) error {
 	url := fmt.Sprintf("%s%s", c.baseURL, path)
 
@@ -334,12 +368,19 @@ func (c *Client) post(ctx context.Context, path string, body []byte, dest interf
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		errBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status %d from %s: %s", resp.StatusCode, path, string(errBody))
+	respBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return fmt.Errorf("failed to read response body from %s: %w", path, readErr)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		if err := json.Unmarshal(respBody, dest); err == nil {
+			return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, path)
+		}
+		return fmt.Errorf("unexpected status %d from %s: %s", resp.StatusCode, path, string(respBody))
+	}
+
+	if err := json.Unmarshal(respBody, dest); err != nil {
 		return fmt.Errorf("failed to decode response from %s: %w", path, err)
 	}
 

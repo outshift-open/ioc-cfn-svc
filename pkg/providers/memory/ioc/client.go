@@ -65,7 +65,7 @@ func (c *Client) healthCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	healthURL := c.baseURL + "/health"
+	healthURL := c.baseURL + "/api/internal/diagnostics/health"
 	resp, err := c.httpClient.Get(ctx, healthURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to call health endpoint: %w", err)
