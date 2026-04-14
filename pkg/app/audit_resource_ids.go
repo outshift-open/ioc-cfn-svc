@@ -72,6 +72,9 @@ func ensureAuditResourceIDs() {
 		}
 
 		sharedMemID, agentMemID, err := extractMemoryIDs(result)
+		// TODO: Partial results (e.g. SharedMemoryID found but AgentMemoryID missing) are
+		// stored but never retried due to sync.Once. Requires app restart to pick up
+		// newly provisioned IDs. Replace with retry logic if this becomes a problem.
 		if err != nil {
 			log.Warnf("ensureAuditResourceIDs: %v", err)
 		}
