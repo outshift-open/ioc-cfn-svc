@@ -26,9 +26,53 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 	return eh.RespondWithJSON(w, http.StatusOK, info)
 }
 
-// diagnosticsHealthHandler returns standard health response
+// diagnosticsHealthHandler returns standard health response.
+// When ?dependencies=true is passed, it also probes downstream services and returns a more detailed check.
+// The basic check (no query param) is used by Docker health checks and returns basic service status. 
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+	if r.URL.Query().Get("dependencies") != "true" {
+		return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+	}
+
+	probes := []struct {
+		name     string
+		url      string
+		critical bool
+	}{
+		{"management_plane", getEnvOrDefault("MGMT_URL", "http://localhost:9000") + "/api/internal/diagnostics/health", true},
+		{"knowledge_memory_svc", getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003") + "/api/internal/diagnostics/health", true},
+		{"cognition_engine", getEnvOrDefault("COGNITION_ENGINE_SVC_URL", "http://localhost:9004") + "/api/internal/diagnostics/health", false},
+	}
+
+	httpClient := &http.Client{Timeout: 3 * time.Second}
+	checks := make(map[string]bool, len(probes))
+	status := "UP"
+
+	for _, p := range probes {
+		healthy := false
+		if resp, err := httpClient.Get(p.url); err == nil {
+			resp.Body.Close()
+			healthy = resp.StatusCode < 500
+		}
+		checks[p.name] = healthy
+		if !healthy {
+			if p.critical {
+				status = "DOWN"
+			} else if status != "DOWN" {
+				status = "DEGRADED"
+			}
+		}
+	}
+
+	httpStatus := http.StatusOK
+	if status == "DOWN" {
+		httpStatus = http.StatusInternalServerError
+	}
+
+	return eh.RespondWithJSON(w, httpStatus, map[string]any{
+		"status": status,
+		"checks": checks,
+	})
 }
 
 // diagnosticsMetricsHandler returns process-level runtime metrics

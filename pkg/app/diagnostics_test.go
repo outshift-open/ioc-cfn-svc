@@ -60,6 +60,119 @@ func TestDiagnosticsHealthHandler(t *testing.T) {
 	assert.Equal(t, "UP", resp["status"])
 }
 
+func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
+	healthyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	unhealthyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	t.Run("all dependencies UP", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(healthyHandler)
+		defer mem.Close()
+		cog := httptest.NewServer(healthyHandler)
+		defer cog.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		t.Setenv("KNOWLEDGE_MEMORY_SVC_URL", mem.URL)
+		t.Setenv("COGNITION_ENGINE_SVC_URL", cog.URL)
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "UP", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, true, checks["knowledge_memory_svc"])
+		assert.Equal(t, true, checks["cognition_engine"])
+	})
+
+	t.Run("critical dependency DOWN returns DOWN and 500", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(unhealthyHandler)
+		defer mem.Close()
+		cog := httptest.NewServer(healthyHandler)
+		defer cog.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		t.Setenv("KNOWLEDGE_MEMORY_SVC_URL", mem.URL)
+		t.Setenv("COGNITION_ENGINE_SVC_URL", cog.URL)
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DOWN", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, false, checks["knowledge_memory_svc"])
+		assert.Equal(t, true, checks["cognition_engine"])
+	})
+
+	t.Run("non-critical dependency DOWN returns DEGRADED and 200", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(healthyHandler)
+		defer mem.Close()
+		cog := httptest.NewServer(unhealthyHandler)
+		defer cog.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		t.Setenv("KNOWLEDGE_MEMORY_SVC_URL", mem.URL)
+		t.Setenv("COGNITION_ENGINE_SVC_URL", cog.URL)
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DEGRADED", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, true, checks["knowledge_memory_svc"])
+		assert.Equal(t, false, checks["cognition_engine"])
+	})
+
+	t.Run("unreachable dependency counts as DOWN", func(t *testing.T) {
+		t.Setenv("MGMT_URL", "http://127.0.0.1:1")
+		t.Setenv("KNOWLEDGE_MEMORY_SVC_URL", "http://127.0.0.1:1")
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DOWN", resp["status"])
+	})
+}
+
 func TestDiagnosticsMetricsHandler(t *testing.T) {
 	app := newDiagnosticsTestApp()
 
