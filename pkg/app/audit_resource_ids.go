@@ -73,8 +73,7 @@ func ensureAuditResourceIDs() {
 
 		sharedMemID, agentMemID, err := extractMemoryIDs(result)
 		if err != nil {
-			log.Errorf("ensureAuditResourceIDs: %v", err)
-			return
+			log.Warnf("ensureAuditResourceIDs: %v", err)
 		}
 
 		SharedMemoryID = sharedMemID
