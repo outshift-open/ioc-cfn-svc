@@ -1,7 +1,9 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -36,7 +38,14 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 	resourceType := r.URL.Query().Get("resource_type")
 	auditType := r.URL.Query().Get("audit_type")
 
-	events, err := a.db.ListAuditEvents(resourceType, auditType)
+	skip, limit, err := parsePagination(r)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	events, err := a.db.ListAuditEvents(resourceType, auditType, skip, limit)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid") {
 			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
@@ -49,5 +58,28 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, events)
+}
+
+// parsePagination extracts skip and limit query parameters from the request.
+// Defaults: skip=0, limit=100. No upper limit cap.
+func parsePagination(r *http.Request) (int, int, error) {
+	var err error
+	skip := 0
+	limit := 100
+
+	if s := r.URL.Query().Get("skip"); s != "" {
+		skip, err = strconv.Atoi(s)
+		if err != nil || skip < 0 {
+			return 0, 0, fmt.Errorf("invalid skip parameter: must be a non-negative integer")
+		}
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, err = strconv.Atoi(l)
+		if err != nil || limit < 1 {
+			return 0, 0, fmt.Errorf("invalid limit parameter: must be a positive integer")
+		}
+	}
+
+	return skip, limit, nil
 }
 

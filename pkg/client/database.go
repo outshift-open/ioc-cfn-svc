@@ -37,7 +37,7 @@ type Database interface {
 
 	CreateAuditEvent(*audit.Audit) error
 	GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-	ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
+	ListAuditEvents(resourceType, auditType string, skip, limit int) ([]audit.Audit, error)
 	DeleteAuditEventByID(uuid.UUID) error
 }
 
@@ -134,7 +134,7 @@ func (m *MockDatabase) GetAuditEventByID(id uuid.UUID) (*audit.Audit, error) {
 	return a, nil
 }
 
-func (m *MockDatabase) ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error) {
+func (m *MockDatabase) ListAuditEvents(resourceType, auditType string, skip, limit int) ([]audit.Audit, error) {
 	if resourceType != "" {
 		if err := audit.ValidateResourceType(resourceType); err != nil {
 			return nil, err
@@ -156,6 +156,15 @@ func (m *MockDatabase) ListAuditEvents(resourceType, auditType string) ([]audit.
 			continue
 		}
 		result = append(result, *a)
+	}
+	if skip > 0 {
+		if skip >= len(result) {
+			return []audit.Audit{}, nil
+		}
+		result = result[skip:]
+	}
+	if limit > 0 && limit < len(result) {
+		result = result[:limit]
 	}
 	return result, nil
 }

@@ -161,7 +161,8 @@ func GetAuditEventByID(db *gorm.DB, id uuid.UUID) (*Audit, error) {
 }
 
 // ListAuditEvents returns audit events with optional resource_type and audit_type filters.
-func ListAuditEvents(db *gorm.DB, resourceType, auditType string) ([]Audit, error) {
+// skip offsets the result set; limit caps the number of rows returned (0 means no cap).
+func ListAuditEvents(db *gorm.DB, resourceType, auditType string, skip, limit int) ([]Audit, error) {
 	var audits []Audit
 	query := db.Model(&Audit{})
 	if resourceType != "" {
@@ -175,6 +176,12 @@ func ListAuditEvents(db *gorm.DB, resourceType, auditType string) ([]Audit, erro
 			return nil, err
 		}
 		query = query.Where("audit_type = ?", auditType)
+	}
+	if skip > 0 {
+		query = query.Offset(skip)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
 	}
 	if err := query.Order("created_on DESC").Find(&audits).Error; err != nil {
 		return nil, err

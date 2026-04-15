@@ -197,8 +197,11 @@ Audit events are created internally by handlers (e.g. shared memory, memory oper
 **GET /api/internal/mgmt/audit** - List audit events (with optional filters)
 
 ```bash
-# List all
+# List all (default: skip=0, limit=100)
 curl http://localhost:9002/api/internal/mgmt/audit
+
+# With pagination
+curl "http://localhost:9002/api/internal/mgmt/audit?skip=0&limit=50"
 
 # Filter by resource_type
 curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE"
@@ -208,13 +211,18 @@ curl "http://localhost:9002/api/internal/mgmt/audit?audit_type=RESOURCE_CREATED"
 
 # Filter by both
 curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+
+# Both filters + pagination
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&skip=0&limit=50"
 ```
 
 **Query Parameters:**
-| Param | Required | Description |
-|-------|----------|-------------|
-| `resource_type` | No | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
-| `audit_type` | No | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
+| Param | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `resource_type` | No | *(none)* | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
+| `audit_type` | No | *(none)* | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
+| `skip` | No | `0` | Number of records to skip for pagination (must be `>= 0`) |
+| `limit` | No | `100` | Maximum number of records to return (must be `>= 1`) |
 
 **Response:** `200 OK`
 ```json
