@@ -121,7 +121,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsRequest"
                         }
                     }
                 ],
@@ -129,7 +129,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsResponse"
                         }
                     },
                     "400": {
@@ -190,7 +190,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/sharedmemory.NeighborsResponse"
                         }
                     },
                     "500": {
@@ -239,7 +239,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/sharedmemory.GraphPathsRequest"
                         }
                     }
                 ],
@@ -247,7 +247,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/sharedmemory.GraphPathsResponse"
                         }
                     },
                     "400": {
@@ -373,12 +373,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Memory operation request (see MemoryOperationRequest)",
+                        "description": "Memory operation request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/memoryoperations.MemoryOperationRequest"
                         }
                     }
                 ],
@@ -386,7 +386,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Proxied response (actual provider status is in http-status field)",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/memoryoperations.MemoryOperationResponse"
                         }
                     },
                     "400": {
@@ -886,6 +886,137 @@ const docTemplate = `{
                 }
             }
         },
+        "cognitionagents.RequestType": {
+            "type": "string",
+            "enum": [
+                "KNOWLEDGE_VECTORS_UPSERT",
+                "KNOWLEDGE_VECTORS_QUERY"
+            ],
+            "x-enum-varnames": [
+                "ReqTypeKnowledgeVectorsUpsert",
+                "ReqTypeKnowledgeVectorsQuery"
+            ]
+        },
+        "cognitionagents.SharedMemoryVectorsRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "request_body": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "request_type": {
+                    "$ref": "#/definitions/cognitionagents.RequestType"
+                }
+            }
+        },
+        "cognitionagents.SharedMemoryVectorsResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "common.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "Optional",
+                    "type": "string"
+                },
+                "mas_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationHeader": {
+            "type": "object"
+        },
+        "memoryoperations.MemoryOperationPayload": {
+            "type": "object",
+            "properties": {
+                "http-headers": {
+                    "description": "Custom headers",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "http-request-body": {
+                    "description": "JSON payload",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "http-request-type": {
+                    "description": "POST, PUT, GET, DELETE, etc.",
+                    "type": "string"
+                },
+                "http-url": {
+                    "description": "URL with query parameters (URL encoded)",
+                    "type": "string"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/memoryoperations.MemoryOperationHeader"
+                },
+                "payload": {
+                    "$ref": "#/definitions/memoryoperations.MemoryOperationPayload"
+                }
+            }
+        },
+        "memoryoperations.MemoryOperationResponse": {
+            "type": "object",
+            "properties": {
+                "http-headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "http-response-body": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "http-status": {
+                    "type": "integer"
+                }
+            }
+        },
         "semanticnegotiation.Agent": {
             "type": "object",
             "properties": {
@@ -975,6 +1106,28 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.ConceptsByIdsRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.ConceptsByIdsResponse": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.GraphConcept"
+                    }
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
@@ -1017,11 +1170,164 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.GraphConcept": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.GraphPathsRequest": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "max_depth": {
+                    "type": "integer"
+                },
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.GraphPathsResponse": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.Path"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.Header": {
             "type": "object",
             "properties": {
                 "agent_id": {
                     "description": "ID that represents the agent, optional for query operations",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.NeighborsResponse": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
+                    }
+                }
+            }
+        },
+        "sharedmemory.Path": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.PathEdge"
+                    }
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_length": {
+                    "type": "integer"
+                },
+                "symbolic": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.PathEdge": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "relation": {
+                    "type": "string"
+                },
+                "to_id": {
+                    "type": "string"
+                },
+                "to_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryConcept": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.QueryRelation": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relation": {
                     "type": "string"
                 }
             }
@@ -1069,6 +1375,23 @@ const docTemplate = `{
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponseRecord": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryConcept"
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryRelation"
+                    }
                 }
             }
         }

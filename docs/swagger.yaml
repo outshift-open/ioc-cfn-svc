@@ -101,6 +101,95 @@ definitions:
           - "openclaw": Data is an opaque JSON payload
         type: string
     type: object
+  cognitionagents.RequestType:
+    enum:
+    - KNOWLEDGE_VECTORS_UPSERT
+    - KNOWLEDGE_VECTORS_QUERY
+    type: string
+    x-enum-varnames:
+    - ReqTypeKnowledgeVectorsUpsert
+    - ReqTypeKnowledgeVectorsQuery
+  cognitionagents.SharedMemoryVectorsRequest:
+    properties:
+      header:
+        $ref: '#/definitions/common.Header'
+      request_body:
+        items:
+          type: integer
+        type: array
+      request_type:
+        $ref: '#/definitions/cognitionagents.RequestType'
+    type: object
+  cognitionagents.SharedMemoryVectorsResponse:
+    properties:
+      error:
+        $ref: '#/definitions/common.ErrorDetail'
+      header:
+        $ref: '#/definitions/common.Header'
+      results:
+        items:
+          type: integer
+        type: array
+    type: object
+  common.ErrorDetail:
+    properties:
+      detail:
+        additionalProperties: true
+        type: object
+      message:
+        type: string
+    type: object
+  common.Header:
+    properties:
+      agent_id:
+        description: Optional
+        type: string
+      mas_id:
+        description: Mandatory
+        type: string
+      workspace_id:
+        description: Mandatory
+        type: string
+    type: object
+  memoryoperations.MemoryOperationHeader:
+    type: object
+  memoryoperations.MemoryOperationPayload:
+    properties:
+      http-headers:
+        additionalProperties:
+          type: string
+        description: Custom headers
+        type: object
+      http-request-body:
+        additionalProperties: true
+        description: JSON payload
+        type: object
+      http-request-type:
+        description: POST, PUT, GET, DELETE, etc.
+        type: string
+      http-url:
+        description: URL with query parameters (URL encoded)
+        type: string
+    type: object
+  memoryoperations.MemoryOperationRequest:
+    properties:
+      header:
+        $ref: '#/definitions/memoryoperations.MemoryOperationHeader'
+      payload:
+        $ref: '#/definitions/memoryoperations.MemoryOperationPayload'
+    type: object
+  memoryoperations.MemoryOperationResponse:
+    properties:
+      http-headers:
+        additionalProperties:
+          type: string
+        type: object
+      http-response-body:
+        additionalProperties: true
+        type: object
+      http-status:
+        type: integer
+    type: object
   semanticnegotiation.Agent:
     properties:
       id:
@@ -179,6 +268,20 @@ definitions:
           Currently assumed globally unique (not scoped by workspace/mas).
         type: string
     type: object
+  sharedmemory.ConceptsByIdsRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.ConceptsByIdsResponse:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.GraphConcept'
+        type: array
+    type: object
   sharedmemory.CreateOrUpdateRequest:
     properties:
       header:
@@ -207,10 +310,110 @@ definitions:
         description: Status of the request
         type: string
     type: object
+  sharedmemory.GraphConcept:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  sharedmemory.GraphPathsRequest:
+    properties:
+      limit:
+        type: integer
+      max_depth:
+        type: integer
+      relations:
+        items:
+          type: string
+        type: array
+      source_id:
+        type: string
+      target_id:
+        type: string
+    type: object
+  sharedmemory.GraphPathsResponse:
+    properties:
+      paths:
+        items:
+          $ref: '#/definitions/sharedmemory.Path'
+        type: array
+      status:
+        type: string
+    type: object
   sharedmemory.Header:
     properties:
       agent_id:
         description: ID that represents the agent, optional for query operations
+        type: string
+    type: object
+  sharedmemory.NeighborsResponse:
+    properties:
+      records:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryResponseRecord'
+        type: array
+    type: object
+  sharedmemory.Path:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/sharedmemory.PathEdge'
+        type: array
+      node_ids:
+        items:
+          type: string
+        type: array
+      path_length:
+        type: integer
+      symbolic:
+        type: string
+    type: object
+  sharedmemory.PathEdge:
+    properties:
+      from_id:
+        type: string
+      from_name:
+        type: string
+      relation:
+        type: string
+      to_id:
+        type: string
+      to_name:
+        type: string
+    type: object
+  sharedmemory.QueryConcept:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.QueryRelation:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      node_ids:
+        items:
+          type: string
+        type: array
+      relation:
         type: string
     type: object
   sharedmemory.QueryRequest:
@@ -252,6 +455,17 @@ definitions:
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
+    type: object
+  sharedmemory.QueryResponseRecord:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryConcept'
+        type: array
+      relationships:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryRelation'
+        type: array
     type: object
 info:
   contact: {}
@@ -330,14 +544,14 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/sharedmemory.ConceptsByIdsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/sharedmemory.ConceptsByIdsResponse'
         "400":
           description: Invalid request
           schema:
@@ -379,7 +593,7 @@ paths:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/sharedmemory.NeighborsResponse'
         "500":
           description: Internal server error
           schema:
@@ -411,14 +625,14 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/sharedmemory.GraphPathsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            type: object
+            $ref: '#/definitions/sharedmemory.GraphPathsResponse'
         "400":
           description: Invalid request
           schema:
@@ -531,12 +745,12 @@ paths:
         name: agentId
         required: true
         type: string
-      - description: Memory operation request (see MemoryOperationRequest)
+      - description: Memory operation request
         in: body
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/memoryoperations.MemoryOperationRequest'
       produces:
       - application/json
       responses:
@@ -544,7 +758,7 @@ paths:
           description: Proxied response (actual provider status is in http-status
             field)
           schema:
-            type: object
+            $ref: '#/definitions/memoryoperations.MemoryOperationResponse'
         "400":
           description: Invalid request body or missing http-request-type
           schema:

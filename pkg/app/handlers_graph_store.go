@@ -155,7 +155,7 @@ func (a *App) conceptSimilaritySearchHandler(w http.ResponseWriter, r *http.Requ
 // @Param       workspaceId path     string true "Workspace ID"
 // @Param       masId       path     string true "Multi-Agentic System ID"
 // @Param       conceptId   path     string true "Concept ID"
-// @Success     200         {object} object
+// @Success     200         {object} sharedmemory.NeighborsResponse
 // @Failure     500         {object} map[string]string "Internal server error"
 // @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId} [get]
 func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -213,8 +213,8 @@ func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (i
 // @Produce     json
 // @Param       workspaceId path     string                          true "Workspace ID"
 // @Param       masId       path     string                          true "Multi-Agentic System ID"
-// @Param       body        body object true "Concept IDs request"
-// @Success     200         {object} object
+// @Param       body        body sharedmemory.ConceptsByIdsRequest true "Concept IDs request"
+// @Success     200         {object} sharedmemory.ConceptsByIdsResponse
 // @Failure     400         {object} map[string]string "Invalid request"
 // @Failure     500         {object} map[string]string "Internal server error"
 // @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids [post]
@@ -317,8 +317,8 @@ func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) 
 // @Produce     json
 // @Param       workspaceId path     string                       true "Workspace ID"
 // @Param       masId       path     string                       true "Multi-Agentic System ID"
-// @Param       body        body object true "Graph paths request"
-// @Success     200         {object} object
+// @Param       body        body sharedmemory.GraphPathsRequest true "Graph paths request"
+// @Success     200         {object} sharedmemory.GraphPathsResponse
 // @Failure     400         {object} map[string]string "Invalid request"
 // @Failure     500         {object} map[string]string "Internal server error"
 // @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths [post]
