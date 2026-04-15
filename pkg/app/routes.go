@@ -42,6 +42,7 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}", a.getNeighborsByIdHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids", a.fetchConceptsByIdsHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", a.fetchPathsByIdsHandler)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", a.conceptSimilaritySearchHandler)
 
 	// semantic negotiation
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)

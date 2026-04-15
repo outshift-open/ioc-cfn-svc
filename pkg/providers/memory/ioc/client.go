@@ -589,6 +589,50 @@ func (c *Client) DeleteKnowledgeVectorStore(ctx context.Context, request *Knowle
 	return &response, nil
 }
 
+// SimilaritySearchConcepts sends a POST request to search for similar concepts by embedding vector.
+// Set includeEmbeddings to true to include raw embedding vectors in the response (debug only).
+func (c *Client) SimilaritySearchConcepts(ctx context.Context, request *KnowledgeGraphSimilaritySearchRequest, includeEmbeddings bool) (*KnowledgeGraphSimilaritySearchResponse, error) {
+	log := getLogger()
+
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	url := c.baseURL + "/api/knowledge/graphs/query/similarity"
+	if includeEmbeddings {
+		url += "?include_embeddings=true"
+	}
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Infof("POST request to %s completed with status %s", url, resp.Status)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("knowledge memory service error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var response KnowledgeGraphSimilaritySearchResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // stringPtr is a helper function to get a pointer to a string
 func stringPtr(s string) *string {
 	return &s
