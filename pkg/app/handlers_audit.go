@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -38,14 +39,14 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 	resourceType := r.URL.Query().Get("resource_type")
 	auditType := r.URL.Query().Get("audit_type")
 
-	skip, limit, err := parsePagination(r)
+	page, pageSize, err := parsePagination(r)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
 	}
 
-	events, err := a.db.ListAuditEvents(resourceType, auditType, skip, limit)
+	result, err := a.db.ListAuditEvents(resourceType, auditType, page, pageSize)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid") {
 			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
@@ -57,29 +58,32 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 		})
 	}
 
-	return eh.RespondWithJSON(w, http.StatusOK, events)
+	return eh.RespondWithJSON(w, http.StatusOK, result)
 }
 
-// parsePagination extracts skip and limit query parameters from the request.
-// Defaults: skip=0, limit=100. No upper limit cap.
+// parsePagination extracts page and pageSize query parameters from the request.
+// page is 0-based (default 0). pageSize defaults to DefaultPageSize and is capped at MaxPageSize.
 func parsePagination(r *http.Request) (int, int, error) {
 	var err error
-	skip := 0
-	limit := 100
+	page := 0
+	pageSize := audit.DefaultPageSize()
 
-	if s := r.URL.Query().Get("skip"); s != "" {
-		skip, err = strconv.Atoi(s)
-		if err != nil || skip < 0 {
-			return 0, 0, fmt.Errorf("invalid skip parameter: must be a non-negative integer")
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, err = strconv.Atoi(p)
+		if err != nil || page < 0 {
+			return 0, 0, fmt.Errorf("invalid page parameter: must be a non-negative integer")
 		}
 	}
-	if l := r.URL.Query().Get("limit"); l != "" {
-		limit, err = strconv.Atoi(l)
-		if err != nil || limit < 1 {
-			return 0, 0, fmt.Errorf("invalid limit parameter: must be a positive integer")
+	if ps := r.URL.Query().Get("pageSize"); ps != "" {
+		pageSize, err = strconv.Atoi(ps)
+		if err != nil || pageSize < 1 {
+			return 0, 0, fmt.Errorf("invalid pageSize parameter: must be a positive integer")
+		}
+		if pageSize > audit.MaxPageSize() {
+			pageSize = audit.MaxPageSize()
 		}
 	}
 
-	return skip, limit, nil
+	return page, pageSize, nil
 }
 

@@ -94,9 +94,13 @@ func TestListAuditEvents_NoFilters(t *testing.T) {
 		assert.NoError(t, CreateAuditEvent(db, a))
 	}
 
-	events, err := ListAuditEvents(db, "", "", 0, 0)
+	resp, err := ListAuditEvents(db, "", "", 0, 0)
 	assert.NoError(t, err)
-	assert.Len(t, events, 3)
+	assert.Len(t, resp.Data, 3)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+	assert.Equal(t, DefaultPageSize(), resp.PageInfo.PageSize)
+	assert.Equal(t, 3, resp.PageInfo.PageCount)
+	assert.Equal(t, 3, resp.PageInfo.TotalElements)
 }
 
 func TestListAuditEvents_FilterByResourceType(t *testing.T) {
@@ -121,10 +125,10 @@ func TestListAuditEvents_FilterByResourceType(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a1))
 	assert.NoError(t, CreateAuditEvent(db, a2))
 
-	events, err := ListAuditEvents(db, ResourceTypeMAS, "", 0, 0)
+	resp, err := ListAuditEvents(db, ResourceTypeMAS, "", 0, 0)
 	assert.NoError(t, err)
-	assert.Len(t, events, 1)
-	assert.Equal(t, ResourceTypeMAS, events[0].ResourceType)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, ResourceTypeMAS, resp.Data[0].ResourceType)
 }
 
 func TestListAuditEvents_FilterByAuditType(t *testing.T) {
@@ -149,10 +153,10 @@ func TestListAuditEvents_FilterByAuditType(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a1))
 	assert.NoError(t, CreateAuditEvent(db, a2))
 
-	events, err := ListAuditEvents(db, "", AuditTypeResourceDeleted, 0, 0)
+	resp, err := ListAuditEvents(db, "", AuditTypeResourceDeleted, 0, 0)
 	assert.NoError(t, err)
-	assert.Len(t, events, 1)
-	assert.Equal(t, AuditTypeResourceDeleted, events[0].AuditType)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, AuditTypeResourceDeleted, resp.Data[0].AuditType)
 }
 
 func TestListAuditEvents_FilterByBoth(t *testing.T) {
@@ -186,11 +190,11 @@ func TestListAuditEvents_FilterByBoth(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a2))
 	assert.NoError(t, CreateAuditEvent(db, a3))
 
-	events, err := ListAuditEvents(db, ResourceTypeMAS, AuditTypeKnowledgeQuery, 0, 0)
+	resp, err := ListAuditEvents(db, ResourceTypeMAS, AuditTypeKnowledgeQuery, 0, 0)
 	assert.NoError(t, err)
-	assert.Len(t, events, 1)
-	assert.Equal(t, ResourceTypeMAS, events[0].ResourceType)
-	assert.Equal(t, AuditTypeKnowledgeQuery, events[0].AuditType)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, ResourceTypeMAS, resp.Data[0].ResourceType)
+	assert.Equal(t, AuditTypeKnowledgeQuery, resp.Data[0].AuditType)
 }
 
 func TestListAuditEvents_WithPagination(t *testing.T) {
@@ -208,20 +212,108 @@ func TestListAuditEvents_WithPagination(t *testing.T) {
 		assert.NoError(t, CreateAuditEvent(db, a))
 	}
 
-	// limit only
-	events, err := ListAuditEvents(db, "", "", 0, 2)
+	// page 0, pageSize 2
+	resp, err := ListAuditEvents(db, "", "", 0, 2)
 	assert.NoError(t, err)
-	assert.Len(t, events, 2)
+	assert.Len(t, resp.Data, 2)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+	assert.Equal(t, 2, resp.PageInfo.PageSize)
+	assert.Equal(t, 2, resp.PageInfo.PageCount)
+	assert.Equal(t, 5, resp.PageInfo.TotalElements)
 
-	// skip + limit
-	events, err = ListAuditEvents(db, "", "", 2, 2)
+	// page 1, pageSize 2
+	resp, err = ListAuditEvents(db, "", "", 1, 2)
 	assert.NoError(t, err)
-	assert.Len(t, events, 2)
+	assert.Len(t, resp.Data, 2)
+	assert.Equal(t, 1, resp.PageInfo.Page)
 
-	// skip past all results
-	events, err = ListAuditEvents(db, "", "", 10, 2)
+	// last page — partial results (page 2 of pageSize 2 = items 4..4, so 1 item)
+	resp, err = ListAuditEvents(db, "", "", 2, 2)
 	assert.NoError(t, err)
-	assert.Len(t, events, 0)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, 2, resp.PageInfo.Page)
+	assert.Equal(t, 2, resp.PageInfo.PageSize)
+	assert.Equal(t, 1, resp.PageInfo.PageCount)
+	assert.Equal(t, 5, resp.PageInfo.TotalElements)
+
+	// page past all results
+	resp, err = ListAuditEvents(db, "", "", 10, 2)
+	assert.NoError(t, err)
+	assert.Len(t, resp.Data, 0)
+	assert.Equal(t, 0, resp.PageInfo.PageCount)
+	assert.Equal(t, 5, resp.PageInfo.TotalElements)
+}
+
+func TestListAuditEvents_DefaultsAndClamping(t *testing.T) {
+	db := setupTestDB(t)
+
+	for i := 0; i < 3; i++ {
+		a := &Audit{
+			ResourceType:            ResourceTypeCognitionEngine,
+			ResourceIdentifier:      "ce-1",
+			AuditType:               AuditTypeResourceCreated,
+			AuditResourceIdentifier: "ce-1",
+			CreatedBy:               uuid.New(),
+			LastModifiedBy:          uuid.New(),
+		}
+		assert.NoError(t, CreateAuditEvent(db, a))
+	}
+
+	// pageSize=0 should default to DefaultPageSize()
+	resp, err := ListAuditEvents(db, "", "", 0, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, DefaultPageSize(), resp.PageInfo.PageSize)
+
+	// pageSize=-5 should also default
+	resp, err = ListAuditEvents(db, "", "", 0, -5)
+	assert.NoError(t, err)
+	assert.Equal(t, DefaultPageSize(), resp.PageInfo.PageSize)
+
+	// pageSize > MaxPageSize should be clamped
+	resp, err = ListAuditEvents(db, "", "", 0, 9999)
+	assert.NoError(t, err)
+	assert.Equal(t, MaxPageSize(), resp.PageInfo.PageSize)
+
+	// negative page should be treated as 0
+	resp, err = ListAuditEvents(db, "", "", -3, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+}
+
+func TestSetPaginationConfig(t *testing.T) {
+	// Save originals and restore after test
+	origDefault := DefaultPageSize()
+	origMax := MaxPageSize()
+	defer SetPaginationConfig(origDefault, origMax)
+
+	// Override both
+	SetPaginationConfig(10, 50)
+	assert.Equal(t, 10, DefaultPageSize())
+	assert.Equal(t, 50, MaxPageSize())
+
+	// default > max => default clamped to max
+	SetPaginationConfig(200, 30)
+	assert.Equal(t, 30, DefaultPageSize())
+	assert.Equal(t, 30, MaxPageSize())
+
+	// zero/negative values ignored (keeps previous)
+	SetPaginationConfig(15, 80)
+	SetPaginationConfig(0, -1)
+	assert.Equal(t, 15, DefaultPageSize())
+	assert.Equal(t, 80, MaxPageSize())
+}
+
+func TestListAuditEvents_EmptyDB(t *testing.T) {
+	db := setupTestDB(t)
+
+	resp, err := ListAuditEvents(db, "", "", 0, 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp.Data)
+	assert.Len(t, resp.Data, 0)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+	assert.Equal(t, 10, resp.PageInfo.PageSize)
+	assert.Equal(t, 0, resp.PageInfo.PageCount)
+	assert.Equal(t, 0, resp.PageInfo.TotalElements)
 }
 
 func TestDeleteAuditEventByID(t *testing.T) {

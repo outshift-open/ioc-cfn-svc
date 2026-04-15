@@ -82,13 +82,34 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 
 ### List (`GET`)
 
-- Optional query params: `resource_type`, `audit_type`, `skip`, `limit`
-- `skip`: offset for pagination (default `0`, must be `>= 0`)
-- `limit`: max results per page (default `100`, must be `>= 1`)
+- Optional query params: `resource_type`, `audit_type`, `page`, `pageSize`
+- `page`: 0-based page number (default `0`, must be `>= 0`)
+- `pageSize`: number of results per page (default `20`, max `100`, must be `>= 1`)
 - Validates filter values if provided
 - Results ordered by `created_on DESC`
-- Returns `200 OK` with JSON array of audit events
+- Returns `200 OK` with JSON object containing `data` array and `pageInfo`
 - Returns `400` for invalid filter values or invalid pagination parameters
+
+#### Response Shape
+
+```json
+{
+  "data": [ ... ],
+  "pageInfo": {
+    "page": 0,
+    "pageSize": 20,
+    "pageCount": 20,
+    "totalElements": 157
+  }
+}
+```
+
+| `pageInfo` Field | Description |
+|------------------|-------------|
+| `page` | Current 0-based page number |
+| `pageSize` | Requested page size (clamped to `[1, MaxPageSize]`) |
+| `pageCount` | Number of elements returned in this page |
+| `totalElements` | Total number of matching records across all pages |
 
 ### Get (`GET`)
 
@@ -101,8 +122,8 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 
 | Param | Default | Constraints | Description |
 |-------|---------|-------------|-------------|
-| `skip` | `0` | `>= 0` | Number of records to skip for pagination |
-| `limit` | `100` | `>= 1` | Maximum number of records to return |
+| `page` | `0` | `>= 0` | 0-based page number |
+| `pageSize` | `20` | `1` – configured `MaxPageSize` | Number of records per page (configurable via `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` env vars; fallback defaults: `20` / `100`) |
 | `resource_type` | *(none)* | Must be a valid Resource Type | Filter by resource type |
 | `audit_type` | *(none)* | Must be a valid Audit Type | Filter by audit type |
 
@@ -115,7 +136,7 @@ curl -X GET "http://localhost:8080/api/internal/mgmt/audit"
 
 #### List — with pagination
 ```bash
-curl -X GET "http://localhost:8080/api/internal/mgmt/audit?skip=0&limit=50"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?page=0&pageSize=50"
 ```
 
 #### List — filter by resource_type
@@ -152,8 +173,8 @@ curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=COGNITI
 
 #### List — both filters + pagination
 ```bash
-curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&skip=0&limit=50"
-curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS-AGENT&audit_type=AGENT_MEMORY_OPERATION&skip=100&limit=200"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&page=0&pageSize=50"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS-AGENT&audit_type=AGENT_MEMORY_OPERATION&page=2&pageSize=50"
 ```
 
 #### Get by ID
@@ -196,7 +217,7 @@ Audit-related methods on the `Database` interface:
 ```go
 CreateAuditEvent(*audit.Audit) error
 GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-ListAuditEvents(resourceType, auditType string, skip, limit int) ([]audit.Audit, error)
+ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error)
 DeleteAuditEventByID(uuid.UUID) error
 ```
 
@@ -220,7 +241,10 @@ Uses SQLite in-memory DB via GORM. Covers:
 - `TestListAuditEvents_FilterByResourceType`
 - `TestListAuditEvents_FilterByAuditType`
 - `TestListAuditEvents_FilterByBoth`
-- `TestListAuditEvents_WithPagination` — skip/limit, skip past end
+- `TestListAuditEvents_WithPagination` — page/pageSize, last page partial, page past end
+- `TestListAuditEvents_DefaultsAndClamping` — pageSize=0/negative defaults, pageSize>max clamped, negative page
+- `TestSetPaginationConfig` — override, default>max clamp, zero/negative ignored
+- `TestListAuditEvents_EmptyDB` — empty result set, Data non-nil, all zeros
 - `TestDeleteAuditEventByID` / `TestDeleteAuditEventByID_NotFound`
 - `TestEnumConstants` — verifies all enum string values
 
@@ -232,8 +256,9 @@ Tests HTTP handlers using `MockDatabase`. Covers:
 - `TestListAuditEventsHandler_WithFilters`
 - `TestListAuditEventsHandler_WithPagination`
 - `TestListAuditEventsHandler_WithFiltersAndPagination`
-- `TestListAuditEventsHandler_InvalidSkip`
-- `TestListAuditEventsHandler_InvalidLimit`
+- `TestListAuditEventsHandler_PageSizeExceedsMax` — pageSize=99999 clamped to MaxPageSize
+- `TestListAuditEventsHandler_InvalidPage`
+- `TestListAuditEventsHandler_InvalidPageSize`
 - `TestListAuditEventsHandler_InvalidResourceTypeFilter`
 - `TestListAuditEventsHandler_InvalidAuditTypeFilter`
 
@@ -310,4 +335,4 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 4. **UUID primary keys**: All event IDs are UUIDs, auto-generated on creation.
 5. **JSONB storage**: `audit_information` uses PostgreSQL JSONB for flexible structured data.
 6. **Ordering**: List results are always ordered by `created_on DESC` (newest first).
-7. **Pagination defaults**: `skip=0`, `limit=100`, no upper cap. Applied at the handler layer; the GORM function accepts raw values.
+7. **Pagination**: 0-based page numbering. `DefaultPageSize=20`, `MaxPageSize=100` (fallback defaults). Both are configurable via environment variables `DEFAULT_PAGE_SIZE` and `MAX_PAGE_SIZE` (or equivalent CLI flags `--default_page_size`, `--max_page_size`). At startup, `audit.SetPaginationConfig()` is called with the configured values. Response includes `pageInfo` with `page`, `pageSize`, `pageCount`, and `totalElements`. The pagination model is database-agnostic (no SQL terms like skip/limit/offset leak into the API).

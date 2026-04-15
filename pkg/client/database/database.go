@@ -114,8 +114,8 @@ func (db *Database) GetAuditEventByID(id uuid.UUID) (*audit.Audit, error) {
 }
 
 // ListAuditEvents returns audit events with optional resource_type and audit_type filters.
-func (db *Database) ListAuditEvents(resourceType, auditType string, skip, limit int) ([]audit.Audit, error) {
-	return audit.ListAuditEvents(db.DB, resourceType, auditType, skip, limit)
+func (db *Database) ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error) {
+	return audit.ListAuditEvents(db.DB, resourceType, auditType, page, pageSize)
 }
 
 // DeleteAuditEventByID deletes a single audit event by UUID.
