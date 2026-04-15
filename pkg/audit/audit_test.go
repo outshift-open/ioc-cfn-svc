@@ -94,7 +94,7 @@ func TestListAuditEvents_NoFilters(t *testing.T) {
 		assert.NoError(t, CreateAuditEvent(db, a))
 	}
 
-	events, err := ListAuditEvents(db, "", "")
+	events, err := ListAuditEvents(db, "", "", 0, 0)
 	assert.NoError(t, err)
 	assert.Len(t, events, 3)
 }
@@ -121,7 +121,7 @@ func TestListAuditEvents_FilterByResourceType(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a1))
 	assert.NoError(t, CreateAuditEvent(db, a2))
 
-	events, err := ListAuditEvents(db, ResourceTypeMAS, "")
+	events, err := ListAuditEvents(db, ResourceTypeMAS, "", 0, 0)
 	assert.NoError(t, err)
 	assert.Len(t, events, 1)
 	assert.Equal(t, ResourceTypeMAS, events[0].ResourceType)
@@ -149,7 +149,7 @@ func TestListAuditEvents_FilterByAuditType(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a1))
 	assert.NoError(t, CreateAuditEvent(db, a2))
 
-	events, err := ListAuditEvents(db, "", AuditTypeResourceDeleted)
+	events, err := ListAuditEvents(db, "", AuditTypeResourceDeleted, 0, 0)
 	assert.NoError(t, err)
 	assert.Len(t, events, 1)
 	assert.Equal(t, AuditTypeResourceDeleted, events[0].AuditType)
@@ -186,11 +186,42 @@ func TestListAuditEvents_FilterByBoth(t *testing.T) {
 	assert.NoError(t, CreateAuditEvent(db, a2))
 	assert.NoError(t, CreateAuditEvent(db, a3))
 
-	events, err := ListAuditEvents(db, ResourceTypeMAS, AuditTypeKnowledgeQuery)
+	events, err := ListAuditEvents(db, ResourceTypeMAS, AuditTypeKnowledgeQuery, 0, 0)
 	assert.NoError(t, err)
 	assert.Len(t, events, 1)
 	assert.Equal(t, ResourceTypeMAS, events[0].ResourceType)
 	assert.Equal(t, AuditTypeKnowledgeQuery, events[0].AuditType)
+}
+
+func TestListAuditEvents_WithPagination(t *testing.T) {
+	db := setupTestDB(t)
+
+	for i := 0; i < 5; i++ {
+		a := &Audit{
+			ResourceType:            ResourceTypeCognitionEngine,
+			ResourceIdentifier:      "ce-1",
+			AuditType:               AuditTypeResourceCreated,
+			AuditResourceIdentifier: "ce-1",
+			CreatedBy:               uuid.New(),
+			LastModifiedBy:          uuid.New(),
+		}
+		assert.NoError(t, CreateAuditEvent(db, a))
+	}
+
+	// limit only
+	events, err := ListAuditEvents(db, "", "", 0, 2)
+	assert.NoError(t, err)
+	assert.Len(t, events, 2)
+
+	// skip + limit
+	events, err = ListAuditEvents(db, "", "", 2, 2)
+	assert.NoError(t, err)
+	assert.Len(t, events, 2)
+
+	// skip past all results
+	events, err = ListAuditEvents(db, "", "", 10, 2)
+	assert.NoError(t, err)
+	assert.Len(t, events, 0)
 }
 
 func TestDeleteAuditEventByID(t *testing.T) {

@@ -82,11 +82,13 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 
 ### List (`GET`)
 
-- Optional query params: `resource_type`, `audit_type`
+- Optional query params: `resource_type`, `audit_type`, `skip`, `limit`
+- `skip`: offset for pagination (default `0`, must be `>= 0`)
+- `limit`: max results per page (default `100`, must be `>= 1`)
 - Validates filter values if provided
 - Results ordered by `created_on DESC`
 - Returns `200 OK` with JSON array of audit events
-- Returns `400` for invalid filter values
+- Returns `400` for invalid filter values or invalid pagination parameters
 
 ### Get (`GET`)
 
@@ -94,6 +96,70 @@ All routes are registered in `pkg/app/routes.go` under `internalPrefix` (`/api/i
 - Returns `200 OK` with single audit event JSON
 - Returns `400` for invalid UUID
 - Returns `404` if not found
+
+### Query Parameters
+
+| Param | Default | Constraints | Description |
+|-------|---------|-------------|-------------|
+| `skip` | `0` | `>= 0` | Number of records to skip for pagination |
+| `limit` | `100` | `>= 1` | Maximum number of records to return |
+| `resource_type` | *(none)* | Must be a valid Resource Type | Filter by resource type |
+| `audit_type` | *(none)* | Must be a valid Audit Type | Filter by audit type |
+
+### `curl` Examples
+
+#### List — no filters
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit"
+```
+
+#### List — with pagination
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?skip=0&limit=50"
+```
+
+#### List — filter by resource_type
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=POLICY_ENFORCER"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MEMORY_PROVIDER"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS-AGENT"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=WORKFLOW"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=TASK"
+```
+
+#### List — filter by audit_type
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=RESOURCE_CREATED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=RESOURCE_UPDATED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=RESOURCE_DELETED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=RESOURCE_PURGED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=RESOURCE_PRUNED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=KNOWLEDGE_INGESTION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=KNOWLEDGE_QUERY"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=MEMORY_OPERATION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SHARED_MEMORY_OPERATION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=AGENT_MEMORY_OPERATION"
+```
+
+#### List — both filters
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS-AGENT&audit_type=AGENT_MEMORY_OPERATION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE&audit_type=RESOURCE_DELETED"
+```
+
+#### List — both filters + pagination
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&skip=0&limit=50"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?resource_type=MAS-AGENT&audit_type=AGENT_MEMORY_OPERATION&skip=100&limit=200"
+```
+
+#### Get by ID
+```bash
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit/{audit_event_id}"
+```
 
 ## Database & Schema
 
@@ -130,7 +196,7 @@ Audit-related methods on the `Database` interface:
 ```go
 CreateAuditEvent(*audit.Audit) error
 GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
+ListAuditEvents(resourceType, auditType string, skip, limit int) ([]audit.Audit, error)
 DeleteAuditEventByID(uuid.UUID) error
 ```
 
@@ -154,12 +220,22 @@ Uses SQLite in-memory DB via GORM. Covers:
 - `TestListAuditEvents_FilterByResourceType`
 - `TestListAuditEvents_FilterByAuditType`
 - `TestListAuditEvents_FilterByBoth`
-- `TestDeleteAuditEventByID`
+- `TestListAuditEvents_WithPagination` — skip/limit, skip past end
+- `TestDeleteAuditEventByID` / `TestDeleteAuditEventByID_NotFound`
 - `TestEnumConstants` — verifies all enum string values
 
 ### Handler Tests (`pkg/app/handlers_audit_test.go`)
 
-Tests HTTP handlers using `MockDatabase`.
+Tests HTTP handlers using `MockDatabase`. Covers:
+- `TestGetAuditEventHandler` / `TestGetAuditEventHandler_InvalidUUID` / `TestGetAuditEventHandler_NotFound`
+- `TestListAuditEventsHandler` — no filters (default pagination)
+- `TestListAuditEventsHandler_WithFilters`
+- `TestListAuditEventsHandler_WithPagination`
+- `TestListAuditEventsHandler_WithFiltersAndPagination`
+- `TestListAuditEventsHandler_InvalidSkip`
+- `TestListAuditEventsHandler_InvalidLimit`
+- `TestListAuditEventsHandler_InvalidResourceTypeFilter`
+- `TestListAuditEventsHandler_InvalidAuditTypeFilter`
 
 ## Handler Audit Trails
 
@@ -234,3 +310,4 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 4. **UUID primary keys**: All event IDs are UUIDs, auto-generated on creation.
 5. **JSONB storage**: `audit_information` uses PostgreSQL JSONB for flexible structured data.
 6. **Ordering**: List results are always ordered by `created_on DESC` (newest first).
+7. **Pagination defaults**: `skip=0`, `limit=100`, no upper cap. Applied at the handler layer; the GORM function accepts raw values.

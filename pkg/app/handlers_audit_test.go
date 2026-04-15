@@ -132,6 +132,100 @@ func TestListAuditEventsHandler_WithFilters(t *testing.T) {
 	assert.Equal(t, audit.ResourceTypeMAS, resp[0].ResourceType)
 }
 
+func TestListAuditEventsHandler_WithPagination(t *testing.T) {
+	app := newTestApp()
+
+	for i := 0; i < 5; i++ {
+		e := &audit.Audit{
+			ResourceType:            audit.ResourceTypeCognitionEngine,
+			ResourceIdentifier:      "ce-1",
+			AuditType:               audit.AuditTypeResourceCreated,
+			AuditResourceIdentifier: "ce-1",
+			CreatedBy:               uuid.New(),
+			LastModifiedBy:          uuid.New(),
+		}
+		require.NoError(t, app.db.CreateAuditEvent(e))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?skip=0&limit=2", nil)
+	rr := httptest.NewRecorder()
+
+	code, err := app.listAuditEventsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, code)
+
+	var resp []audit.Audit
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Len(t, resp, 2)
+}
+
+func TestListAuditEventsHandler_WithFiltersAndPagination(t *testing.T) {
+	app := newTestApp()
+
+	for i := 0; i < 3; i++ {
+		e := &audit.Audit{
+			ResourceType:            audit.ResourceTypeMAS,
+			ResourceIdentifier:      "mas-1",
+			AuditType:               audit.AuditTypeResourceCreated,
+			AuditResourceIdentifier: "mas-1",
+			CreatedBy:               uuid.New(),
+			LastModifiedBy:          uuid.New(),
+		}
+		require.NoError(t, app.db.CreateAuditEvent(e))
+	}
+	e := &audit.Audit{
+		ResourceType:            audit.ResourceTypeCognitionEngine,
+		ResourceIdentifier:      "ce-1",
+		AuditType:               audit.AuditTypeResourceDeleted,
+		AuditResourceIdentifier: "ce-1",
+		CreatedBy:               uuid.New(),
+		LastModifiedBy:          uuid.New(),
+	}
+	require.NoError(t, app.db.CreateAuditEvent(e))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&skip=0&limit=2", nil)
+	rr := httptest.NewRecorder()
+
+	code, err := app.listAuditEventsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, code)
+
+	var resp []audit.Audit
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Len(t, resp, 2)
+	for _, r := range resp {
+		assert.Equal(t, audit.ResourceTypeMAS, r.ResourceType)
+		assert.Equal(t, audit.AuditTypeResourceCreated, r.AuditType)
+	}
+}
+
+func TestListAuditEventsHandler_InvalidSkip(t *testing.T) {
+	app := newTestApp()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?skip=abc", nil)
+	rr := httptest.NewRecorder()
+
+	code, _ := app.listAuditEventsHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "invalid skip parameter")
+}
+
+func TestListAuditEventsHandler_InvalidLimit(t *testing.T) {
+	app := newTestApp()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?limit=-1", nil)
+	rr := httptest.NewRecorder()
+
+	code, _ := app.listAuditEventsHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "invalid limit parameter")
+}
 
 func TestListAuditEventsHandler_InvalidResourceTypeFilter(t *testing.T) {
 	app := newTestApp()
