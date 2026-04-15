@@ -38,6 +38,12 @@ func TestDiagnosticsInfoHandler(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 
+	assert.NotEmpty(t, resp["service"])
+	assert.NotEmpty(t, resp["version"])
+	assert.NotEmpty(t, resp["go_version"])
+	assert.NotEmpty(t, resp["platform"])
+	assert.NotEmpty(t, resp["environment"])
+
 	git := resp["git"].(map[string]any)
 	commit := git["commit"].(map[string]any)
 	assert.Equal(t, "abc1234", commit["id"])

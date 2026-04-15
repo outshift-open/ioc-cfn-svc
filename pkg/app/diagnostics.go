@@ -14,9 +14,14 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
-// diagnosticsInfoHandler returns git build info
+// diagnosticsInfoHandler returns service and git build info
 func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	info := map[string]any{
+		"service":     getEnvOrDefault("SERVICE_NAME", "ioc-cfn-svc"),
+		"version":     a.buildVersion,
+		"go_version":  runtime.Version(),
+		"platform":    runtime.GOOS + "/" + runtime.GOARCH,
+		"environment": getEnvOrDefault("ENV", "development"),
 		"git": map[string]any{
 			"commit": map[string]any{
 				"time": a.gitCommitTime,
