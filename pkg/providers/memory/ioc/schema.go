@@ -716,3 +716,31 @@ func (k *KnowledgeVectorQueryResponse) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(aux)
 }
+
+///////////////////////// GRAPH SIMILARITY SEARCH /////////////////////////
+
+// KnowledgeGraphSimilaritySearchRequest represents a request to search for similar concepts by embedding vector
+type KnowledgeGraphSimilaritySearchRequest struct {
+	RequestID string    `json:"request_id"`
+	MasID     *string   `json:"mas_id,omitempty"`
+	WkspID    *string   `json:"wksp_id,omitempty"`
+	Embedding []float64 `json:"embedding"`
+	Limit     int       `json:"limit,omitempty"`
+	Metric    string    `json:"metric,omitempty"`
+}
+
+// KnowledgeGraphSimilaritySearchResult represents a single result from a similarity search
+type KnowledgeGraphSimilaritySearchResult struct {
+	Score           float64   `json:"score"`
+	ConceptID       string    `json:"concept_id"`
+	ConceptName     string    `json:"concept_name"`
+	EmbeddingVector []float64 `json:"embedding_vector,omitempty"`
+}
+
+// KnowledgeGraphSimilaritySearchResponse represents a response from a similarity search
+type KnowledgeGraphSimilaritySearchResponse struct {
+	RequestID *string                                `json:"request_id,omitempty"`
+	Status    ResponseStatus                         `json:"status"`
+	Message   *string                                `json:"message,omitempty"`
+	Results   []KnowledgeGraphSimilaritySearchResult `json:"results,omitempty"`
+}

@@ -1,5 +1,69 @@
 basePath: /
 definitions:
+  app.conceptSimilaritySearchHeader:
+    properties:
+      agent_id:
+        type: string
+    type: object
+  app.conceptSimilaritySearchPayload:
+    properties:
+      embedded_text:
+        type: string
+      embedding_vector:
+        items:
+          type: number
+        type: array
+      search_metrics:
+        type: string
+      top_k:
+        type: integer
+    type: object
+  app.conceptSimilaritySearchRequest:
+    properties:
+      header:
+        $ref: '#/definitions/app.conceptSimilaritySearchHeader'
+      payload:
+        $ref: '#/definitions/app.conceptSimilaritySearchPayload'
+      request_id:
+        type: string
+    type: object
+  app.conceptSimilaritySearchResponse:
+    properties:
+      error:
+        type: string
+      header:
+        $ref: '#/definitions/app.conceptSimilaritySearchResponseHeader'
+      response_id:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/app.conceptSimilaritySearchResult'
+        type: array
+      status:
+        type: string
+    type: object
+  app.conceptSimilaritySearchResponseHeader:
+    properties:
+      agent_id:
+        type: string
+      mas_id:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  app.conceptSimilaritySearchResult:
+    properties:
+      concept_id:
+        type: string
+      concept_name:
+        type: string
+      embedding_vector:
+        items:
+          type: number
+        type: array
+      score:
+        type: number
+    type: object
   cognitionagentclient.ExtractionPayload:
     properties:
       data:
@@ -204,6 +268,20 @@ definitions:
           Currently assumed globally unique (not scoped by workspace/mas).
         type: string
     type: object
+  sharedmemory.ConceptsByIdsRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.ConceptsByIdsResponse:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.GraphConcept'
+        type: array
+    type: object
   sharedmemory.CreateOrUpdateRequest:
     properties:
       header:
@@ -232,27 +310,39 @@ definitions:
         description: Status of the request
         type: string
     type: object
-  sharedmemory.DeleteVectorStoreRequest:
+  sharedmemory.GraphConcept:
     properties:
-      header:
-        allOf:
-        - $ref: '#/definitions/sharedmemory.Header'
-        description: Header(s) of the request, optional.
-      request_id:
-        description: |-
-          ID of the request, optional.
-          If not provided, a random UUID is used to represent the request.
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
         type: string
     type: object
-  sharedmemory.DeleteVectorStoreResponse:
+  sharedmemory.GraphPathsRequest:
     properties:
-      message:
+      limit:
+        type: integer
+      max_depth:
+        type: integer
+      relations:
+        items:
+          type: string
+        type: array
+      source_id:
         type: string
-      response_id:
+      target_id:
         type: string
+    type: object
+  sharedmemory.GraphPathsResponse:
+    properties:
+      paths:
+        items:
+          $ref: '#/definitions/sharedmemory.Path'
+        type: array
       status:
-        type: string
-      store_id:
         type: string
     type: object
   sharedmemory.Header:
@@ -261,27 +351,69 @@ definitions:
         description: ID that represents the agent, optional for query operations
         type: string
     type: object
-  sharedmemory.OnboardVectorStoreRequest:
+  sharedmemory.NeighborsResponse:
     properties:
-      header:
-        allOf:
-        - $ref: '#/definitions/sharedmemory.Header'
-        description: Header(s) of the request, optional.
-      request_id:
-        description: |-
-          ID of the request, optional.
-          If not provided, a random UUID is used to represent the request.
+      records:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryResponseRecord'
+        type: array
+    type: object
+  sharedmemory.Path:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/sharedmemory.PathEdge'
+        type: array
+      node_ids:
+        items:
+          type: string
+        type: array
+      path_length:
+        type: integer
+      symbolic:
         type: string
     type: object
-  sharedmemory.OnboardVectorStoreResponse:
+  sharedmemory.PathEdge:
     properties:
-      message:
+      from_id:
         type: string
-      response_id:
+      from_name:
         type: string
-      status:
+      relation:
         type: string
-      store_id:
+      to_id:
+        type: string
+      to_name:
+        type: string
+    type: object
+  sharedmemory.QueryConcept:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  sharedmemory.QueryRelation:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      node_ids:
+        items:
+          type: string
+        type: array
+      relation:
         type: string
     type: object
   sharedmemory.QueryRequest:
@@ -324,6 +456,17 @@ definitions:
         description: ID of the response, this gets populated from request_id
         type: string
     type: object
+  sharedmemory.QueryResponseRecord:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryConcept'
+        type: array
+      relationships:
+        items:
+          $ref: '#/definitions/sharedmemory.QueryRelation'
+        type: array
+    type: object
 info:
   contact: {}
   description: IoC Cognition Fabric Node service — shared memory routing and memory
@@ -331,6 +474,180 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search:
+    post:
+      consumes:
+      - application/json
+      description: Finds concept nodes nearest to a query embedding vector using HNSW
+        index.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Include raw embedding vectors in results (debug only)
+        in: query
+        name: include_embeddings
+        type: boolean
+      - description: Similarity search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.conceptSimilaritySearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.conceptSimilaritySearchResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Concept similarity search
+      tags:
+      - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids:
+    post:
+      consumes:
+      - application/json
+      description: Returns concept details for each of the provided concept IDs.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Concept IDs request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.ConceptsByIdsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/sharedmemory.ConceptsByIdsResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Fetch concepts by IDs
+      tags:
+      - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}:
+    get:
+      description: Returns the neighboring concepts of a given concept in the knowledge
+        graph.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Concept ID
+        in: path
+        name: conceptId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/sharedmemory.NeighborsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get neighbors by concept ID
+      tags:
+      - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths:
+    post:
+      consumes:
+      - application/json
+      description: Returns ordered paths through the knowledge graph between a source
+        and target concept.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Graph paths request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.GraphPathsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/sharedmemory.GraphPathsResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Fetch paths between two concepts
+      tags:
+      - Graph Store
   /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}:
     delete:
       consumes:
@@ -352,14 +669,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/sharedmemory.DeleteVectorStoreRequest'
+          type: object
       produces:
       - application/json
       responses:
         "200":
           description: Vector Store successfully deleted
           schema:
-            $ref: '#/definitions/sharedmemory.DeleteVectorStoreResponse'
+            type: object
         "400":
           description: Invalid request
           schema:
@@ -669,14 +986,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/sharedmemory.OnboardVectorStoreRequest'
+          type: object
       produces:
       - application/json
       responses:
         "201":
           description: Vector Store successfully onboarded
           schema:
-            $ref: '#/definitions/sharedmemory.OnboardVectorStoreResponse'
+            type: object
         "400":
           description: Invalid request
           schema:

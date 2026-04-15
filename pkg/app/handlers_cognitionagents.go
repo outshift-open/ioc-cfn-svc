@@ -97,7 +97,7 @@ func (a *App) cognitionAgentsSharedMemoriesVectorsUpsertHandler(w http.ResponseW
 // @Produce		json
 // @Param		cfnId	    path		string									true	"CFN ID"
 // @Param		body	    body		cognitionagents.SharedMemoryVectorsRequest	    true	"Shared Memory Request"
-// @Success		200		{object}	cognitionagents.SharedMemoryVectorsResponse
+// @Success		200			{object}	cognitionagents.SharedMemoryVectorsResponse
 // @Failure		400		    {object}	cognitionagents.SharedMemoryVectorsResponse
 // @Failure		500		    {object}	cognitionagents.SharedMemoryVectorsResponse
 func (a *App) cognitionAgentsSharedMemoriesVectorsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
