@@ -4,6 +4,16 @@ Go microservice with HTTP server and mock database.
 
 **Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
 
+## Public API Contracts
+
+This service provides **versioned OpenAPI specifications** for external SDK generation:
+- Specifications are located in `docs/public-api/`
+- Updated when cutting SDK releases (not on every commit)
+- Go implementation is the source of truth
+- See [docs/public-api/README.md](docs/public-api/README.md) for SDK release workflow
+
+**Current version:** `public-api-v1.0.yaml`
+
 ## Prerequisites
 
 1. **IoC Management Plane**: Start the backend and UI (required for CFN registration):
