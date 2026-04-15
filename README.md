@@ -4,6 +4,14 @@ Go microservice with HTTP server and mock database.
 
 **Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
 
+## Architecture
+
+This service follows a **schema-first** API design approach:
+- OpenAPI 3.0 specification (`docs/openapi.yaml`) is the single source of truth
+- Go types and server interfaces are generated from the spec using `oapi-codegen`
+- API contract is validated at build time
+- Documentation is always accurate and never drifts from implementation
+
 ## Prerequisites
 
 1. **IoC Management Plane**: Start the backend and UI (required for CFN registration):
@@ -358,12 +366,53 @@ make build          # Build binary
 make run            # Build and run binary
 make run-mcp        # Build and run in MCP mode
 
+# Code Generation & Documentation
+make generate       # Generate Go code from OpenAPI spec
+make docs           # Alias for generate (schema-first approach)
+
 # Other
 make test           # Run tests
 make docker         # Build docker image
-make docs           # Generate swagger docs
 make clean          # Remove build artifacts
 ```
+
+## Schema-First Development Workflow
+
+### Modifying the API
+
+1. **Edit the OpenAPI spec**: `docs/openapi.yaml`
+   - Add/modify endpoints, request/response schemas
+   - Add validation rules (minLength, required, enums, etc.)
+   - Use operationId to control generated method names
+
+2. **Regenerate Go code**:
+   ```bash
+   make generate
+   ```
+   This creates:
+   - `pkg/generated/api/server.gen.go` - Types and ServerInterface
+
+3. **Implement handlers**: Update adapter methods in `pkg/app/openapi_handlers.go`
+
+4. **Test**: Run tests to ensure changes work
+   ```bash
+   make test
+   ```
+
+5. **View docs**: Start server and visit http://localhost:9002/docs/
+
+### Benefits of Schema-First
+
+- **Contract-driven development**: API contract is explicit and reviewed before implementation
+- **Automatic validation**: Requests are validated against the schema automatically
+- **No documentation drift**: Spec is the source of truth
+- **Breaking change detection**: Schema changes are explicit and reviewable
+- **Client SDK generation**: Generate client SDKs from the same spec
+
+### OpenAPI Spec Location
+
+- **Source**: `docs/openapi.yaml` (edit this file)
+- **Generated code**: `pkg/generated/api/*.gen.go` (do not edit, regenerate instead)
 
 ## Project Structure
 

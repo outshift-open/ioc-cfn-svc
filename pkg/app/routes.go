@@ -3,12 +3,11 @@ package app
 import (
 	"net/http"
 
+	api "github.com/cisco-eti/ioc-cfn-svc/pkg/generated/api"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
-
-// docsFS serves static files from the docs/ directory.
-var docsFS = http.FileServer(http.Dir("docs"))
 
 const (
 	apiPrefix      = "/api"
@@ -18,58 +17,61 @@ const (
 func (a *App) initializeRoutes() http.Handler {
 	log := getLogger()
 
-	rtr := easyhttp.NewRouter()
+	// Create chi router for OpenAPI-generated handlers
+	chiRouter := chi.NewRouter()
 
-	// custom middleware - log all incoming requests
-	rtr.Use(func(h http.Handler) http.Handler {
+	// Custom logging middleware for chi
+	chiRouter.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			log.Infof("incoming request: %s %s", r.Method, r.URL.Path)
-			h.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 		})
 	})
 
-	// standard diagnostic endpoints
+	// Mount OpenAPI-generated handlers
+	adapter := newOpenAPIAdapter(a)
+	chiHandler := api.HandlerFromMux(adapter, chiRouter)
+
+	// Create easyhttp router for internal endpoints and backward compatibility
+	rtr := easyhttp.NewRouter()
+
+	// Mount chi-generated public API routes (schema-first endpoints)
+	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/", chiHandler)
+	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/", chiHandler)
+	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/", chiHandler)
+
+	// NEW endpoints from main (not yet in OpenAPI spec - using easyhttp temporarily)
+	// TODO: Add these to docs/openapi.yaml and migrate to schema-first
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
+	rtr.Delete(internalPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}", a.deleteSharedMemoriesVectorStoreHandler)
+	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
+	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
+
+	// Internal diagnostic endpoints
 	rtr.Get(internalPrefix+"/diagnostics/health", a.diagnosticsHealthHandler)
 	rtr.Get(internalPrefix+"/diagnostics/info", a.diagnosticsInfoHandler)
 	rtr.Get(internalPrefix+"/diagnostics/metrics", a.diagnosticsMetricsHandler)
 	rtr.Get(internalPrefix+"/diagnostics/loggers", a.diagnosticsLoggersHandler)
 	rtr.Put(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
-	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
-	rtr.Delete(internalPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}", a.deleteSharedMemoriesVectorStoreHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
-
+	// Internal graph endpoints (not in OpenAPI spec)
 	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}", a.getNeighborsByIdHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids", a.fetchConceptsByIdsHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", a.fetchPathsByIdsHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", a.conceptSimilaritySearchHandler)
 
-	// semantic negotiation
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide", a.decideSemanticNegotiationHandler)
-
-	// remote agent memory operations
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", a.memoryOperationsHandler)
-
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
-	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
-
-	// audit events (internal API)
+	// Internal audit events
 	rtr.Get(internalPrefix+"/mgmt/audit", a.listAuditEventsHandler)
 	rtr.Get(internalPrefix+"/mgmt/audit/{eventId}", a.getAuditEventHandler)
 
-	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
-	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))
-	rtr.HandleHTTP("/docs/", httpSwagger.Handler(
-		httpSwagger.URL("/docs/swagger.json"),
-	))
+	// Serve OpenAPI spec
+	rtr.HandleHTTP("/openapi.yaml", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "docs/openapi.yaml")
+	}))
 
-	// Internal Swagger UI — points to swagger-internal.json (internal endpoints only)
-	rtr.HandleHTTP("/docs/internal/swagger-internal.json", http.StripPrefix("/docs/internal/", docsFS))
-	rtr.HandleHTTP("/docs/internal/", httpSwagger.Handler(
-		httpSwagger.URL("/docs/internal/swagger-internal.json"),
+	// Swagger UI (schema-first)
+	rtr.HandleHTTP("/docs/", httpSwagger.Handler(
+		httpSwagger.URL("/openapi.yaml"),
 	))
 
 	return rtr

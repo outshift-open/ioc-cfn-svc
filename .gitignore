@@ -47,3 +47,6 @@ temp/
 *.tgz
 
 ioc-cfn-svc.bin
+
+# Generated code
+pkg/generated/api/*.gen.go

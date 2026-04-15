@@ -49,7 +49,6 @@ cover:
 
 .PHONY: lint
 lint:
-	swag fmt
 	go fmt ./...
 	golangci-lint run -v
 
@@ -57,10 +56,25 @@ lint:
 install-swag:
 	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
 
+.PHONY: install-oapi-codegen
+install-oapi-codegen:
+	@which oapi-codegen > /dev/null || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
+.PHONY: generate
+generate: install-oapi-codegen
+	@mkdir -p pkg/generated/api
+	oapi-codegen -generate types,chi-server -package api -o pkg/generated/api/server.gen.go docs/openapi.yaml
+
 .PHONY: docs
-docs: install-swag
+docs: generate
+	@echo "✓ OpenAPI documentation generated from schema-first approach (docs/openapi.yaml)"
+	@echo "  View at: http://localhost:9002/docs/"
+
+.PHONY: docs-legacy
+docs-legacy: install-swag
+	@echo "Generating legacy swagger docs (code-first)..."
 	swag init --parseDependency --parseInternal --dir .
-	python3 scripts/split_swagger.py
+	@if [ -f scripts/split_swagger.py ]; then python3 scripts/split_swagger.py; fi
 
 .PHONY: run
 run: build ## Build and run binary (loads .env via godotenv)
