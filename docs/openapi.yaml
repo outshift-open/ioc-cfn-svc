@@ -20,6 +20,50 @@ tags:
     description: Proxy for remote memory provider operations
 
 paths:
+  /api/workspaces/{workspaceId}/shared-memories/vector-store:
+    post:
+      summary: Onboard shared memory vector store
+      description: |-
+        Creates a vector store for shared memories within a workspace.
+        This initializes the vector database storage for knowledge graph embeddings.
+      operationId: onboardVectorStore
+      tags:
+        - shared-memories
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        description: Optional onboarding request with metadata
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardVectorStoreRequest'
+      responses:
+        '201':
+          description: Vector store successfully onboarded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardVectorStoreResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
     post:
       summary: Create or update shared memories
@@ -337,6 +381,34 @@ components:
       description: Error response with key-value pairs providing error details
 
     # Shared Memory schemas
+    OnboardVectorStoreRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: ID of the request, optional. If not provided, a random UUID is used to represent the request
+        header:
+          $ref: '#/components/schemas/Header'
+          description: Header(s) of the request, optional
+
+    OnboardVectorStoreResponse:
+      type: object
+      properties:
+        response_id:
+          type: string
+          description: ID of the response, this gets populated from request_id
+        status:
+          type: string
+          description: Status of the request
+        message:
+          type: string
+          description: Optional message providing additional information
+        store_id:
+          type: string
+          description: ID of the vector store
+      required:
+        - status
+
     Header:
       type: object
       properties:

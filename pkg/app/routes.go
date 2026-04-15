@@ -39,10 +39,10 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/", chiHandler)
 	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/", chiHandler)
 	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/", chiHandler)
+	rtr.HandleHTTP(apiPrefix+"/workspaces/{workspaceId}/shared-memories/", chiHandler)
 
 	// NEW endpoints from main (not yet in OpenAPI spec - using easyhttp temporarily)
 	// TODO: Add these to docs/openapi.yaml and migrate to schema-first
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
 	rtr.Delete(internalPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}", a.deleteSharedMemoriesVectorStoreHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)

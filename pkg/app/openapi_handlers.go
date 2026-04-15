@@ -106,6 +106,43 @@ func (o *openapiAdapter) FetchSharedMemories(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// OnboardVectorStore implements POST /api/workspaces/{workspaceId}/shared-memories/vector-store
+func (o *openapiAdapter) OnboardVectorStore(w http.ResponseWriter, r *http.Request, workspaceId string) {
+	log := getLogger()
+	ctx := r.Context()
+
+	log.Infof("Onboarding vector store | workspace=%s", workspaceId)
+
+	// Decode request body (optional)
+	var reqPayload api.OnboardVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			respondWithError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+	}
+
+	// Transform to internal DTO
+	internalReq := transformToInternalOnboardRequest(&reqPayload)
+
+	// Recreate request with payload in body
+	payloadBytes, _ := json.Marshal(internalReq)
+	newReq, _ := http.NewRequestWithContext(ctx, r.Method, r.URL.String(), bytes.NewReader(payloadBytes))
+	newReq.Header = r.Header.Clone()
+	newReq.SetPathValue("workspaceId", workspaceId)
+
+	// Call existing handler
+	status, err := o.app.onboardSharedMemoriesVectorStoreHandler(w, newReq)
+	if err != nil {
+		return
+	}
+
+	if status != http.StatusCreated && status != http.StatusOK {
+		return
+	}
+}
+
 // MemoryOperations implements POST /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations
 func (o *openapiAdapter) MemoryOperations(w http.ResponseWriter, r *http.Request, workspaceId string, masId string, agentId string) {
 	log := getLogger()
@@ -252,6 +289,15 @@ func transformToInternalQueryRequest(req *api.QueryRequest) *sharedmemory.QueryR
 
 	if req.AdditionalContext != nil {
 		internal.AdditionalContext = *req.AdditionalContext
+	}
+
+	return internal
+}
+
+func transformToInternalOnboardRequest(req *api.OnboardVectorStoreRequest) *sharedmemory.OnboardVectorStoreRequest {
+	internal := &sharedmemory.OnboardVectorStoreRequest{
+		RequestId: req.RequestId,
+		Header:    transformHeader(req.Header),
 	}
 
 	return internal
