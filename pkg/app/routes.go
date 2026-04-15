@@ -67,7 +67,7 @@ func (a *App) initializeRoutes() http.Handler {
 	))
 
 	// Internal Swagger UI — points to swagger-internal.json (internal endpoints only)
-	rtr.HandleHTTP("/docs/internal/swagger-internal.json", http.StripPrefix("/docs/internal/", http.FileServer(http.Dir("docs"))))
+	rtr.HandleHTTP("/docs/internal/swagger-internal.json", http.StripPrefix("/docs/internal/", docsFS))
 	rtr.HandleHTTP("/docs/internal/", httpSwagger.Handler(
 		httpSwagger.URL("/docs/internal/swagger-internal.json"),
 	))
