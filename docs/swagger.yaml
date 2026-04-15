@@ -37,6 +37,56 @@ definitions:
           - "openclaw": Data is an opaque JSON payload
         type: string
     type: object
+  cognitionagents.RequestType:
+    enum:
+    - KNOWLEDGE_VECTORS_UPSERT
+    - KNOWLEDGE_VECTORS_QUERY
+    type: string
+    x-enum-varnames:
+    - ReqTypeKnowledgeVectorsUpsert
+    - ReqTypeKnowledgeVectorsQuery
+  cognitionagents.SharedMemoryVectorsRequest:
+    properties:
+      header:
+        $ref: '#/definitions/common.Header'
+      request_body:
+        items:
+          type: integer
+        type: array
+      request_type:
+        $ref: '#/definitions/cognitionagents.RequestType'
+    type: object
+  cognitionagents.SharedMemoryVectorsResponse:
+    properties:
+      error:
+        $ref: '#/definitions/common.ErrorDetail'
+      header:
+        $ref: '#/definitions/common.Header'
+      results:
+        items:
+          type: integer
+        type: array
+    type: object
+  common.ErrorDetail:
+    properties:
+      detail:
+        additionalProperties: true
+        type: object
+      message:
+        type: string
+    type: object
+  common.Header:
+    properties:
+      agent_id:
+        description: Optional
+        type: string
+      mas_id:
+        description: Mandatory
+        type: string
+      workspace_id:
+        description: Mandatory
+        type: string
+    type: object
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -182,10 +232,56 @@ definitions:
         description: Status of the request
         type: string
     type: object
+  sharedmemory.DeleteVectorStoreRequest:
+    properties:
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, optional.
+      request_id:
+        description: |-
+          ID of the request, optional.
+          If not provided, a random UUID is used to represent the request.
+        type: string
+    type: object
+  sharedmemory.DeleteVectorStoreResponse:
+    properties:
+      message:
+        type: string
+      response_id:
+        type: string
+      status:
+        type: string
+      store_id:
+        type: string
+    type: object
   sharedmemory.Header:
     properties:
       agent_id:
         description: ID that represents the agent, optional for query operations
+        type: string
+    type: object
+  sharedmemory.OnboardVectorStoreRequest:
+    properties:
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, optional.
+      request_id:
+        description: |-
+          ID of the request, optional.
+          If not provided, a random UUID is used to represent the request.
+        type: string
+    type: object
+  sharedmemory.OnboardVectorStoreResponse:
+    properties:
+      message:
+        type: string
+      response_id:
+        type: string
+      status:
+        type: string
+      store_id:
         type: string
     type: object
   sharedmemory.QueryRequest:
@@ -235,6 +331,50 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the shared memory vector store.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Store ID
+        in: path
+        name: store_id
+        required: true
+        type: string
+      - description: Delete vector store request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.DeleteVectorStoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Vector Store successfully deleted
+          schema:
+            $ref: '#/definitions/sharedmemory.DeleteVectorStoreResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Deletes the shared memory vector store.
+      tags:
+      - shared-memories
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:
@@ -511,6 +651,45 @@ paths:
               type: string
             type: object
       summary: Fetch shared memories
+      tags:
+      - shared-memories
+  /api/workspaces/{workspaceId}/shared-memories/vector-store:
+    post:
+      consumes:
+      - application/json
+      description: Onboards the shared memory vector store.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Onboard vector store request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.OnboardVectorStoreRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Vector Store successfully onboarded
+          schema:
+            $ref: '#/definitions/sharedmemory.OnboardVectorStoreResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Onboards the shared memory vector store.
       tags:
       - shared-memories
 swagger: "2.0"

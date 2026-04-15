@@ -12,6 +12,36 @@ type Header struct {
 	AgentID *string `json:"agent_id,omitempty"`
 }
 
+type OnboardVectorStoreRequest struct {
+	// Header(s) of the request, optional.
+	Header *Header `json:"header,omitempty"`
+	// ID of the request, optional.
+	// If not provided, a random UUID is used to represent the request.
+	RequestId *string `json:"request_id,omitempty"`
+}
+
+type OnboardVectorStoreResponse struct {
+	ResponseID *string `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
+	Status     string  `json:"status" description:"Status of the request"`
+	Message    *string `json:"message,omitempty" description:"Optional message providing additional information"`
+	StoreId    *string `json:"store_id,omitempty" description:"ID of the vector store"`
+}
+
+type DeleteVectorStoreRequest struct {
+	// Header(s) of the request, optional.
+	Header *Header `json:"header,omitempty"`
+	// ID of the request, optional.
+	// If not provided, a random UUID is used to represent the request.
+	RequestId *string `json:"request_id,omitempty"`
+}
+
+type DeleteVectorStoreResponse struct {
+	ResponseID *string `json:"response_id,omitempty" description:"ID of the response, this gets populated from request_id"`
+	Status     string  `json:"status" description:"Status of the request"`
+	Message    *string `json:"message,omitempty" description:"Optional message providing additional information"`
+	StoreId    *string `json:"store_id,omitempty" description:"ID of the vector store"`
+}
+
 type CreateOrUpdateRequest struct {
 	// Header(s) of the request, optional
 	Header *Header `json:"header,omitempty"`

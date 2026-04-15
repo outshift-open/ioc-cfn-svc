@@ -90,7 +90,7 @@ type KnowledgeGraphStoreRequest struct {
 func NewKnowledgeGraphStoreRequest() *KnowledgeGraphStoreRequest {
 	return &KnowledgeGraphStoreRequest{
 		RequestID:    uuid.New().String(),
-		ForceReplace: false,
+		ForceReplace: true,
 	}
 }
 

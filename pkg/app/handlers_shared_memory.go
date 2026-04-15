@@ -899,3 +899,167 @@ func containsStr(slice []string, s string) bool {
 	}
 	return false
 }
+
+// onboardSharedMemoriesVectorStoreHandler godoc
+//
+// @Summary     Onboards the shared memory vector store.
+// @Description Onboards the shared memory vector store.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       body        body sharedmemory.OnboardVectorStoreRequest true "Onboard vector store request"
+//
+// @Success     201 {object} sharedmemory.OnboardVectorStoreResponse "Vector Store successfully onboarded"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/workspaces/{workspaceId}/shared-memories/vector-store [post]
+func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	// only workspace is used for vector store onboarding
+	workspaceID := eh.PathParam(r, "workspaceId")
+
+	log.Infof(
+		"onboarding shared memory store | workspace=%s",
+		workspaceID,
+	)
+
+	var reqPayload sharedmemory.OnboardVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardRequest{
+		RequestID: *requestId,
+		WkspID:    workspaceID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.OnboardKnowledgeVectorStore(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"OnboardKnowledgeVectorStore failed | workspace=%s err=%v",
+			workspaceID, err,
+		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"OnboardKnowledgeVectorStore response | workspace=%s response=%s",
+				workspaceID, string(responseJSON),
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to onboard knowledge vector store, error: %v", err)},
+		)
+	}
+
+	resp := &sharedmemory.OnboardVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &workspaceID,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusCreated, resp)
+}
+
+// deleteSharedMemoriesVectorStoreHandler godoc
+//
+// @Summary     Deletes the shared memory vector store.
+// @Description Deletes the shared memory vector store.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       store_id    path string true "Store ID"
+// @Param       body        body sharedmemory.DeleteVectorStoreRequest true "Delete vector store request"
+//
+// @Success     200 {object} sharedmemory.DeleteVectorStoreResponse "Vector Store successfully deleted"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id} [delete]
+func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	// Extract path parameters
+	workspaceID := eh.PathParam(r, "workspaceId")
+	storeID := eh.PathParam(r, "store_id")
+
+	log.Infof(
+		"deleting shared memory store | workspace=%s store_id=%s",
+		workspaceID, storeID,
+	)
+
+	var reqPayload sharedmemory.DeleteVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardDeleteRequest{
+		RequestID: *requestId,
+		WkspID:    workspaceID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.DeleteKnowledgeVectorStore(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"DeleteKnowledgeVectorStore failed | workspace=%s store_id=%s err=%v",
+			workspaceID, storeID, err,
+		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"DeleteKnowledgeVectorStore response | workspace=%s store_id=%s response=%s",
+				workspaceID, storeID, string(responseJSON),
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to delete knowledge vector store, error: %v", err)},
+		)
+	}
+
+	resp := &sharedmemory.DeleteVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &storeID,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, resp)
+}
