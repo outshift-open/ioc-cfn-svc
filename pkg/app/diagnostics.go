@@ -3,7 +3,9 @@ package app
 import (
 	"encoding/json"
 	"math"
+	"net"
 	"net/http"
+	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -27,39 +29,98 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 }
 
 // diagnosticsHealthHandler returns standard health response.
-// When ?dependencies=true is passed, it also probes downstream services and returns a more detailed check.
-// The basic check (no query param) is used by Docker health checks and returns basic service status. 
+// When ?dependencies=true is passed, it probes downstream services grouped by type,
+// populated from CfnConfig. The basic check (no query param) is used by Docker health checks.
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	if r.URL.Query().Get("dependencies") != "true" {
 		return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
 	}
 
-	probes := []struct {
-		name     string
-		url      string
-		critical bool
-	}{
-		{"management_plane", getEnvOrDefault("MGMT_URL", "http://localhost:9000") + "/api/internal/diagnostics/health", true},
-		{"knowledge_memory_svc", getEnvOrDefault("KNOWLEDGE_MEMORY_SVC_URL", "http://localhost:9003") + "/api/internal/diagnostics/health", true},
-		{"cognition_engine", getEnvOrDefault("COGNITION_ENGINE_SVC_URL", "http://localhost:9004") + "/api/internal/diagnostics/health", false},
+	// probe checks reachability via TCP dial — works for any service regardless
+	// of what health endpoint it exposes (including external providers like Mem0).
+	probe := func(rawURL string) bool {
+		if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+			rawURL = "http://" + rawURL
+		}
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return false
+		}
+		host := u.Host
+		if u.Port() == "" {
+			if u.Scheme == "https" {
+				host += ":443"
+			} else {
+				host += ":80"
+			}
+		}
+		conn, err := net.DialTimeout("tcp", host, 3*time.Second)
+		if err != nil {
+			return false
+		}
+		conn.Close()
+		return true
 	}
 
-	httpClient := &http.Client{Timeout: 3 * time.Second}
-	checks := make(map[string]bool, len(probes))
+	cfnConfigMutex.RLock()
+	cfg := CfnConfig
+	cfnConfigMutex.RUnlock()
+
 	status := "UP"
 
-	for _, p := range probes {
-		healthy := false
-		if resp, err := httpClient.Get(p.url); err == nil {
-			resp.Body.Close()
-			healthy = resp.StatusCode < 500
-		}
-		checks[p.name] = healthy
-		if !healthy {
-			if p.critical {
+	mgmtHealthy := probe(getEnvOrDefault("MGMT_URL", "http://localhost:9000"))
+	if !mgmtHealthy {
+		status = "DOWN"
+	}
+
+	memoryProviders := map[string]bool{}
+	if providers, ok := cfg["memory_providers"].([]interface{}); ok {
+		for _, p := range providers {
+			provider, ok := p.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			name, _ := provider["name"].(string)
+			if name == "" {
+				continue
+			}
+			providerCfg, _ := provider["config"].(map[string]interface{})
+			url, _ := providerCfg["url"].(string)
+			healthy := url != "" && probe(url)
+			memoryProviders[name] = healthy
+			if !healthy && status != "DOWN" {
 				status = "DOWN"
-			} else if status != "DOWN" {
-				status = "DEGRADED"
+			}
+		}
+	}
+
+	cognitionEngines := map[string]bool{}
+	if workspaces, ok := cfg["workspaces"].([]interface{}); ok {
+		for _, w := range workspaces {
+			workspace, ok := w.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			engines, ok := workspace["cognitive_engines"].([]interface{})
+			if !ok {
+				continue
+			}
+			for _, e := range engines {
+				engine, ok := e.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				name, _ := engine["cognitive_engine_name"].(string)
+				if name == "" {
+					continue
+				}
+				engineCfg, _ := engine["config"].(map[string]interface{})
+				url, _ := engineCfg["url"].(string)
+				healthy := url != "" && probe(url)
+				cognitionEngines[name] = healthy
+				if !healthy && status == "UP" {
+					status = "DEGRADED"
+				}
 			}
 		}
 	}
@@ -71,7 +132,11 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 
 	return eh.RespondWithJSON(w, httpStatus, map[string]any{
 		"status": status,
-		"checks": checks,
+		"checks": map[string]any{
+			"management_plane":  mgmtHealthy,
+			"memory_providers":  memoryProviders,
+			"cognition_engines": cognitionEngines,
+		},
 	})
 }
 
