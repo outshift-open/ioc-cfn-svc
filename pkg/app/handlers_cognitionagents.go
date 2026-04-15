@@ -32,10 +32,10 @@ func (a *App) respondWithError(w http.ResponseWriter, status int, header common.
 // @Accept		json
 // @Produce		json
 // @Param		cfnId	    path		string									true	"CFN ID"
-// @Param		body	    body		cognitionagents.SharedMemoryVectorsRequest	    true	"Shared Memory Request"
-// @Success		201		    {object}	cognitionagents.SharedMemoryVectorsResponse
-// @Failure		400		    {object}	cognitionagents.SharedMemoryVectorsResponse
-// @Failure		500		    {object}	cognitionagents.SharedMemoryVectorsResponse
+// @Param		body	    body object	    true	"Shared Memory Request"
+// @Success		201		    {object} object
+// @Failure		400		    {object} object
+// @Failure		500		    {object} object
 func (a *App) cognitionAgentsSharedMemoriesVectorsUpsertHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
@@ -96,10 +96,10 @@ func (a *App) cognitionAgentsSharedMemoriesVectorsUpsertHandler(w http.ResponseW
 // @Accept		json
 // @Produce		json
 // @Param		cfnId	    path		string									true	"CFN ID"
-// @Param		body	    body		cognitionagents.SharedMemoryVectorsRequest	    true	"Shared Memory Request"
-// @Success		200		{object}	cognitionagents.SharedMemoryVectorsResponse
-// @Failure		400		    {object}	cognitionagents.SharedMemoryVectorsResponse
-// @Failure		500		    {object}	cognitionagents.SharedMemoryVectorsResponse
+// @Param		body	    body object	    true	"Shared Memory Request"
+// @Success		200		{object} object
+// @Failure		400		    {object} object
+// @Failure		500		    {object} object
 func (a *App) cognitionAgentsSharedMemoriesVectorsSearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	_ = r.PathValue("cfnId") // available for future routing/validation
 
