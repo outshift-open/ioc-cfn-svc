@@ -1,8 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "IoC Cognition Fabric Node service \u2014 shared memory routing and memory operations proxy.\n\nInternal endpoints only.",
-        "title": "CFN Service API \u2014 Internal",
+        "description": "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.\n\nInternal endpoints only.",
+        "title": "CFN Service API — Internal",
         "contact": {},
         "version": "1.0"
     },
