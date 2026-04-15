@@ -7,11 +7,13 @@ import (
 	"net/http"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 func jsonEscapeString(s string) string {
@@ -113,9 +115,9 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body object false "Create or update shared memories request"
+// @Param       body        body sharedmemory.CreateOrUpdateRequest false "Create or update shared memories request"
 //
-// @Success     201 {object} object "Shared memories successfully created or updated"
+// @Success     201 {object} sharedmemory.CreateOrUpdateResponse "Shared memories successfully created or updated"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
@@ -309,9 +311,9 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body object true "Query request"
+// @Param       body        body sharedmemory.QueryRequest true "Query request"
 //
-// @Success     200 {object} object  "Query executed successfully"
+// @Success     200 {object} sharedmemory.QueryResponse  "Query executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
@@ -374,12 +376,45 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		},
 	}
 
+	// TODO: operationID is currently a random UUID; replace with a consistent request ID
+	// (e.g. trace ID or correlation ID from the incoming request) once available.
+	operationID := uuid.New().String()
+
 	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
 	if err != nil {
 		log.Errorf(
 			"Failed to process evidence | workspace=%s mas=%s err=%v",
 			workspaceID, masID, err,
 		)
+
+		// Audit: shared memory query (failure)
+		errMsg := err.Error()
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		// Hacky: fetch shared_memory.id from summary API on first audit call.
+		// TODO: Remove once IDs are available directly in CfnConfig global map.
+		ensureAuditResourceIDs()
+		auditResID := SharedMemoryID
+		if auditResID == "" {
+			auditResID = masID
+		}
+		endAudit := &audit.Audit{
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMAS,
+			ResourceIdentifier:      masID,
+			AuditType:               audit.AuditTypeSharedMemoryOperation,
+			AuditResourceIdentifier: auditResID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create audit event: %v", auditErr)
+		}
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
@@ -403,6 +438,33 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			"Insufficient evidence to answer user intent | workspace=%s mas=%s",
 			workspaceID, masID,
 		)
+
+		// Audit: shared memory query (insufficient evidence)
+		errMsg := "Insufficient evidence to answer provided user intent"
+		endAuditInfo, _ := json.Marshal(map[string]string{
+			"status": "FAILED",
+			"error":  errMsg,
+		})
+		ensureAuditResourceIDs()
+		auditResID := SharedMemoryID
+		if auditResID == "" {
+			auditResID = masID
+		}
+		endAudit := &audit.Audit{
+			OperationID:             &operationID,
+			ResourceType:            audit.ResourceTypeMAS,
+			ResourceIdentifier:      masID,
+			AuditType:               audit.AuditTypeSharedMemoryOperation,
+			AuditResourceIdentifier: auditResID,
+			AuditInformation:        datatypes.JSON(endAuditInfo),
+			AuditExtraInformation:   &errMsg,
+			CreatedBy:               uuid.Nil,
+			LastModifiedBy:          uuid.Nil,
+		}
+		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+			log.Errorf("failed to create audit event: %v", auditErr)
+		}
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusNotFound,
@@ -420,10 +482,198 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		message = "evidence processed"
 	}
 
+	// Audit: shared memory query (success)
+	endAuditInfo, _ := json.Marshal(map[string]string{
+		"status": "SUCCESS",
+	})
+	// Hacky: fetch shared_memory.id from summary API on first audit call.
+	// TODO: Remove once IDs are available directly in CfnConfig global map.
+	ensureAuditResourceIDs()
+	successAuditResID := SharedMemoryID
+	if successAuditResID == "" {
+		successAuditResID = masID
+	}
+	endAudit := &audit.Audit{
+		OperationID:             &operationID,
+		ResourceType:            audit.ResourceTypeMAS,
+		ResourceIdentifier:      masID,
+		AuditType:               audit.AuditTypeSharedMemoryOperation,
+		AuditResourceIdentifier: successAuditResID,
+		AuditInformation:        datatypes.JSON(endAuditInfo),
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
+		log.Errorf("failed to create audit event: %v", auditErr)
+	}
+
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
 	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.QueryResponse{
 		ResponseID: requestId,
 		Message:    common.StrToPtr(message),
 	})
+}
+
+// onboardSharedMemoriesVectorStoreHandler godoc
+//
+// @Summary     Onboards the shared memory vector store.
+// @Description Onboards the shared memory vector store.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       body        body object true "Onboard vector store request"
+//
+// @Success     201 {object} object "Vector Store successfully onboarded"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/workspaces/{workspaceId}/shared-memories/vector-store [post]
+func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	// only workspace is used for vector store onboarding
+	workspaceID := eh.PathParam(r, "workspaceId")
+
+	log.Infof(
+		"onboarding shared memory store | workspace=%s",
+		workspaceID,
+	)
+
+	var reqPayload sharedmemory.OnboardVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardRequest{
+		RequestID: *requestId,
+		WkspID:    workspaceID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.OnboardKnowledgeVectorStore(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"OnboardKnowledgeVectorStore failed | workspace=%s err=%v",
+			workspaceID, err,
+		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"OnboardKnowledgeVectorStore response | workspace=%s response=%s",
+				workspaceID, string(responseJSON),
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to onboard knowledge vector store, error: %v", err)},
+		)
+	}
+
+	resp := &sharedmemory.OnboardVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &workspaceID,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusCreated, resp)
+}
+
+// deleteSharedMemoriesVectorStoreHandler godoc
+//
+// @Summary     Deletes the shared memory vector store.
+// @Description Deletes the shared memory vector store.
+//
+// @Tags        shared-memories
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       store_id    path string true "Store ID"
+// @Param       body        body object true "Delete vector store request"
+//
+// @Success     200 {object} object "Vector Store successfully deleted"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id} [delete]
+func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	storeID := eh.PathParam(r, "store_id")
+
+	log.Infof(
+		"deleting shared memory store | workspace=%s store_id=%s",
+		workspaceID, storeID,
+	)
+
+	var reqPayload sharedmemory.DeleteVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardDeleteRequest{
+		RequestID: *requestId,
+		WkspID:    workspaceID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.DeleteKnowledgeVectorStore(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"DeleteKnowledgeVectorStore failed | workspace=%s store_id=%s err=%v",
+			workspaceID, storeID, err,
+		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"DeleteKnowledgeVectorStore response | workspace=%s store_id=%s response=%s",
+				workspaceID, storeID, string(responseJSON),
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to delete knowledge vector store, error: %v", err)},
+		)
+	}
+
+	resp := &sharedmemory.DeleteVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &storeID,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }

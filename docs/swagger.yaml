@@ -64,6 +64,195 @@ definitions:
       score:
         type: number
     type: object
+  cognitionagentclient.ExtractionPayload:
+    properties:
+      data:
+        description: |-
+          Data contains the extraction payload and its structure depends on Metadata.Format.
+
+          Supported formats: "observe-sdk-otel" and "openclaw
+
+          1. format = "observe-sdk-otel"
+             - Data MUST be a JSON array of ExtractionDataRecord objects.
+             - Example:
+          [
+            { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }
+          ]
+
+          2. format = "openclaw"
+             - Data is an opaque JSON payload.
+             - The structure is not interpreted or validated by this service and is processed as-is.
+
+          Clients MUST ensure the Data field matches the structure required by the specified Metadata.Format.
+        type: object
+      metadata:
+        allOf:
+        - $ref: '#/definitions/cognitionagentclient.ExtractionPayloadMetadata'
+        description: Metadata describes the format and interpretation of the payload.
+    type: object
+  cognitionagentclient.ExtractionPayloadMetadata:
+    properties:
+      format:
+        description: |-
+          Format specifies how the Data field should be interpreted.
+
+          Supported values:
+          - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+          - "openclaw": Data is an opaque JSON payload
+        type: string
+    type: object
+  semanticnegotiation.Agent:
+    properties:
+      id:
+        description: ID is the unique agent identifier.
+        type: string
+      name:
+        description: Name is the human-readable agent name.
+        type: string
+    type: object
+  semanticnegotiation.AgentReply:
+    properties:
+      action:
+        description: |-
+          Action is the agent action.
+          Allowed values: "accept", "reject", "counter_offer"
+        type: string
+      agent_id:
+        description: AgentID is the agent identifier (must match one of the initiated
+          agents).
+        type: string
+      offer:
+        additionalProperties: true
+        description: |-
+          Offer is an optional structured offer payload.
+          Required when Action is "counter_offer".
+        type: object
+    type: object
+  semanticnegotiation.DecideRequest:
+    properties:
+      agent_replies:
+        description: AgentReplies are the replies produced by agents since the last
+          step.
+        items:
+          $ref: '#/definitions/semanticnegotiation.AgentReply'
+        type: array
+      session_id:
+        description: SessionID is the session identifier previously provided to the
+          start endpoint.
+        type: string
+    type: object
+  semanticnegotiation.Response:
+    properties:
+      message:
+        description: Message provides additional information about the negotiation
+          state.
+        type: string
+      result:
+        additionalProperties: true
+        description: |-
+          Result contains the pipeline execution result.
+          The structure depends on the semantic negotiation library implementation.
+        type: object
+      status:
+        description: Status indicates the result of the negotiation step.
+        type: string
+    type: object
+  semanticnegotiation.StartRequest:
+    properties:
+      agents:
+        description: Agents is the list of participating agents.
+        items:
+          $ref: '#/definitions/semanticnegotiation.Agent'
+        type: array
+      content_text:
+        description: ContentText is the negotiation prompt/context used to initialize
+          the session.
+        type: string
+      n_steps:
+        description: |-
+          NSteps is the maximum number of negotiation steps.
+          If omitted, defaults to 20.
+        type: integer
+      session_id:
+        description: |-
+          SessionID is the client-provided session identifier.
+          Currently assumed globally unique (not scoped by workspace/mas).
+        type: string
+    type: object
+  sharedmemory.CreateOrUpdateRequest:
+    properties:
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, optional
+      payload:
+        allOf:
+        - $ref: '#/definitions/cognitionagentclient.ExtractionPayload'
+        description: Payload contains the extraction metadata and the raw data to
+          be processed. The structure of the payload data is defined by Payload.Metadata.Format
+      request_id:
+        description: ID of the request, optional. If not provided, a random UUID is
+          used to represent the request
+        type: string
+    type: object
+  sharedmemory.CreateOrUpdateResponse:
+    properties:
+      message:
+        description: Optional message providing additional information
+        type: string
+      response_id:
+        description: ID of the response, this gets populated from request_id
+        type: string
+      status:
+        description: Status of the request
+        type: string
+    type: object
+  sharedmemory.Header:
+    properties:
+      agent_id:
+        description: ID that represents the agent, optional for query operations
+        type: string
+    type: object
+  sharedmemory.QueryRequest:
+    properties:
+      additional_context:
+        description: AdditionalContext provides optional contextual information to
+          refine query execution. This may include prior conversation state, structured
+          hints, or domain-specific metadata. The contents are treated as opaque by
+          the API and interpreted by downstream components. Each element must be a
+          structured object
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      header:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.Header'
+        description: Header(s) of the request, required (must include agent_id)
+      intent:
+        description: User intent or natural-language query describing what information
+          is being requested. This field is required and is the primary signal used
+          to construct and execute the query
+        type: string
+      request_id:
+        description: ID of the request, optional. If not provided, a random UUID is
+          used to represent the request
+        type: string
+      search_strategy:
+        description: 'Search strategy to be used when executing the query. Currently
+          supported values: "semantic_graph_traversal". If not specified, defaults
+          to "semantic_graph_traversal"'
+        type: string
+    type: object
+  sharedmemory.QueryResponse:
+    properties:
+      message:
+        description: Message provides detailed information from the query result
+        type: string
+      response_id:
+        description: ID of the response, this gets populated from request_id
+        type: string
+    type: object
 info:
   contact: {}
   description: IoC Cognition Fabric Node service — shared memory routing and memory
@@ -245,6 +434,50 @@ paths:
       summary: Fetch paths between two concepts
       tags:
       - Graph Store
+  /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the shared memory vector store.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Store ID
+        in: path
+        name: store_id
+        required: true
+        type: string
+      - description: Delete vector store request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Vector Store successfully deleted
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Deletes the shared memory vector store.
+      tags:
+      - shared-memories
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:
@@ -360,14 +593,14 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/semanticnegotiation.DecideRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Negotiation step executed successfully
           schema:
-            type: object
+            $ref: '#/definitions/semanticnegotiation.Response'
         "400":
           description: Invalid request
           schema:
@@ -410,14 +643,14 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/semanticnegotiation.StartRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Negotiation session started successfully
           schema:
-            type: object
+            $ref: '#/definitions/semanticnegotiation.Response'
         "400":
           description: Invalid request
           schema:
@@ -455,14 +688,14 @@ paths:
         in: body
         name: body
         schema:
-          type: object
+          $ref: '#/definitions/sharedmemory.CreateOrUpdateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Shared memories successfully created or updated
           schema:
-            type: object
+            $ref: '#/definitions/sharedmemory.CreateOrUpdateResponse'
         "400":
           description: Invalid request
           schema:
@@ -500,12 +733,51 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/sharedmemory.QueryRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Query executed successfully
+          schema:
+            $ref: '#/definitions/sharedmemory.QueryResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Fetch shared memories
+      tags:
+      - shared-memories
+  /api/workspaces/{workspaceId}/shared-memories/vector-store:
+    post:
+      consumes:
+      - application/json
+      description: Onboards the shared memory vector store.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Onboard vector store request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Vector Store successfully onboarded
           schema:
             type: object
         "400":
@@ -520,7 +792,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Fetch shared memories
+      summary: Onboards the shared memory vector store.
       tags:
       - shared-memories
 swagger: "2.0"

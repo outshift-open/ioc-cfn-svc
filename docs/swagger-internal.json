@@ -263,6 +263,72 @@
                     }
                 }
             }
+        },
+        "/api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}": {
+            "delete": {
+                "description": "Deletes the shared memory vector store.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shared-memories"
+                ],
+                "summary": "Deletes the shared memory vector store.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Store ID",
+                        "name": "store_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Delete vector store request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vector Store successfully deleted",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -362,6 +428,218 @@
                 },
                 "score": {
                     "type": "number"
+                }
+            }
+        },
+        "cognitionagentclient.ExtractionPayload": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\" and \"openclaw\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
+                    "type": "object"
+                },
+                "metadata": {
+                    "description": "Metadata describes the format and interpretation of the payload.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cognitionagentclient.ExtractionPayloadMetadata"
+                        }
+                    ]
+                }
+            }
+        },
+        "cognitionagentclient.ExtractionPayloadMetadata": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.Agent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID is the unique agent identifier.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the human-readable agent name.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.AgentReply": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "Action is the agent action.\nAllowed values: \"accept\", \"reject\", \"counter_offer\"",
+                    "type": "string"
+                },
+                "agent_id": {
+                    "description": "AgentID is the agent identifier (must match one of the initiated agents).",
+                    "type": "string"
+                },
+                "offer": {
+                    "description": "Offer is an optional structured offer payload.\nRequired when Action is \"counter_offer\".",
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "semanticnegotiation.DecideRequest": {
+            "type": "object",
+            "properties": {
+                "agent_replies": {
+                    "description": "AgentReplies are the replies produced by agents since the last step.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.AgentReply"
+                    }
+                },
+                "session_id": {
+                    "description": "SessionID is the session identifier previously provided to the start endpoint.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.Response": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides additional information about the negotiation state.",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "Result contains the pipeline execution result.\nThe structure depends on the semantic negotiation library implementation.",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "status": {
+                    "description": "Status indicates the result of the negotiation step.",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.StartRequest": {
+            "type": "object",
+            "properties": {
+                "agents": {
+                    "description": "Agents is the list of participating agents.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.Agent"
+                    }
+                },
+                "content_text": {
+                    "description": "ContentText is the negotiation prompt/context used to initialize the session.",
+                    "type": "string"
+                },
+                "n_steps": {
+                    "description": "NSteps is the maximum number of negotiation steps.\nIf omitted, defaults to 20.",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID is the client-provided session identifier.\nCurrently assumed globally unique (not scoped by workspace/mas).",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.CreateOrUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "description": "Header(s) of the request, optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.Header"
+                        }
+                    ]
+                },
+                "payload": {
+                    "description": "Payload contains the extraction metadata and the raw data to be processed. The structure of the payload data is defined by Payload.Metadata.Format",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cognitionagentclient.ExtractionPayload"
+                        }
+                    ]
+                },
+                "request_id": {
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.CreateOrUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Optional message providing additional information",
+                    "type": "string"
+                },
+                "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status of the request",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "ID that represents the agent, optional for query operations",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryRequest": {
+            "type": "object",
+            "properties": {
+                "additional_context": {
+                    "description": "AdditionalContext provides optional contextual information to refine query execution. This may include prior conversation state, structured hints, or domain-specific metadata. The contents are treated as opaque by the API and interpreted by downstream components. Each element must be a structured object",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                },
+                "header": {
+                    "description": "Header(s) of the request, required (must include agent_id)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.Header"
+                        }
+                    ]
+                },
+                "intent": {
+                    "description": "User intent or natural-language query describing what information is being requested. This field is required and is the primary signal used to construct and execute the query",
+                    "type": "string"
+                },
+                "request_id": {
+                    "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
+                    "type": "string"
+                },
+                "search_strategy": {
+                    "description": "Search strategy to be used when executing the query. Currently supported values: \"semantic_graph_traversal\". If not specified, defaults to \"semantic_graph_traversal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides detailed information from the query result",
+                    "type": "string"
+                },
+                "response_id": {
+                    "description": "ID of the response, this gets populated from request_id",
+                    "type": "string"
                 }
             }
         }

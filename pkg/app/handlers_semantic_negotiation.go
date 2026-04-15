@@ -21,9 +21,9 @@ import (
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body object true "Semantic negotiation start request"
+// @Param       body        body semanticnegotiation.StartRequest true "Semantic negotiation start request"
 //
-// @Success     200 {object} object "Negotiation session started successfully"
+// @Success     200 {object} semanticnegotiation.Response "Negotiation session started successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
@@ -120,9 +120,9 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body object true "Semantic negotiation decide request"
+// @Param       body        body semanticnegotiation.DecideRequest true "Semantic negotiation decide request"
 //
-// @Success     200 {object} object "Negotiation step executed successfully"
+// @Success     200 {object} semanticnegotiation.Response "Negotiation step executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     404 {object} map[string]string "Session not found"
 // @Failure     500 {object} map[string]string "Internal server error"
