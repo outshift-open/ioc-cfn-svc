@@ -92,9 +92,13 @@ func TestListAuditEventsHandler(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp []audit.Audit
+	var resp audit.AuditListResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Len(t, resp, 3)
+	assert.Len(t, resp.Data, 3)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+	assert.Equal(t, audit.DefaultPageSize(), resp.PageInfo.PageSize)
+	assert.Equal(t, 3, resp.PageInfo.PageCount)
+	assert.Equal(t, 3, resp.PageInfo.TotalElements)
 }
 
 func TestListAuditEventsHandler_WithFilters(t *testing.T) {
@@ -126,10 +130,10 @@ func TestListAuditEventsHandler_WithFilters(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp []audit.Audit
+	var resp audit.AuditListResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Len(t, resp, 1)
-	assert.Equal(t, audit.ResourceTypeMAS, resp[0].ResourceType)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, audit.ResourceTypeMAS, resp.Data[0].ResourceType)
 }
 
 func TestListAuditEventsHandler_WithPagination(t *testing.T) {
@@ -147,16 +151,20 @@ func TestListAuditEventsHandler_WithPagination(t *testing.T) {
 		require.NoError(t, app.db.CreateAuditEvent(e))
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?skip=0&limit=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?page=0&pageSize=2", nil)
 	rr := httptest.NewRecorder()
 
 	code, err := app.listAuditEventsHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp []audit.Audit
+	var resp audit.AuditListResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Len(t, resp, 2)
+	assert.Len(t, resp.Data, 2)
+	assert.Equal(t, 0, resp.PageInfo.Page)
+	assert.Equal(t, 2, resp.PageInfo.PageSize)
+	assert.Equal(t, 2, resp.PageInfo.PageCount)
+	assert.Equal(t, 5, resp.PageInfo.TotalElements)
 }
 
 func TestListAuditEventsHandler_WithFiltersAndPagination(t *testing.T) {
@@ -183,40 +191,54 @@ func TestListAuditEventsHandler_WithFiltersAndPagination(t *testing.T) {
 	}
 	require.NoError(t, app.db.CreateAuditEvent(e))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&skip=0&limit=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&page=0&pageSize=2", nil)
 	rr := httptest.NewRecorder()
 
 	code, err := app.listAuditEventsHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp []audit.Audit
+	var resp audit.AuditListResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Len(t, resp, 2)
-	for _, r := range resp {
+	assert.Len(t, resp.Data, 2)
+	assert.Equal(t, 3, resp.PageInfo.TotalElements)
+	for _, r := range resp.Data {
 		assert.Equal(t, audit.ResourceTypeMAS, r.ResourceType)
 		assert.Equal(t, audit.AuditTypeResourceCreated, r.AuditType)
 	}
 }
 
-func TestListAuditEventsHandler_InvalidSkip(t *testing.T) {
+func TestListAuditEventsHandler_PageSizeExceedsMax(t *testing.T) {
 	app := newTestApp()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?skip=abc", nil)
+	for i := 0; i < 3; i++ {
+		e := &audit.Audit{
+			ResourceType:            audit.ResourceTypeCognitionEngine,
+			ResourceIdentifier:      "ce-1",
+			AuditType:               audit.AuditTypeResourceCreated,
+			AuditResourceIdentifier: "ce-1",
+			CreatedBy:               uuid.New(),
+			LastModifiedBy:          uuid.New(),
+		}
+		require.NoError(t, app.db.CreateAuditEvent(e))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?pageSize=99999", nil)
 	rr := httptest.NewRecorder()
 
-	code, _ := app.listAuditEventsHandler(rr, req)
-	assert.Equal(t, http.StatusBadRequest, code)
+	code, err := app.listAuditEventsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, code)
 
-	var resp map[string]string
+	var resp audit.AuditListResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "invalid skip parameter")
+	assert.Equal(t, audit.MaxPageSize(), resp.PageInfo.PageSize)
 }
 
-func TestListAuditEventsHandler_InvalidLimit(t *testing.T) {
+func TestListAuditEventsHandler_InvalidPage(t *testing.T) {
 	app := newTestApp()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?limit=-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?page=abc", nil)
 	rr := httptest.NewRecorder()
 
 	code, _ := app.listAuditEventsHandler(rr, req)
@@ -224,7 +246,21 @@ func TestListAuditEventsHandler_InvalidLimit(t *testing.T) {
 
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "invalid limit parameter")
+	assert.Contains(t, resp["error"], "invalid page parameter")
+}
+
+func TestListAuditEventsHandler_InvalidPageSize(t *testing.T) {
+	app := newTestApp()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/mgmt/audit?pageSize=-1", nil)
+	rr := httptest.NewRecorder()
+
+	code, _ := app.listAuditEventsHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "invalid pageSize parameter")
 }
 
 func TestListAuditEventsHandler_InvalidResourceTypeFilter(t *testing.T) {

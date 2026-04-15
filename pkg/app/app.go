@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
@@ -139,6 +140,10 @@ type App struct {
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
 	cfg := config.Get()
 	log := getLogger()
+
+	// Apply pagination config from env/flags (falls back to built-in defaults).
+	audit.SetPaginationConfig(cfg.Pagination.DefaultPageSize, cfg.Pagination.MaxPageSize)
+	log.Infof("pagination config: defaultPageSize=%d, maxPageSize=%d", audit.DefaultPageSize(), audit.MaxPageSize())
 
 	var db client.Database
 	var s3 client.S3
