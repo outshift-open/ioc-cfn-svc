@@ -52,10 +52,6 @@ lint:
 	go fmt ./...
 	golangci-lint run -v
 
-.PHONY: install-swag
-install-swag:
-	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
-
 .PHONY: install-oapi-codegen
 install-oapi-codegen:
 	@which oapi-codegen > /dev/null || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
