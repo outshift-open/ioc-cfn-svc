@@ -32,7 +32,6 @@ func (o *openapiAdapter) CreateOrUpdateSharedMemories(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	log.Infof("Creating or updating shared memories | workspace=%s mas=%s", workspaceId, masId)
-
 	// Decode request body
 	var reqPayload api.CreateOrUpdateRequest
 	if r.Body != nil {
@@ -281,9 +280,9 @@ func transformToInternalCreateRequest(req *api.CreateOrUpdateRequest) *sharedmem
 
 func transformToInternalQueryRequest(req *api.QueryRequest) *sharedmemory.QueryRequest {
 	internal := &sharedmemory.QueryRequest{
-		Header:     transformHeader(&req.Header),
-		Intent:     &req.Intent,
-		RequestId:  req.RequestId,
+		Header:         transformHeader(&req.Header),
+		Intent:         &req.Intent,
+		RequestId:      req.RequestId,
 		SearchStrategy: req.SearchStrategy,
 	}
 

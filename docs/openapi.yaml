@@ -494,7 +494,6 @@ components:
           description: Optional message providing additional information
       required:
         - status
-        - response_id
 
     QueryRequest:
       type: object
@@ -543,9 +542,6 @@ components:
         message:
           type: string
           description: Message provides detailed information from the query result
-      required:
-        - response_id
-        - message
 
     # Memory Operations schemas
     MemoryOperationHeader:
@@ -719,5 +715,3 @@ components:
           description: |-
             Result contains the pipeline execution result.
             The structure depends on the semantic negotiation library implementation.
-      required:
-        - status
