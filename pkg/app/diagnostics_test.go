@@ -78,9 +78,6 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 	healthyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	unhealthyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	})
 
 	t.Run("all dependencies UP", func(t *testing.T) {
 		mgmt := httptest.NewServer(healthyHandler)
@@ -124,8 +121,8 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 	t.Run("critical memory provider DOWN returns DOWN and 500", func(t *testing.T) {
 		mgmt := httptest.NewServer(healthyHandler)
 		defer mgmt.Close()
-		mem := httptest.NewServer(unhealthyHandler)
-		defer mem.Close()
+		mem := httptest.NewServer(healthyHandler)
+		mem.Close() 
 		cog := httptest.NewServer(healthyHandler)
 		defer cog.Close()
 
@@ -165,8 +162,8 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 		defer mgmt.Close()
 		mem := httptest.NewServer(healthyHandler)
 		defer mem.Close()
-		cog := httptest.NewServer(unhealthyHandler)
-		defer cog.Close()
+		cog := httptest.NewServer(healthyHandler)
+		cog.Close() // closed immediately — TCP dial will fail
 
 		t.Setenv("MGMT_URL", mgmt.URL)
 		setCfnConfigForTest(t, map[string]any{
