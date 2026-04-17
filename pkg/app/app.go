@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
@@ -200,7 +201,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	rtr := a.initializeRoutes()
 	a.server = easyhttp.NewServer(a.Cfg.AppPort, rtr)
 
-	a.registerOnStartup()
+	//a.registerOnStartup()
 	return a, nil
 }
 
@@ -454,4 +455,10 @@ func (a *App) Stop() error {
 	log.Info("- closing connection to db")
 	err2 := a.db.Close()
 	return errors.Join(err1, err2)
+}
+
+// CreateOrUpdateSharedMemoriesCore implements the McpService interface.
+// This method provides access to the core business logic for creating or updating shared memories.
+func (a *App) CreateOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
+	return a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, req)
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -124,36 +125,22 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
-func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// createOrUpdateSharedMemoriesCore contains the core business logic for creating or updating shared memories.
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
 	log := getLogger()
-	ctx := r.Context()
-
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
 		"Creating or updating shared memories | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
 
-	var reqPayload sharedmemory.CreateOrUpdateRequest
-	if r.Body != nil {
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": "invalid JSON body"},
-			)
-		}
-	}
-
-	requestId := reqPayload.RequestId
+	requestId := req.RequestId
 	if requestId == nil {
 		requestId = common.StrToPtr(uuid.New().String())
 	}
 
-	extractionPayload := reqPayload.Payload
+	extractionPayload := req.Payload
 
 	extractionReq := &cognitionagentclient.ExtractionRequest{
 		Header: common.Header{
@@ -164,19 +151,18 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Payload:   extractionPayload,
 	}
 
-	if reqPayload.Header != nil && reqPayload.Header.AgentID != nil {
-		extractionReq.Header.AgentID = *reqPayload.Header.AgentID
+	if req.Header != nil && req.Header.AgentID != nil {
+		extractionReq.Header.AgentID = *req.Header.AgentID
 	}
 
-	extractionResp, err := a.cognitionAgentsClient.SendExtraction(r.Context(), extractionReq)
+	// DEBUG: Log the extraction request being sent
+	log.Infof("Sending extraction request to cognition agent: %+v", extractionReq)
+	log.Infof("Extraction request payload: %s", string(extractionReq.Payload.Data))
+
+	extractionResp, err := a.cognitionAgentsClient.SendExtraction(ctx, extractionReq)
 	if err != nil {
 		log.Errorf("failed to send extraction call, error: %s", err.Error())
-
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": "unable to perform knowledge extraction"},
-		)
+		return nil, fmt.Errorf("unable to perform knowledge extraction: %w", err)
 	}
 
 	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
@@ -187,6 +173,13 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		MasID:        &masID,
 		ForceReplace: true,
 		Records:      TransformExtractionResponseToRecords(extractionResp),
+	}
+
+	// DEBUG: Print the request being sent to Knowledge Memory Service
+	if reqJSON, err := json.MarshalIndent(memoryProviderReq, "", "  "); err == nil {
+		fmt.Printf("DEBUG: Sending request to Knowledge Memory Service:\n%s\n", string(reqJSON))
+	} else {
+		log.Errorf("DEBUG: Failed to marshal request for logging: %v", err)
 	}
 
 	// TODO: Revisit audit logging for createOrUpdateSharedMemoriesHandler later.
@@ -241,11 +234,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		// 	log.Errorf("failed to create end audit event: %v", auditErr)
 		// }
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to create or update shared memories, error: %v", err)},
-		)
+		return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
 	}
 
 	// // Audit: end of knowledge ingestion (success)
@@ -271,6 +260,39 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		ResponseID: knowledgeGraphResp.RequestID,
 		Status:     string(knowledgeGraphResp.Status),
 		Message:    knowledgeGraphResp.Message,
+	}
+
+	return resp, nil
+}
+
+// createOrUpdateSharedMemoriesHandler handles HTTP requests for creating or updating shared memories.
+// It parses the HTTP request and delegates to the core business logic function.
+func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var reqPayload sharedmemory.CreateOrUpdateRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	// Call core business logic
+	resp, err := a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, reqPayload)
+	if err != nil {
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
 	}
 
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
