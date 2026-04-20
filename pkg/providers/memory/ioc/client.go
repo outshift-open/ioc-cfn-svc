@@ -633,6 +633,29 @@ func (c *Client) SimilaritySearchConcepts(ctx context.Context, request *Knowledg
 	return &response, nil
 }
 
+// FetchKnowledgeGraph fetches all nodes and edges for a given MAS from the knowledge memory service.
+// Returns the raw response body to be passed through to callers.
+func (c *Client) FetchKnowledgeGraph(ctx context.Context, masID string) ([]byte, int, error) {
+	log := getLogger()
+
+	url := fmt.Sprintf("%s/api/internal/knowledge/graphs?mas_id=%s", c.baseURL, masID)
+	resp, err := c.httpClient.Get(ctx, url, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to call knowledge graph endpoint: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Infof("GET %s completed with status %s", url, resp.Status)
+	log.Debugf("Response body: %s", string(body))
+
+	return body, resp.StatusCode, nil
+}
+
 // stringPtr is a helper function to get a pointer to a string
 func stringPtr(s string) *string {
 	return &s
