@@ -474,6 +474,45 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/internal/mgmt/knowledge-graph:
+    get:
+      description: Returns all nodes and edges in the knowledge graph for the given
+        MAS.
+      parameters:
+      - description: Multi-Agentic System ID
+        in: query
+        name: mas_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Knowledge graph data
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing or invalid mas_id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Graph not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Fetch knowledge graph for a MAS
+      tags:
+      - knowledge-graph
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search:
     post:
       consumes:
