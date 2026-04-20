@@ -33,6 +33,7 @@ const (
 	AuditTypeMemoryOperation       = "MEMORY_OPERATION"
 	AuditTypeSharedMemoryOperation = "SHARED_MEMORY_OPERATION"
 	AuditTypeAgentMemoryOperation  = "AGENT_MEMORY_OPERATION"
+	AuditTypeSemanticNegotiation   = "SEMANTIC_NEGOTIATION"
 )
 
 var validResourceTypes = map[string]bool{
@@ -56,6 +57,7 @@ var validAuditTypes = map[string]bool{
 	AuditTypeMemoryOperation:       true,
 	AuditTypeSharedMemoryOperation: true,
 	AuditTypeAgentMemoryOperation:  true,
+	AuditTypeSemanticNegotiation:   true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.
