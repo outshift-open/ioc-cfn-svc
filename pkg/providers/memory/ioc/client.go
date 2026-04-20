@@ -638,8 +638,20 @@ func (c *Client) SimilaritySearchConcepts(ctx context.Context, request *Knowledg
 func (c *Client) FetchKnowledgeGraph(ctx context.Context, masID string) ([]byte, int, error) {
 	log := getLogger()
 
-	url := fmt.Sprintf("%s/api/internal/knowledge/graphs?mas_id=%s", c.baseURL, masID)
-	resp, err := c.httpClient.Get(ctx, url, nil)
+	url := fmt.Sprintf("%s/api/knowledge/graphs/query", c.baseURL)
+	payload := map[string]interface{}{
+		"mas_id": masID,
+		"query_criteria": map[string]string{
+			"query_type": "full_graph",
+		},
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	headers := map[string]string{"Content-Type": "application/json"}
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to call knowledge graph endpoint: %w", err)
 	}
@@ -650,7 +662,7 @@ func (c *Client) FetchKnowledgeGraph(ctx context.Context, masID string) ([]byte,
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	log.Infof("GET %s completed with status %s", url, resp.Status)
+	log.Infof("POST %s completed with status %s", url, resp.Status)
 	log.Debugf("Response body: %s", string(body))
 
 	return body, resp.StatusCode, nil
