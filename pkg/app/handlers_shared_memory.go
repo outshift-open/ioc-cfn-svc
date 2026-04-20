@@ -1103,15 +1103,3 @@ func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *h
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
-
-// CreateOrUpdateSharedMemoriesCore implements the McpService interface.
-// This method provides access to the core business logic for creating or updating shared memories.
-func (a *App) CreateOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
-	return a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, req)
-}
-
-// FetchSharedMemoriesCore implements the McpService interface.
-// This method provides access to the core business logic for fetching shared memories.
-func (a *App) FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
-	return a.fetchSharedMemoriesCore(ctx, workspaceID, masID, req)
-}
