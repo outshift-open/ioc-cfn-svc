@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/internal/mgmt/knowledge-graph": {
+        "/api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph": {
             "get": {
                 "description": "Returns all nodes and edges in the knowledge graph for the given MAS.",
                 "produces": [
@@ -28,9 +28,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Multi-Agentic System ID",
-                        "name": "mas_id",
-                        "in": "query",
+                        "name": "masId",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -42,17 +49,8 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "400": {
-                        "description": "Missing or invalid mas_id",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
                     "404": {
-                        "description": "Graph not found",
+                        "description": "Workspace or MAS not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

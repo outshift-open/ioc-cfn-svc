@@ -474,14 +474,19 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
-  /api/internal/mgmt/knowledge-graph:
+  /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph:
     get:
       description: Returns all nodes and edges in the knowledge graph for the given
         MAS.
       parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
       - description: Multi-Agentic System ID
-        in: query
-        name: mas_id
+        in: path
+        name: masId
         required: true
         type: string
       produces:
@@ -492,14 +497,8 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "400":
-          description: Missing or invalid mas_id
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "404":
-          description: Graph not found
+          description: Workspace or MAS not found
           schema:
             additionalProperties:
               type: string
