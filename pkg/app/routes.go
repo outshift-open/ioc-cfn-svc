@@ -35,16 +35,21 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(internalPrefix+"/diagnostics/loggers", a.diagnosticsLoggersHandler)
 	rtr.Put(internalPrefix+"/diagnostics/loggers", a.diagnosticsSetLoggersHandler)
 
-	// shared memories
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
+	// shared memories (consumed by mgmt-plane-svc)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store", a.onboardSharedMemoriesVectorStoreHandler)
 	rtr.Delete(internalPrefix+"/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}", a.deleteSharedMemoriesVectorStoreHandler)
+
+	// shared memories (northbound APIs, consumed by MAS clients)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories", a.createOrUpdateSharedMemoriesHandler)
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query", a.fetchSharedMemoriesHandler)
 
+	// graph DB APIs (eastbound APIs, consumed by Evidence Gathering engine)
 	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}", a.getNeighborsByIdHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids", a.fetchConceptsByIdsHandler)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", a.fetchPathsByIdsHandler)
+	// similarity search (eastbound APIs, consumed by Evidence Gathering engine)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", a.conceptSimilaritySearchHandler)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/vectors/similarity-search", a.vectorSimilaritySearchHandler)
 
 	// semantic negotiation
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)
