@@ -4,6 +4,16 @@ Go microservice with HTTP server and mock database.
 
 **Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
 
+## Public API Contracts
+
+This service provides **versioned OpenAPI specifications** for external SDK generation:
+- Specifications are located in `docs/public-api/`
+- Updated when cutting SDK releases (not on every commit)
+- Go implementation is the source of truth
+- See [docs/public-api/README.md](docs/public-api/README.md) for SDK release workflow
+
+**Current version:** `public-api-v1.0.yaml`
+
 ## Prerequisites
 
 1. **IoC Management Plane**: Start the backend and UI (required for CFN registration):
@@ -194,11 +204,14 @@ Response: `204 No Content` on success
 
 Audit events are created internally by handlers (e.g. shared memory, memory operations) — there are no create or delete HTTP endpoints. The API is read-only.
 
-**GET /api/internal/mgmt/audit** - List audit events (with optional filters)
+**GET /api/internal/mgmt/audit** - List audit events (with optional filters and pagination)
 
 ```bash
-# List all
+# List all (defaults: page=0, pageSize=20)
 curl http://localhost:9002/api/internal/mgmt/audit
+
+# With pagination
+curl "http://localhost:9002/api/internal/mgmt/audit?page=0&pageSize=50"
 
 # Filter by resource_type
 curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=COGNITION_ENGINE"
@@ -208,31 +221,44 @@ curl "http://localhost:9002/api/internal/mgmt/audit?audit_type=RESOURCE_CREATED"
 
 # Filter by both
 curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=KNOWLEDGE_QUERY"
+
+# Both filters + pagination
+curl "http://localhost:9002/api/internal/mgmt/audit?resource_type=MAS&audit_type=RESOURCE_CREATED&page=0&pageSize=50"
 ```
 
 **Query Parameters:**
-| Param | Required | Description |
-|-------|----------|-------------|
-| `resource_type` | No | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
-| `audit_type` | No | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
+| Param | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `page` | No | `0` | 0-based page number (must be `>= 0`) |
+| `pageSize` | No | `20` | Records per page (must be `>= 1`, capped at `MAX_PAGE_SIZE`, default `100`) |
+| `resource_type` | No | *(none)* | Filter by resource type (e.g. `COGNITION_ENGINE`, `MAS`, `MAS-AGENT`) |
+| `audit_type` | No | *(none)* | Filter by audit type (e.g. `RESOURCE_CREATED`, `SHARED_MEMORY_OPERATION`) |
 
 **Response:** `200 OK`
 ```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "operation_id": "op-12345",
-    "resource_type": "COGNITION_ENGINE",
-    "resource_identifier": "engine-123",
-    "audit_type": "RESOURCE_CREATED",
-    "audit_resource_identifier": "cognitive-engine-456",
-    "audit_information": {"config": {"version": "1.0"}},
-    "created_by": "550e8400-e29b-41d4-a716-446655440001",
-    "created_on": "2024-02-18T15:30:00Z",
-    "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
-    "last_modified_on": "2024-02-18T15:30:00Z"
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "operation_id": "op-12345",
+      "resource_type": "COGNITION_ENGINE",
+      "resource_identifier": "engine-123",
+      "audit_type": "RESOURCE_CREATED",
+      "audit_resource_identifier": "cognitive-engine-456",
+      "audit_information": {"config": {"version": "1.0"}},
+      "created_by": "550e8400-e29b-41d4-a716-446655440001",
+      "created_on": "2024-02-18T15:30:00Z",
+      "last_modified_by": "550e8400-e29b-41d4-a716-446655440001",
+      "last_modified_on": "2024-02-18T15:30:00Z"
+    }
+  ],
+  "pageInfo": {
+    "page": 0,
+    "pageSize": 20,
+    "pageCount": 1,
+    "totalElements": 1
   }
-]
+}
 ```
 
 **GET /api/internal/mgmt/audit/{eventId}** - Get a single audit event by UUID
@@ -340,6 +366,8 @@ Environment variables (uppercase):
 | `MCP_ENABLED` | false | Enable MCP server mode |
 | `MCP_PORT` | 9002 | MCP server port |
 | `MCP_HOST` | (empty) | MCP server host |
+| `DEFAULT_PAGE_SIZE` | 20 | Default number of records per page (audit list) |
+| `MAX_PAGE_SIZE` | 100 | Maximum allowed records per page (audit list) |
 
 ## Commands
 

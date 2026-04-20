@@ -37,7 +37,7 @@ type Database interface {
 
 	CreateAuditEvent(*audit.Audit) error
 	GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
-	ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error)
+	ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error)
 	DeleteAuditEventByID(uuid.UUID) error
 }
 
@@ -134,7 +134,7 @@ func (m *MockDatabase) GetAuditEventByID(id uuid.UUID) (*audit.Audit, error) {
 	return a, nil
 }
 
-func (m *MockDatabase) ListAuditEvents(resourceType, auditType string) ([]audit.Audit, error) {
+func (m *MockDatabase) ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error) {
 	if resourceType != "" {
 		if err := audit.ValidateResourceType(resourceType); err != nil {
 			return nil, err
@@ -145,9 +145,18 @@ func (m *MockDatabase) ListAuditEvents(resourceType, auditType string) ([]audit.
 			return nil, err
 		}
 	}
+	if pageSize <= 0 {
+		pageSize = audit.DefaultPageSize()
+	}
+	if pageSize > audit.MaxPageSize() {
+		pageSize = audit.MaxPageSize()
+	}
+	if page < 0 {
+		page = 0
+	}
 	m.auditStoreMutex.Lock()
 	defer m.auditStoreMutex.Unlock()
-	var result []audit.Audit
+	var filtered []audit.Audit
 	for _, a := range m.mockAuditStore {
 		if resourceType != "" && a.ResourceType != resourceType {
 			continue
@@ -155,9 +164,29 @@ func (m *MockDatabase) ListAuditEvents(resourceType, auditType string) ([]audit.
 		if auditType != "" && a.AuditType != auditType {
 			continue
 		}
-		result = append(result, *a)
+		filtered = append(filtered, *a)
 	}
-	return result, nil
+	totalElements := len(filtered)
+	offset := page * pageSize
+	var result []audit.Audit
+	if offset < totalElements {
+		end := offset + pageSize
+		if end > totalElements {
+			end = totalElements
+		}
+		result = filtered[offset:end]
+	} else {
+		result = []audit.Audit{}
+	}
+	return &audit.AuditListResponse{
+		Data: result,
+		PageInfo: audit.PageInfo{
+			Page:          page,
+			PageSize:      pageSize,
+			PageCount:     len(result),
+			TotalElements: totalElements,
+		},
+	}, nil
 }
 
 func (m *MockDatabase) DeleteAuditEventByID(id uuid.UUID) error {

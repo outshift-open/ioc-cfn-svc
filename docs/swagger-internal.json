@@ -1,16 +1,16 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.",
-        "title": "CFN Service API",
+        "description": "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.\n\nInternal endpoints only.",
+        "title": "CFN Service API — Internal",
         "contact": {},
         "version": "1.0"
     },
     "basePath": "/",
     "paths": {
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search": {
             "post": {
-                "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe `http-url` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n```json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n```\n\n**POST example** — add memories:\n```json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n```",
+                "description": "Finds concept nodes nearest to a query embedding vector using HNSW index.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18,9 +18,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "memory-operations"
+                    "Graph Store"
                 ],
-                "summary": "Proxy API requests to a remote memory provider",
+                "summary": "Concept similarity search",
                 "parameters": [
                     {
                         "type": "string",
@@ -37,186 +37,26 @@
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Agent ID",
-                        "name": "agentId",
-                        "in": "path",
-                        "required": true
+                        "type": "boolean",
+                        "description": "Include raw embedding vectors in results (debug only)",
+                        "name": "include_embeddings",
+                        "in": "query"
                     },
                     {
-                        "description": "Memory operation request",
+                        "description": "Similarity search request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/memoryoperations.MemoryOperationRequest"
+                            "$ref": "#/definitions/app.conceptSimilaritySearchRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Proxied response (actual provider status is in http-status field)",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/memoryoperations.MemoryOperationResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body or missing http-request-type",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Memory provider config not found for agent",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "502": {
-                        "description": "Failed to forward request to memory provider",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "Memory proxy client not configured",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide": {
-            "post": {
-                "description": "Advances an existing semantic negotiation session with agent replies.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "semantic-negotiation"
-                ],
-                "summary": "Advance semantic negotiation session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Semantic negotiation decide request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.DecideRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Negotiation step executed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start": {
-            "post": {
-                "description": "Initiates a new semantic negotiation session with multiple agents.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "semantic-negotiation"
-                ],
-                "summary": "Start semantic negotiation session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Semantic negotiation start request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.StartRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Negotiation session started successfully",
-                        "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.Response"
+                            "$ref": "#/definitions/app.conceptSimilaritySearchResponse"
                         }
                     },
                     "400": {
@@ -240,9 +80,193 @@
                 }
             }
         },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids": {
             "post": {
-                "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
+                "description": "Returns concept details for each of the provided concept IDs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Fetch concepts by IDs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concept IDs request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}": {
+            "get": {
+                "description": "Returns the neighboring concepts of a given concept in the knowledge graph.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Get neighbors by concept ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Concept ID",
+                        "name": "conceptId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.NeighborsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths": {
+            "post": {
+                "description": "Returns ordered paths through the knowledge graph between a source and target concept.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Fetch paths between two concepts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Graph paths request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.GraphPathsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.GraphPathsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}": {
+            "delete": {
+                "description": "Deletes the shared memory vector store.",
                 "consumes": [
                     "application/json"
                 ],
@@ -252,7 +276,7 @@
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Create or update shared memories.",
+                "summary": "Deletes the shared memory vector store.",
                 "parameters": [
                     {
                         "type": "string",
@@ -263,137 +287,13 @@
                     },
                     {
                         "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
+                        "description": "Store ID",
+                        "name": "store_id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Create or update shared memories request",
-                        "name": "body",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Shared memories successfully created or updated",
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query": {
-            "post": {
-                "description": "Queries shared memories for a given workspace and multi-agentic system using a graph path query.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "shared-memories"
-                ],
-                "summary": "Fetch shared memories",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Query request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.QueryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Query executed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.QueryResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/shared-memories/vector-store": {
-            "post": {
-                "description": "Onboards the shared memory vector store.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "shared-memories"
-                ],
-                "summary": "Onboards the shared memory vector store.",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Onboard vector store request",
+                        "description": "Delete vector store request",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -403,8 +303,8 @@
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Vector Store successfully onboarded",
+                    "200": {
+                        "description": "Vector Store successfully deleted",
                         "schema": {
                             "type": "object"
                         }

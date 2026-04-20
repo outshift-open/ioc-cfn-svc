@@ -38,6 +38,12 @@ func TestDiagnosticsInfoHandler(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 
+	assert.NotEmpty(t, resp["service"])
+	assert.NotEmpty(t, resp["version"])
+	assert.NotEmpty(t, resp["go_version"])
+	assert.NotEmpty(t, resp["platform"])
+	assert.NotEmpty(t, resp["environment"])
+
 	git := resp["git"].(map[string]any)
 	commit := git["commit"].(map[string]any)
 	assert.Equal(t, "abc1234", commit["id"])
@@ -58,6 +64,184 @@ func TestDiagnosticsHealthHandler(t *testing.T) {
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, "UP", resp["status"])
+}
+
+// setCfnConfigForTest sets CfnConfig for the duration of a test and restores it on cleanup.
+func setCfnConfigForTest(t *testing.T, cfg map[string]any) {
+	t.Helper()
+	cfnConfigMutex.Lock()
+	original := CfnConfig
+	CfnConfig = cfg
+	cfnConfigMutex.Unlock()
+	t.Cleanup(func() {
+		cfnConfigMutex.Lock()
+		CfnConfig = original
+		cfnConfigMutex.Unlock()
+	})
+}
+
+func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
+	healthyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	t.Run("all dependencies UP", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(healthyHandler)
+		defer mem.Close()
+		cog := httptest.NewServer(healthyHandler)
+		defer cog.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		setCfnConfigForTest(t, map[string]any{
+			"memory_providers": []interface{}{
+				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+			},
+			"workspaces": []interface{}{
+				map[string]interface{}{
+					"cognitive_engines": []interface{}{
+						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					},
+				},
+			},
+		})
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "UP", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, true, checks["memory_providers"].(map[string]any)["mem-svc"])
+		assert.Equal(t, true, checks["cognition_engines"].(map[string]any)["CE1"])
+	})
+
+	t.Run("critical memory provider DOWN returns DOWN and 500", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(healthyHandler)
+		mem.Close() 
+		cog := httptest.NewServer(healthyHandler)
+		defer cog.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		setCfnConfigForTest(t, map[string]any{
+			"memory_providers": []interface{}{
+				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+			},
+			"workspaces": []interface{}{
+				map[string]interface{}{
+					"cognitive_engines": []interface{}{
+						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					},
+				},
+			},
+		})
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DOWN", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, false, checks["memory_providers"].(map[string]any)["mem-svc"])
+		assert.Equal(t, true, checks["cognition_engines"].(map[string]any)["CE1"])
+	})
+
+	t.Run("non-critical cognition engine DOWN returns DEGRADED and 200", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+		mem := httptest.NewServer(healthyHandler)
+		defer mem.Close()
+		cog := httptest.NewServer(healthyHandler)
+		cog.Close() // closed immediately — TCP dial will fail
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		setCfnConfigForTest(t, map[string]any{
+			"memory_providers": []interface{}{
+				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+			},
+			"workspaces": []interface{}{
+				map[string]interface{}{
+					"cognitive_engines": []interface{}{
+						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					},
+				},
+			},
+		})
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DEGRADED", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Equal(t, true, checks["memory_providers"].(map[string]any)["mem-svc"])
+		assert.Equal(t, false, checks["cognition_engines"].(map[string]any)["CE1"])
+	})
+
+	t.Run("unreachable management plane returns DOWN and 500", func(t *testing.T) {
+		t.Setenv("MGMT_URL", "http://127.0.0.1:1")
+		setCfnConfigForTest(t, map[string]any{})
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "DOWN", resp["status"])
+	})
+
+	t.Run("empty CfnConfig returns only management_plane check", func(t *testing.T) {
+		mgmt := httptest.NewServer(healthyHandler)
+		defer mgmt.Close()
+
+		t.Setenv("MGMT_URL", mgmt.URL)
+		setCfnConfigForTest(t, map[string]any{})
+
+		app := newDiagnosticsTestApp()
+		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
+		rr := httptest.NewRecorder()
+
+		code, err := app.diagnosticsHealthHandler(rr, req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, code)
+
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+		assert.Equal(t, "UP", resp["status"])
+		checks := resp["checks"].(map[string]any)
+		assert.Equal(t, true, checks["management_plane"])
+		assert.Empty(t, checks["memory_providers"].(map[string]any))
+		assert.Empty(t, checks["cognition_engines"].(map[string]any))
+	})
 }
 
 func TestDiagnosticsMetricsHandler(t *testing.T) {

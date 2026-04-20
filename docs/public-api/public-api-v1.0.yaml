@@ -1,0 +1,723 @@
+openapi: 3.0.3
+info:
+  title: CFN Service Public API
+  version: "1.0.0"
+  description: |-
+    Public API contract for IoC Cognition Fabric Node service.
+
+    This specification is used for external SDK generation (Python, TypeScript, Go clients).
+
+    **Note:** This is a snapshot of the public API at version 1.0.0.
+    The implementation may include additional internal endpoints not documented here.
+  contact: {}
+
+servers:
+  - url: http://localhost:9002
+    description: Local development server
+  - url: /
+    description: Default server (relative path)
+
+tags:
+  - name: shared-memories
+    description: Shared memory operations for knowledge extraction and querying
+  - name: semantic-negotiation
+    description: Multi-agent semantic negotiation sessions
+  - name: memory-operations
+    description: Proxy for remote memory provider operations
+
+paths:
+  /api/workspaces/{workspaceId}/shared-memories/vector-store:
+    post:
+      summary: Onboard shared memory vector store
+      description: |-
+        Creates a vector store for shared memories within a workspace.
+        This initializes the vector database storage for knowledge graph embeddings.
+      operationId: onboardVectorStore
+      tags:
+        - shared-memories
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: false
+        description: Optional onboarding request with metadata
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardVectorStoreRequest'
+      responses:
+        '201':
+          description: Vector store successfully onboarded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardVectorStoreResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
+    post:
+      summary: Create or update shared memories
+      description: |-
+        Creates or updates shared memories with entries (concepts and relations)
+        extracted from the provided trace or OpenClaw output for a given workspace
+        and multi-agentic system.
+      operationId: createOrUpdateSharedMemories
+      tags:
+        - shared-memories
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+        - name: masId
+          in: path
+          required: true
+          description: Multi-Agentic System ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        description: Create or update shared memories request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrUpdateRequest'
+      responses:
+        '201':
+          description: Shared memories successfully created or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrUpdateResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query:
+    post:
+      summary: Fetch shared memories
+      description: |-
+        Queries shared memories for a given workspace and multi-agentic
+        system using a graph path query.
+      operationId: fetchSharedMemories
+      tags:
+        - shared-memories
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+        - name: masId
+          in: path
+          required: true
+          description: Multi-Agentic System ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        description: Query request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
+    post:
+      summary: Proxy API requests to a remote memory provider
+      description: |-
+        Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.
+        The memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.
+        The `http-url` field should contain the relative path and query parameters to append to the provider base URL.
+
+        **GET example** — retrieve memories:
+        ```json
+        {
+          "header": {},
+          "payload": {
+            "http-request-type": "GET",
+            "http-url": "v1/memories/?user_id=curl-test-user",
+            "http-request-body": {},
+            "http-headers": {}
+          }
+        }
+        ```
+
+        **POST example** — add memories:
+        ```json
+        {
+          "header": {},
+          "payload": {
+            "http-request-type": "POST",
+            "http-url": "/v1/memories/",
+            "http-request-body": {
+              "messages": [{"role": "user", "content": "I prefer dark mode in all my apps"}],
+              "user_id": "curl-test-user"
+            },
+            "http-headers": {}
+          }
+        }
+        ```
+      operationId: memoryOperations
+      tags:
+        - memory-operations
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+        - name: masId
+          in: path
+          required: true
+          description: Multi-Agentic System ID
+          schema:
+            type: string
+            minLength: 1
+        - name: agentId
+          in: path
+          required: true
+          description: Agent ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        description: Memory operation request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryOperationRequest'
+      responses:
+        '200':
+          description: Proxied response (actual provider status is in http-status field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryOperationResponse'
+        '400':
+          description: Invalid request body or missing http-request-type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Memory provider config not found for agent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to forward request to memory provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Memory proxy client not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start:
+    post:
+      summary: Start semantic negotiation session
+      description: Initiates a new semantic negotiation session with multiple agents.
+      operationId: startSemanticNegotiation
+      tags:
+        - semantic-negotiation
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+        - name: masId
+          in: path
+          required: true
+          description: Multi-Agentic System ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        description: Semantic negotiation start request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRequest'
+      responses:
+        '200':
+          description: Negotiation session started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NegotiationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide:
+    post:
+      summary: Advance semantic negotiation session
+      description: Advances an existing semantic negotiation session with agent replies.
+      operationId: decideSemanticNegotiation
+      tags:
+        - semantic-negotiation
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID
+          schema:
+            type: string
+            minLength: 1
+        - name: masId
+          in: path
+          required: true
+          description: Multi-Agentic System ID
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        description: Semantic negotiation decide request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRequest'
+      responses:
+        '200':
+          description: Negotiation step executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NegotiationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # Common schemas
+    ErrorResponse:
+      type: object
+      additionalProperties:
+        type: string
+      description: Error response with key-value pairs providing error details
+
+    # Shared Memory schemas
+    OnboardVectorStoreRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: ID of the request, optional. If not provided, a random UUID is used to represent the request
+        header:
+          $ref: '#/components/schemas/Header'
+          description: Header(s) of the request, optional
+
+    OnboardVectorStoreResponse:
+      type: object
+      properties:
+        response_id:
+          type: string
+          description: ID of the response, this gets populated from request_id
+        status:
+          type: string
+          description: Status of the request
+        message:
+          type: string
+          description: Optional message providing additional information
+        store_id:
+          type: string
+          description: ID of the vector store
+      required:
+        - status
+
+    Header:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: ID that represents the agent, optional for query operations
+      description: Request header containing agent identification
+
+    ExtractionPayloadMetadata:
+      type: object
+      properties:
+        format:
+          type: string
+          description: |-
+            Format specifies how the Data field should be interpreted.
+
+            Supported values:
+            - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+            - "openclaw": Data is an opaque JSON payload
+          enum:
+            - observe-sdk-otel
+            - openclaw
+      required:
+        - format
+
+    ExtractionPayload:
+      type: object
+      properties:
+        metadata:
+          $ref: '#/components/schemas/ExtractionPayloadMetadata'
+          description: Metadata describes the format and interpretation of the payload.
+        data:
+          type: object
+          description: |-
+            Data contains the extraction payload and its structure depends on Metadata.Format.
+
+            Supported formats: "observe-sdk-otel" and "openclaw"
+
+            1. format = "observe-sdk-otel"
+               - Data MUST be a JSON array of ExtractionDataRecord objects.
+               - Example:
+            [
+              { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }
+            ]
+
+            2. format = "openclaw"
+               - Data is an opaque JSON payload.
+               - The structure is not interpreted or validated by this service and is processed as-is.
+
+            Clients MUST ensure the Data field matches the structure required by the specified Metadata.Format.
+      required:
+        - metadata
+        - data
+
+    CreateOrUpdateRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: ID of the request, optional. If not provided, a random UUID is used to represent the request
+        header:
+          $ref: '#/components/schemas/Header'
+          description: Header(s) of the request, optional
+        payload:
+          $ref: '#/components/schemas/ExtractionPayload'
+          description: |-
+            Payload contains the extraction metadata and the raw data to be processed.
+            The structure of the payload data is defined by Payload.Metadata.Format
+      required:
+        - payload
+
+    CreateOrUpdateResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status of the request
+        response_id:
+          type: string
+          description: ID of the response, this gets populated from request_id
+        message:
+          type: string
+          description: Optional message providing additional information
+      required:
+        - status
+
+    QueryRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: ID of the request, optional. If not provided, a random UUID is used to represent the request
+        header:
+          $ref: '#/components/schemas/Header'
+          description: Header(s) of the request, required (must include agent_id)
+        intent:
+          type: string
+          minLength: 1
+          description: |-
+            User intent or natural-language query describing what information
+            is being requested. This field is required and is the primary signal used
+            to construct and execute the query
+        search_strategy:
+          type: string
+          description: |-
+            Search strategy to be used when executing the query. Currently
+            supported values: "semantic_graph_traversal". If not specified, defaults
+            to "semantic_graph_traversal"
+          default: semantic_graph_traversal
+        additional_context:
+          type: array
+          description: |-
+            AdditionalContext provides optional contextual information to
+            refine query execution. This may include prior conversation state, structured
+            hints, or domain-specific metadata. The contents are treated as opaque by
+            the API and interpreted by downstream components. Each element must be a
+            structured object
+          items:
+            type: object
+            additionalProperties: true
+      required:
+        - header
+        - intent
+
+    QueryResponse:
+      type: object
+      properties:
+        response_id:
+          type: string
+          description: ID of the response, this gets populated from request_id
+        message:
+          type: string
+          description: Message provides detailed information from the query result
+
+    # Memory Operations schemas
+    MemoryOperationHeader:
+      type: object
+      description: Reserved for future header extensions
+
+    MemoryOperationPayload:
+      type: object
+      properties:
+        http-request-type:
+          type: string
+          description: POST, PUT, GET, DELETE, etc.
+          enum:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+        http-url:
+          type: string
+          description: URL with query parameters (URL encoded)
+        http-request-body:
+          type: object
+          additionalProperties: true
+          description: JSON payload
+        http-headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Custom headers
+      required:
+        - http-request-type
+
+    MemoryOperationRequest:
+      type: object
+      properties:
+        header:
+          $ref: '#/components/schemas/MemoryOperationHeader'
+        payload:
+          $ref: '#/components/schemas/MemoryOperationPayload'
+      required:
+        - payload
+
+    MemoryOperationResponse:
+      type: object
+      properties:
+        http-status:
+          type: integer
+          description: HTTP status code from the remote provider
+        http-response-body:
+          type: object
+          additionalProperties: true
+          description: Response body from the remote provider
+        http-headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Response headers from the remote provider
+      required:
+        - http-status
+
+    # Semantic Negotiation schemas
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: ID is the unique agent identifier.
+        name:
+          type: string
+          description: Name is the human-readable agent name.
+      required:
+        - id
+        - name
+
+    AgentReply:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          minLength: 1
+          description: AgentID is the agent identifier (must match one of the initiated agents).
+        action:
+          type: string
+          description: |-
+            Action is the agent action.
+            Allowed values: "accept", "reject", "counter_offer"
+          enum:
+            - accept
+            - reject
+            - counter_offer
+        offer:
+          type: object
+          additionalProperties: true
+          description: |-
+            Offer is an optional structured offer payload.
+            Required when Action is "counter_offer".
+      required:
+        - agent_id
+        - action
+
+    StartRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          minLength: 1
+          description: |-
+            SessionID is the client-provided session identifier.
+            Currently assumed globally unique (not scoped by workspace/mas).
+        agents:
+          type: array
+          minItems: 1
+          description: Agents is the list of participating agents.
+          items:
+            $ref: '#/components/schemas/Agent'
+        content_text:
+          type: string
+          minLength: 1
+          description: |-
+            ContentText is the negotiation prompt/context used to initialize
+            the session.
+        n_steps:
+          type: integer
+          minimum: 1
+          default: 20
+          description: |-
+            NSteps is the maximum number of negotiation steps.
+            If omitted, defaults to 20.
+      required:
+        - session_id
+        - agents
+        - content_text
+
+    DecideRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          minLength: 1
+          description: |-
+            SessionID is the session identifier previously provided to the
+            start endpoint.
+        agent_replies:
+          type: array
+          minItems: 1
+          description: |-
+            AgentReplies are the replies produced by agents since the last
+            step.
+          items:
+            $ref: '#/components/schemas/AgentReply'
+      required:
+        - session_id
+        - agent_replies
+
+    NegotiationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status indicates the result of the negotiation step.
+        message:
+          type: string
+          description: |-
+            Message provides additional information about the negotiation
+            state.
+        result:
+          type: object
+          additionalProperties: true
+          description: |-
+            Result contains the pipeline execution result.
+            The structure depends on the semantic negotiation library implementation.

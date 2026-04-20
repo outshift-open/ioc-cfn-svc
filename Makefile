@@ -60,6 +60,7 @@ install-swag:
 .PHONY: docs
 docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
+	python3 scripts/split_swagger.py
 
 .PHONY: run
 run: build ## Build and run binary (loads .env via godotenv)

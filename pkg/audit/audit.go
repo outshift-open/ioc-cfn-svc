@@ -33,6 +33,7 @@ const (
 	AuditTypeMemoryOperation       = "MEMORY_OPERATION"
 	AuditTypeSharedMemoryOperation = "SHARED_MEMORY_OPERATION"
 	AuditTypeAgentMemoryOperation  = "AGENT_MEMORY_OPERATION"
+	AuditTypeSemanticNegotiation   = "SEMANTIC_NEGOTIATION"
 )
 
 var validResourceTypes = map[string]bool{
@@ -56,6 +57,7 @@ var validAuditTypes = map[string]bool{
 	AuditTypeMemoryOperation:       true,
 	AuditTypeSharedMemoryOperation: true,
 	AuditTypeAgentMemoryOperation:  true,
+	AuditTypeSemanticNegotiation:   true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.
@@ -100,6 +102,56 @@ func ValidateAuditType(at string) error {
 		return fmt.Errorf("invalid audit_type: %s. Valid values: %s", at, ValidAuditTypesList())
 	}
 	return nil
+}
+
+// Pagination fallback defaults (used when not configured via env/flags).
+const (
+	FallbackDefaultPageSize = 20
+	FallbackMaxPageSize     = 100
+)
+
+var (
+	defaultPageSize = FallbackDefaultPageSize
+	maxPageSize     = FallbackMaxPageSize
+)
+
+// SetPaginationConfig overrides the default and max page sizes.
+// Must be called once at startup before serving requests.
+// Values <= 0 are ignored (the fallback is kept).
+func SetPaginationConfig(defSize, maxSize int) {
+	if defSize > 0 {
+		defaultPageSize = defSize
+	}
+	if maxSize > 0 {
+		maxPageSize = maxSize
+	}
+	if defaultPageSize > maxPageSize {
+		defaultPageSize = maxPageSize
+	}
+}
+
+// DefaultPageSize returns the configured default page size.
+func DefaultPageSize() int {
+	return defaultPageSize
+}
+
+// MaxPageSize returns the configured maximum page size.
+func MaxPageSize() int {
+	return maxPageSize
+}
+
+// PageInfo contains database-agnostic pagination metadata.
+type PageInfo struct {
+	Page          int `json:"page"`
+	PageSize      int `json:"pageSize"`
+	PageCount     int `json:"pageCount"`
+	TotalElements int `json:"totalElements"`
+}
+
+// AuditListResponse wraps a page of audit events with pagination metadata.
+type AuditListResponse struct {
+	Data     []Audit  `json:"data"`
+	PageInfo PageInfo `json:"pageInfo"`
 }
 
 // Audit represents an immutable audit trail event.
@@ -160,9 +212,19 @@ func GetAuditEventByID(db *gorm.DB, id uuid.UUID) (*Audit, error) {
 	return &a, nil
 }
 
-// ListAuditEvents returns audit events with optional resource_type and audit_type filters.
-func ListAuditEvents(db *gorm.DB, resourceType, auditType string) ([]Audit, error) {
-	var audits []Audit
+// ListAuditEvents returns a page of audit events with optional resource_type and audit_type filters.
+// page is 0-based. pageSize is clamped to [1, MaxPageSize()] and defaults to DefaultPageSize().
+func ListAuditEvents(db *gorm.DB, resourceType, auditType string, page, pageSize int) (*AuditListResponse, error) {
+	if pageSize <= 0 {
+		pageSize = DefaultPageSize()
+	}
+	if pageSize > MaxPageSize() {
+		pageSize = MaxPageSize()
+	}
+	if page < 0 {
+		page = 0
+	}
+
 	query := db.Model(&Audit{})
 	if resourceType != "" {
 		if err := ValidateResourceType(resourceType); err != nil {
@@ -176,10 +238,27 @@ func ListAuditEvents(db *gorm.DB, resourceType, auditType string) ([]Audit, erro
 		}
 		query = query.Where("audit_type = ?", auditType)
 	}
-	if err := query.Order("created_on DESC").Find(&audits).Error; err != nil {
+
+	var totalElements int64
+	if err := query.Session(&gorm.Session{}).Count(&totalElements).Error; err != nil {
 		return nil, err
 	}
-	return audits, nil
+
+	audits := make([]Audit, 0)
+	offset := page * pageSize
+	if err := query.Session(&gorm.Session{}).Offset(offset).Limit(pageSize).Order("created_on DESC").Find(&audits).Error; err != nil {
+		return nil, err
+	}
+
+	return &AuditListResponse{
+		Data: audits,
+		PageInfo: PageInfo{
+			Page:          page,
+			PageSize:      pageSize,
+			PageCount:     len(audits),
+			TotalElements: int(totalElements),
+		},
+	}, nil
 }
 
 // DeleteAuditEventByID deletes a single audit event by its UUID. Internal API only.

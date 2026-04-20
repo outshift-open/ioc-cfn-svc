@@ -33,11 +33,13 @@ jobs:
         run: go install github.com/swaggo/swag/cmd/swag@latest
 
       - name: Generate OpenAPI spec
-        run: swag init --parseDependency --parseInternal --dir .
+        run: |
+          swag init --parseDependency --parseInternal --dir .
+          python3 scripts/split_swagger.py
 
       - name: Check OpenAPI spec is up-to-date
         run: |
-          if ! git diff --exit-code docs/swagger.yaml docs/swagger.json docs/docs.go; then
+          if ! git diff --exit-code docs/swagger.yaml docs/swagger.json docs/swagger-internal.json docs/docs.go; then
             echo "❌ ERROR: OpenAPI spec is out of sync with code!"
             echo ""
             echo "The swagger documentation needs to be regenerated."
@@ -45,10 +47,7 @@ jobs:
             echo ""
             echo "  make docs"
             echo ""
-            echo "Or manually run:"
-            echo "  swag init --parseDependency --parseInternal --dir ."
-            echo ""
-            git diff docs/swagger.yaml docs/swagger.json docs/docs.go
+            git diff docs/swagger.yaml docs/swagger.json docs/swagger-internal.json docs/docs.go
             exit 1
           fi
           echo "✅ OpenAPI spec is up-to-date"
