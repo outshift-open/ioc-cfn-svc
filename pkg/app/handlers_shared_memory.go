@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
