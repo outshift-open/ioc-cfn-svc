@@ -202,6 +202,8 @@ func TestRetainTool(t *testing.T) {
 	t.Logf("Verified successful MCP tool execution with real services")
 }
 
+// This test verifies that the MCP client can successfully call the recall tool
+// and that the tool executes without errors.
 func TestRecallTool(t *testing.T) {
 	//t.Skip("Skipping test - requires external services")
 
