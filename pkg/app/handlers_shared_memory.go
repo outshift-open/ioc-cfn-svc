@@ -342,35 +342,14 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
-func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// FetchSharedMemoriesCore contains the core business logic for fetching shared memories
+// This function can be reused by both HTTP handlers and MCP tool handlers
+func (a *App) FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
 	log := getLogger()
 
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
-
-	log.Infof(
-		"Fetching shared memories | workspace=%s mas=%s",
-		workspaceID, masID,
-	)
-
-	var req sharedmemory.QueryRequest
-	if r.Body != nil {
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
-			log.Errorf("invalid JSON body: %s", err)
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": "invalid JSON body"},
-			)
-		}
-		if err := req.ValidateAndApplyDefault(); err != nil {
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": err.Error()},
-			)
-		}
+	// Validate and apply defaults
+	if err := req.ValidateAndApplyDefault(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	requestId := req.RequestId
@@ -404,11 +383,16 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
+	// Log the request to cognition agents client
+	log.Infof("COGNITION_AGENTS_REQUEST | workspace=%s mas=%s operation_id=%s intent=%s agent_id=%s",
+		workspaceID, masID, operationID, *req.Intent, agentID)
+	//log.Infof("COGNITION_AGENTS_REQUEST_FULL | request=%+v", reasoningRequest)
+
+	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(ctx, &reasoningRequest)
 	if err != nil {
 		log.Errorf(
-			"Failed to process evidence | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
+			"Failed to process evidence | workspace=%s mas=%s operation_id=%s err=%v",
+			workspaceID, masID, operationID, err,
 		)
 
 		// Audit: shared memory query (failure)
@@ -439,14 +423,13 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			log.Errorf("failed to create audit event: %v", auditErr)
 		}
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to process evidence: %v", err)},
-		)
+		return nil, fmt.Errorf("failed to process evidence: %w", err)
 	}
 
-	log.Debugf("Evidence gathering response: %+v", reasonerResp)
+	// Log the response from cognition agents client
+	log.Infof("COGNITION_AGENTS_RESPONSE | workspace=%s mas=%s operation_id=%s records_count=%d",
+		workspaceID, masID, operationID, len(reasonerResp.Records))
+	//log.Infof("COGNITION_AGENTS_RESPONSE_FULL | response=%+v", reasonerResp)
 
 	// Extract evidence fields from first record
 	var evidenceStatus, finalResponse string
@@ -489,11 +472,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			log.Errorf("failed to create audit event: %v", auditErr)
 		}
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusNotFound,
-			map[string]string{"error": "Insufficient evidence to answer provided user intent"},
-		)
+		return nil, fmt.Errorf("insufficient evidence to answer provided user intent")
 	}
 
 	var message string
@@ -533,10 +512,49 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.QueryResponse{
+	return &sharedmemory.QueryResponse{
 		ResponseID: requestId,
 		Message:    common.StrToPtr(message),
-	})
+	}, nil
+}
+
+func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var req sharedmemory.QueryRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			log.Errorf("invalid JSON body: %s", err)
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	// Call core business logic
+	response, err := a.FetchSharedMemoriesCore(r.Context(), workspaceID, masID, req)
+	if err != nil {
+		if strings.Contains(err.Error(), "insufficient evidence") {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusNotFound,
+				map[string]string{"error": err.Error()},
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // Get neighbors by concept ID, returns the neighboring concepts of a given concept in the knowledge graph.

@@ -17,21 +17,23 @@ import (
 // 1. Check the Prerequisites section below
 // 2. Run the client:
 //    cd /Users/sushroff/Documents/AI/ioc/ioc-cfn-svc
-//    go test -v ./pkg/client/mcp -run TestRetainTool
+//.   go test -v ./pkg/client/mcp -run . -count=1
+//    go test -v ./pkg/client/mcp -run TestRetainTool -count=1
+// 	  go test -v ./pkg/client/mcp -run TestRecallTool -count=1
 
 // Prerequisites-
 // 1. MCP server (running on port 9002 default if env var MCP_PORT is not set)
-// 	 - Env setup-
-//    MCP_ENABLED=true
+// 	 - Env setup
+//     MCP_ENABLED=true
 //   - Start the server
-//      make run mcp-server
+//     make run mcp-server
 // 2. Cognition Engine service (running on port 9006 default if env var COGNITION_ENGINE_SVC_URL is not set)
 // 3. Knowledge memory service (running on port 9003 default if env var KNOWLEDGE_MEMORY_SVC_URL is not set)
 
 // This test verifies that the MCP client can successfully call the retain tool
 // and that the tool executes without errors.
 func TestRetainTool(t *testing.T) {
-	t.Skip("Skipping test - requires external services")
+	//t.Skip("Skipping test - requires external services")
 
 	// Load .env file to pick up environment variables
 	_ = godotenv.Load("../../../.env")
@@ -198,4 +200,98 @@ func TestRetainTool(t *testing.T) {
 
 	t.Logf("Production test successful! Response: %s", textContent.Text)
 	t.Logf("Verified successful MCP tool execution with real services")
+}
+
+func TestRecallTool(t *testing.T) {
+	//t.Skip("Skipping test - requires external services")
+
+	// Load .env file to pick up environment variables
+	_ = godotenv.Load("../../../.env")
+
+	ctx := context.Background()
+
+	mcpServerPort := getEnvInt("MCP_PORT", 9001)
+	t.Logf("Using MCP server port: %d", mcpServerPort)
+
+	knowledgeMemURL := os.Getenv("KNOWLEDGE_MEMORY_SERVICE_URL")
+	if knowledgeMemURL == "" {
+		knowledgeMemURL = "http://localhost:9003"
+	}
+	cognitionEngineURL := os.Getenv("COGNITION_AGENTS_SERVICE_URL")
+	if cognitionEngineURL == "" {
+		cognitionEngineURL = "http://localhost:9006"
+	}
+
+	t.Logf("Using Knowledge Memory Service at: %s", knowledgeMemURL)
+	t.Logf("Using Cognition Agents Service at: %s", cognitionEngineURL)
+
+	//////////////////////////////////////////////////////
+
+	// Create client and connect
+	client := NewClient("mcp-test-client", "1.0.0")
+	mcpServerURL := fmt.Sprintf("http://localhost:%d", mcpServerPort)
+	session, err := Connect(ctx, client, mcpServerURL)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer session.Close()
+
+	t.Logf("Connected to mcpserver at %s", mcpServerURL)
+
+	// List tools to verify registration
+	tools, err := ListTools(ctx, session)
+	if err != nil {
+		t.Fatalf("failed to list tools: %v", err)
+	}
+
+	foundTool := false
+	for _, tool := range tools {
+		if tool.Name == TOOL_NAME_RECALL {
+			foundTool = true
+			break
+		}
+	}
+
+	if !foundTool {
+		t.Fatal("recall tool not found in registered tools")
+	}
+
+	t.Logf("Successfully found recall tool in registry")
+
+	// Test calling the recall tool
+	intent := "Tell me something about Q2 budget planning"
+	result, err := CallTool(ctx, session, TOOL_NAME_RECALL, map[string]any{
+		"workspace_id":    "7f136aa0-143c-46a6-82f2-249eac489e52",
+		"mas_id":          "223e4567-e89b-12d3-a456-426614174001",
+		"intent":          intent,
+		"search_strategy": "semantic_graph_traversal",
+		"header": map[string]any{
+			"agent_id": "test-agent-recall",
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("failed to call recall tool: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("expected result, but got nil")
+	}
+
+	if len(result.Content) == 0 {
+		t.Fatal("expected result content, but got none")
+	}
+
+	PrintToolResult(result)
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent in result")
+	}
+
+	if textContent.Text == "" {
+		t.Fatal("expected non-empty text content")
+	}
+
+	t.Logf("Recall tool executed successfully with response: %s", textContent.Text)
 }

@@ -145,6 +145,7 @@ func TestRetainTool_Found(t *testing.T) {
 	sharedMemoryService = nil // Set the global service to nil
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	AddTool(server, TOOL_NAME_RETAIN, "Retain shared memories", createOrUpdateSharedMemoriesToolHandler)
+	AddTool(server, TOOL_NAME_RECALL, "Recall shared memories", recallToolHandler)
 
 	httpServer, shutdown := ServeHTTPWithShutdown(server, addr)
 
@@ -243,6 +244,7 @@ func TestRetainTool_ExecutionError(t *testing.T) {
 	sharedMemoryService = nil // Set the global service to nil (will cause execution error)
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	AddTool(server, TOOL_NAME_RETAIN, "Retain shared memories", createOrUpdateSharedMemoriesToolHandler)
+	AddTool(server, TOOL_NAME_RECALL, "Recall shared memories", recallToolHandler)
 
 	httpServer, shutdown := ServeHTTPWithShutdown(server, addr)
 
