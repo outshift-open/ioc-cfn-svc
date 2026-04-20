@@ -33,7 +33,7 @@ import (
 // This test verifies that the MCP client can successfully call the retain tool
 // and that the tool executes without errors.
 func TestRetainTool(t *testing.T) {
-	//t.Skip("Skipping test - requires external services")
+	t.Skip("Skipping test - requires external services")
 
 	// Load .env file to pick up environment variables
 	_ = godotenv.Load("../../../.env")
@@ -205,7 +205,7 @@ func TestRetainTool(t *testing.T) {
 // This test verifies that the MCP client can successfully call the recall tool
 // and that the tool executes without errors.
 func TestRecallTool(t *testing.T) {
-	//t.Skip("Skipping test - requires external services")
+	t.Skip("Skipping test - requires external services")
 
 	// Load .env file to pick up environment variables
 	_ = godotenv.Load("../../../.env")
