@@ -342,9 +342,9 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
-// FetchSharedMemoriesCore contains the core business logic for fetching shared memories
-// This function can be reused by both HTTP handlers and MCP tool handlers
-func (a *App) FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
+// fetchSharedMemoriesCore contains the core business logic for fetching shared memories
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
 	log := getLogger()
 
 	// Validate and apply defaults
@@ -538,7 +538,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Call core business logic
-	response, err := a.FetchSharedMemoriesCore(r.Context(), workspaceID, masID, req)
+	response, err := a.fetchSharedMemoriesCore(r.Context(), workspaceID, masID, req)
 	if err != nil {
 		if strings.Contains(err.Error(), "insufficient evidence") {
 			return eh.RespondWithJSON(
@@ -1102,4 +1102,16 @@ func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *h
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
+}
+
+// CreateOrUpdateSharedMemoriesCore implements the McpService interface.
+// This method provides access to the core business logic for creating or updating shared memories.
+func (a *App) CreateOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
+	return a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, req)
+}
+
+// FetchSharedMemoriesCore implements the McpService interface.
+// This method provides access to the core business logic for fetching shared memories.
+func (a *App) FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
+	return a.fetchSharedMemoriesCore(ctx, workspaceID, masID, req)
 }
