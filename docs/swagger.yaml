@@ -749,6 +749,51 @@ paths:
       summary: Fetch paths between two concepts
       tags:
       - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search:
+    post:
+      consumes:
+      - application/json
+      description: Performs vector similarity search over document embeddings stored
+        for a given workspace and MAS.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Similarity search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.VectorSimilaritySearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            $ref: '#/definitions/sharedmemory.VectorSimilaritySearchResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search shared memory vectors by similarity
+      tags:
+      - Vector Store
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store:
     post:
       consumes:
@@ -792,51 +837,6 @@ paths:
               type: string
             type: object
       summary: Onboards the shared memory vector store.
-      tags:
-      - Vector Store
-  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vectors/similarity-search:
-    post:
-      consumes:
-      - application/json
-      description: Performs vector similarity search over document embeddings stored
-        for a given workspace and MAS.
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: workspaceId
-        required: true
-        type: string
-      - description: Multi-Agentic System ID
-        in: path
-        name: masId
-        required: true
-        type: string
-      - description: Similarity search request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/sharedmemory.VectorSimilaritySearchRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Search results
-          schema:
-            $ref: '#/definitions/sharedmemory.VectorSimilaritySearchResponse'
-        "400":
-          description: Invalid request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Search shared memory vectors by similarity
       tags:
       - Vector Store
   /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}:

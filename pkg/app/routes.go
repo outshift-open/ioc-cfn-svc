@@ -49,7 +49,7 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", a.fetchPathsByIdsHandler)
 	// similarity search (eastbound APIs, consumed by Evidence Gathering engine)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", a.conceptSimilaritySearchHandler)
-	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/vectors/similarity-search", a.vectorSimilaritySearchHandler)
+	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/rag/similarity-search", a.vectorSimilaritySearchHandler)
 
 	// semantic negotiation
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", a.startSemanticNegotiationHandler)

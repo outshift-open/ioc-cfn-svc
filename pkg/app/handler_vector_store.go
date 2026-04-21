@@ -47,7 +47,7 @@ func mapVectorSimilarityResults(src []iocmemoryprovider.KnowledgeVectorSimilarit
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vectors/similarity-search [post]
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search [post]
 func (a *App) vectorSimilaritySearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()

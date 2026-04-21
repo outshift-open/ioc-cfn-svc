@@ -326,6 +326,72 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search": {
+            "post": {
+                "description": "Performs vector similarity search over document embeddings stored for a given workspace and MAS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vector Store"
+                ],
+                "summary": "Search shared memory vectors by similarity",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Similarity search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store": {
             "post": {
                 "description": "Onboards the shared memory vector store for a given MAS. The store is scoped per-MAS.",
@@ -369,72 +435,6 @@ const docTemplate = `{
                         "description": "Vector Store successfully onboarded",
                         "schema": {
                             "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vectors/similarity-search": {
-            "post": {
-                "description": "Performs vector similarity search over document embeddings stored for a given workspace and MAS.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Vector Store"
-                ],
-                "summary": "Search shared memory vectors by similarity",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Similarity search request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Search results",
-                        "schema": {
-                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchResponse"
                         }
                     },
                     "400": {
