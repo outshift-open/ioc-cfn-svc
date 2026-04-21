@@ -104,6 +104,40 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 	}
 }
 
+// logSharedMemoryAudit creates an audit event for shared-memory operations.
+// It resolves the AuditResourceIdentifier from the summary API (falling back to
+// masID) and logs any audit-creation errors without propagating them.
+func (a *App) logSharedMemoryAudit(operationID, masID, auditType, status string, errMsg *string) {
+	log := getLogger()
+
+	ensureAuditResourceIDs()
+	auditResID := SharedMemoryID
+	if auditResID == "" {
+		auditResID = masID
+	}
+
+	info := map[string]string{"status": status}
+	if errMsg != nil {
+		info["error"] = *errMsg
+	}
+	auditInfo, _ := json.Marshal(info)
+
+	ev := &audit.Audit{
+		OperationID:             &operationID,
+		ResourceType:            audit.ResourceTypeMAS,
+		ResourceIdentifier:      masID,
+		AuditType:               auditType,
+		AuditResourceIdentifier: auditResID,
+		AuditInformation:        datatypes.JSON(auditInfo),
+		AuditExtraInformation:   errMsg,
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if auditErr := a.db.CreateAuditEvent(ev); auditErr != nil {
+		log.Errorf("failed to create audit event: %v", auditErr)
+	}
+}
+
 // createOrUpdateSharedMemoriesHandler godoc
 //
 // @Summary     Create or update shared memories.
@@ -151,6 +185,10 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		requestId = common.StrToPtr(uuid.New().String())
 	}
 
+	// TODO: operationID is currently a random UUID; replace with a consistent request ID
+	// (e.g. trace ID or correlation ID from the incoming request) once available.
+	operationID := uuid.New().String()
+
 	extractionPayload := reqPayload.Payload
 
 	extractionReq := &cognitionagentclient.ExtractionRequest{
@@ -170,6 +208,9 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 	if err != nil {
 		log.Errorf("failed to send extraction call, error: %s", err.Error())
 
+		errMsg := err.Error()
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
@@ -187,57 +228,15 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Records:      TransformExtractionResponseToRecords(extractionResp),
 	}
 
-	// TODO: Revisit audit logging for createOrUpdateSharedMemoriesHandler later.
-	// // TODO: operationID is currently a random UUID; replace with a consistent request ID
-	// // (e.g. trace ID or correlation ID from the incoming request) once available.
-	// operationID := uuid.New().String()
-	//
-	// // Audit: start of knowledge ingestion
-	// startAuditInfo, _ := json.Marshal(map[string]string{
-	// 	"status": "STARTED",
-	// })
-	// startAudit := &audit.Audit{
-	// 	OperationID:        &operationID,
-	// 	ResourceType:       audit.ResourceTypeMAS,
-	// 	ResourceIdentifier: masID,
-	// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-	// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-	// 	AuditResourceIdentifier: masID,
-	// 	AuditInformation:        datatypes.JSON(startAuditInfo),
-	// 	CreatedBy:               uuid.Nil,
-	// 	LastModifiedBy:          uuid.Nil,
-	// }
-	// if err := a.db.CreateAuditEvent(startAudit); err != nil {
-	// 	log.Errorf("failed to create start audit event: %v", err)
-	// }
-
 	knowledgeGraphResp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
 	if err != nil {
 		log.Errorf(
 			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
 			workspaceID, masID, err,
 		)
-		// // Audit: end of knowledge ingestion (failure)
-		// errMsg := err.Error()
-		// endAuditInfo, _ := json.Marshal(map[string]string{
-		// 	"status": "FAILED",
-		// 	"error":  errMsg,
-		// })
-		// endAudit := &audit.Audit{
-		// 	OperationID:        &operationID,
-		// 	ResourceType:       audit.ResourceTypeMemoryProvider,
-		// 	ResourceIdentifier: masID,
-		// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-		// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-		// 	AuditResourceIdentifier: masID,
-		// 	AuditInformation:        datatypes.JSON(endAuditInfo),
-		// 	AuditExtraInformation:   &errMsg,
-		// 	CreatedBy:               uuid.Nil,
-		// 	LastModifiedBy:          uuid.Nil,
-		// }
-		// if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		// 	log.Errorf("failed to create end audit event: %v", auditErr)
-		// }
+
+		errMsg := err.Error()
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 
 		return eh.RespondWithJSON(
 			w,
@@ -246,24 +245,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		)
 	}
 
-	// // Audit: end of knowledge ingestion (success)
-	// endAuditInfo, _ := json.Marshal(map[string]string{
-	// 	"status": "SUCCESS",
-	// })
-	// endAudit := &audit.Audit{
-	// 	OperationID:        &operationID,
-	// 	ResourceType:       audit.ResourceTypeMemoryProvider,
-	// 	ResourceIdentifier: masID,
-	// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-	// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-	// 	AuditResourceIdentifier: masID,
-	// 	AuditInformation:        datatypes.JSON(endAuditInfo),
-	// 	CreatedBy:               uuid.Nil,
-	// 	LastModifiedBy:          uuid.Nil,
-	// }
-	// if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-	// 	log.Errorf("failed to create end audit event: %v", auditErr)
-	// }
+	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
 
 	resp := &sharedmemory.CreateOrUpdateResponse{
 		ResponseID: knowledgeGraphResp.RequestID,
@@ -387,33 +369,8 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			workspaceID, masID, err,
 		)
 
-		// Audit: shared memory query (failure)
 		errMsg := err.Error()
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		// Hacky: fetch shared_memory.id from summary API on first audit call.
-		// TODO: Remove once IDs are available directly in CfnConfig global map.
-		ensureAuditResourceIDs()
-		auditResID := SharedMemoryID
-		if auditResID == "" {
-			auditResID = masID
-		}
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMAS,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeSharedMemoryOperation,
-			AuditResourceIdentifier: auditResID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create audit event: %v", auditErr)
-		}
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
 		return eh.RespondWithJSON(
 			w,
@@ -439,31 +396,8 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			workspaceID, masID,
 		)
 
-		// Audit: shared memory query (insufficient evidence)
 		errMsg := "Insufficient evidence to answer provided user intent"
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		ensureAuditResourceIDs()
-		auditResID := SharedMemoryID
-		if auditResID == "" {
-			auditResID = masID
-		}
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMAS,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeSharedMemoryOperation,
-			AuditResourceIdentifier: auditResID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create audit event: %v", auditErr)
-		}
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
 		return eh.RespondWithJSON(
 			w,
@@ -482,30 +416,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		message = "evidence processed"
 	}
 
-	// Audit: shared memory query (success)
-	endAuditInfo, _ := json.Marshal(map[string]string{
-		"status": "SUCCESS",
-	})
-	// Hacky: fetch shared_memory.id from summary API on first audit call.
-	// TODO: Remove once IDs are available directly in CfnConfig global map.
-	ensureAuditResourceIDs()
-	successAuditResID := SharedMemoryID
-	if successAuditResID == "" {
-		successAuditResID = masID
-	}
-	endAudit := &audit.Audit{
-		OperationID:             &operationID,
-		ResourceType:            audit.ResourceTypeMAS,
-		ResourceIdentifier:      masID,
-		AuditType:               audit.AuditTypeSharedMemoryOperation,
-		AuditResourceIdentifier: successAuditResID,
-		AuditInformation:        datatypes.JSON(endAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
-	}
-	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		log.Errorf("failed to create audit event: %v", auditErr)
-	}
+	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "SUCCESS", nil)
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 

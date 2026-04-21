@@ -62,6 +62,7 @@ pkg/client/database/database.go  — Real (Postgres) Database implementation
 | `AuditTypeMemoryOperation` | `MEMORY_OPERATION` |
 | `AuditTypeSharedMemoryOperation` | `SHARED_MEMORY_OPERATION` |
 | `AuditTypeAgentMemoryOperation` | `AGENT_MEMORY_OPERATION` |
+| `AuditTypeSemanticNegotiation` | `SEMANTIC_NEGOTIATION` |
 
 Both enums are validated on create and list operations. Invalid values return an error with the list of valid options.
 
@@ -162,6 +163,7 @@ curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=KNOWLEDGE_
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=MEMORY_OPERATION"
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SHARED_MEMORY_OPERATION"
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=AGENT_MEMORY_OPERATION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SEMANTIC_NEGOTIATION"
 ```
 
 #### List — both filters
@@ -268,7 +270,17 @@ All audit information is stored as JSON in the `audit_information` field.
 
 ### Create or Update Shared Memories (`createOrUpdateSharedMemoriesHandler`)
 
-> **Status: Audit code is fully commented out.** TODO: Revisit later — decide on audit type, resource identifiers, and single-row vs dual-row pattern.
+Emits a **single audit row** per operation (no STARTED entry). The row is created only after the operation completes (SUCCESS or FAILED).
+
+| Resource Type | Audit Type              | Resource Identifier | Audit Resource Identifier |
+|---------------|-------------------------|---------------------|---------------------------|
+| `MAS`         | `KNOWLEDGE_INGESTION`   | `masId`             | `shared_memory.id` from summary API (falls back to `masId` if not yet fetched) |
+
+| Outcome | Audit Information |
+|---------|-------------------|
+| Success | `{"status":"SUCCESS"}` |
+| Failure (extraction error) | `{"status":"FAILED","error":"<upstream error>"}` |
+| Failure (upsert error) | `{"status":"FAILED","error":"<upstream error>"}` |
 
 ### Fetch Shared Memories (`fetchSharedMemoriesHandler`)
 
