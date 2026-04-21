@@ -93,6 +93,43 @@ func transformExtractionRelations(src []cognitionagentclient.Relation) []iocmemo
 	return out
 }
 
+// ragChunkNamespace is the UUID v5 namespace for deriving deterministic chunk IDs.
+var ragChunkNamespace = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // uuid.NameSpaceURL
+
+func transformRagChunksToVectorRecords(wkspID, masID string, chunks []cognitionagentclient.RagChunk) []iocmemoryprovider.KnowledgeVectorStoreRequestRecord {
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	records := make([]iocmemoryprovider.KnowledgeVectorStoreRequestRecord, 0, len(chunks))
+	for _, chunk := range chunks {
+		if len(chunk.Embedding) == 0 || len(chunk.Embedding[0]) == 0 {
+			continue
+		}
+
+		// Deterministic ID derived from (wksp, mas, source, doc, chunk) so that
+		// re-ingesting the same chunk hits ON CONFLICT (id) DO UPDATE instead of inserting a duplicate.
+		chunkKey := fmt.Sprintf("%s:%s:%s:%d:%d", wkspID, masID, chunk.Metadata.Domain, chunk.Metadata.DocIndex, chunk.Metadata.ChunkIndex)
+		chunkID := uuid.NewSHA1(ragChunkNamespace, []byte(chunkKey)).String()
+
+		metadata := map[string]interface{}{
+			"data_source": chunk.Metadata.Domain,
+			"recorded_at": chunk.Metadata.Timestamp,
+			"doc_index":   chunk.Metadata.DocIndex,
+			"chunk_index": chunk.Metadata.ChunkIndex,
+		}
+
+		records = append(records, iocmemoryprovider.KnowledgeVectorStoreRequestRecord{
+			ID:        chunkID,
+			Content:   chunk.Text,
+			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{Data: chunk.Embedding[0]},
+			Metadata:  metadata,
+		})
+	}
+
+	return records
+}
+
 func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCognitionResponse) *iocmemoryprovider.Records {
 	if resp == nil {
 		return nil
@@ -245,12 +282,32 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		)
 	}
 
+	// Upsert RAG chunks into vector DB if present in extraction response
+	var vectorStoreMessage *string
+	if vectorRecords := transformRagChunksToVectorRecords(workspaceID, masID, extractionResp.RagChunks); len(vectorRecords) > 0 {
+		vectorStoreReq := iocmemoryprovider.NewKnowledgeVectorStoreRequest(workspaceID, masID, vectorRecords)
+		if vectorResp, vectorErr := a.knowledgeMemSvcClient.UpsertKnowledgeVectors(ctx, vectorStoreReq); vectorErr != nil {
+			// Non-fatal: graph upsert already succeeded, log and continue
+
+			log.Errorf(
+				"UpsertKnowledgeVectors failed (non-fatal) | workspace=%s mas=%s err=%v",
+				workspaceID, masID, vectorErr,
+			)
+
+			errMsg := vectorErr.Error()
+			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+		} else if vectorResp != nil {
+			vectorStoreMessage = vectorResp.Message
+		}
+	}
+
 	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
 
 	resp := &sharedmemory.CreateOrUpdateResponse{
-		ResponseID: knowledgeGraphResp.RequestID,
-		Status:     string(knowledgeGraphResp.Status),
-		Message:    knowledgeGraphResp.Message,
+		ResponseID:         knowledgeGraphResp.RequestID,
+		Status:             string(knowledgeGraphResp.Status),
+		GraphStoreMessage:  knowledgeGraphResp.Message,
+		VectorStoreMessage: vectorStoreMessage,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
@@ -429,30 +486,31 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 // onboardSharedMemoriesVectorStoreHandler godoc
 //
 // @Summary     Onboards the shared memory vector store.
-// @Description Onboards the shared memory vector store.
+// @Description Onboards the shared memory vector store for a given MAS. The store is scoped per-MAS.
 //
-// @Tags        shared-memories
+// @Tags        Vector Store
 // @Accept      json
 // @Produce     json
 //
 // @Param       workspaceId path string true "Workspace ID"
+// @Param       masId       path string true "Multi-Agentic System ID"
 // @Param       body        body object true "Onboard vector store request"
 //
 // @Success     201 {object} object "Vector Store successfully onboarded"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/workspaces/{workspaceId}/shared-memories/vector-store [post]
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store [post]
 func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
 
-	// only workspace is used for vector store onboarding
 	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
-		"onboarding shared memory store | workspace=%s",
-		workspaceID,
+		"onboarding shared memory store | workspace=%s mas=%s",
+		workspaceID, masID,
 	)
 
 	var reqPayload sharedmemory.OnboardVectorStoreRequest
@@ -474,20 +532,20 @@ func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *
 
 	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardRequest{
 		RequestID: *requestId,
-		WkspID:    workspaceID,
+		MasID:     masID,
 	}
 
 	response, err := a.knowledgeMemSvcClient.OnboardKnowledgeVectorStore(ctx, memoryProviderReq)
 	if err != nil {
 		log.Errorf(
-			"OnboardKnowledgeVectorStore failed | workspace=%s err=%v",
-			workspaceID, err,
+			"OnboardKnowledgeVectorStore failed | workspace=%s mas=%s err=%v",
+			workspaceID, masID, err,
 		)
 		if response != nil {
 			responseJSON, _ := json.Marshal(response)
 			log.Infof(
-				"OnboardKnowledgeVectorStore response | workspace=%s response=%s",
-				workspaceID, string(responseJSON),
+				"OnboardKnowledgeVectorStore response | workspace=%s mas=%s response=%s",
+				workspaceID, masID, string(responseJSON),
 			)
 		}
 		return eh.RespondWithJSON(
@@ -501,7 +559,7 @@ func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *
 		ResponseID: requestId,
 		Status:     string(response.Status),
 		Message:    response.Message,
-		StoreId:    &workspaceID,
+		StoreId:    &masID,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
@@ -512,7 +570,7 @@ func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *
 // @Summary     Deletes the shared memory vector store.
 // @Description Deletes the shared memory vector store.
 //
-// @Tags        shared-memories
+// @Tags        Vector Store
 // @Accept      json
 // @Produce     json
 //
@@ -556,7 +614,7 @@ func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *h
 
 	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardDeleteRequest{
 		RequestID: *requestId,
-		WkspID:    workspaceID,
+		MasID:     storeID,
 	}
 
 	response, err := a.knowledgeMemSvcClient.DeleteKnowledgeVectorStore(ctx, memoryProviderReq)

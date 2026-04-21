@@ -151,6 +151,19 @@ definitions:
         description: Mandatory
         type: string
     type: object
+  iocmemoryprovider.KnowledgeVectorMetadataFilter:
+    properties:
+      chunk_index:
+        type: integer
+      data_source:
+        type: string
+      doc_index:
+        type: integer
+      recorded_at_from:
+        type: string
+      recorded_at_to:
+        type: string
+    type: object
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -300,14 +313,17 @@ definitions:
     type: object
   sharedmemory.CreateOrUpdateResponse:
     properties:
-      message:
-        description: Optional message providing additional information
+      graph_store_message:
+        description: Optional message from the graph store upsert operation
         type: string
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
       status:
         description: Status of the request
+        type: string
+      vector_store_message:
+        description: Optional message from the vector store upsert operation
         type: string
     type: object
   sharedmemory.GraphConcept:
@@ -466,6 +482,60 @@ definitions:
         items:
           $ref: '#/definitions/sharedmemory.QueryRelation'
         type: array
+    type: object
+  sharedmemory.VectorSimilaritySearchPayload:
+    properties:
+      embedded_text:
+        type: string
+      embedding_vector:
+        items:
+          type: number
+        type: array
+      filters:
+        $ref: '#/definitions/iocmemoryprovider.KnowledgeVectorMetadataFilter'
+      search_metrics:
+        type: string
+      top_k:
+        type: integer
+    type: object
+  sharedmemory.VectorSimilaritySearchRequest:
+    properties:
+      header:
+        $ref: '#/definitions/sharedmemory.Header'
+      payload:
+        $ref: '#/definitions/sharedmemory.VectorSimilaritySearchPayload'
+      request_id:
+        type: string
+    type: object
+  sharedmemory.VectorSimilaritySearchResponse:
+    properties:
+      header:
+        $ref: '#/definitions/sharedmemory.Header'
+      request_id:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/sharedmemory.VectorSimilaritySearchResult'
+        type: array
+    type: object
+  sharedmemory.VectorSimilaritySearchResult:
+    properties:
+      chunk_index:
+        type: integer
+      doc_index:
+        type: integer
+      domain:
+        type: string
+      embedded_text:
+        type: string
+      embedding_vector:
+        items:
+          type: number
+        type: array
+      score:
+        type: number
+      timestamp:
+        type: string
     type: object
 info:
   contact: {}
@@ -686,6 +756,100 @@ paths:
       summary: Fetch paths between two concepts
       tags:
       - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search:
+    post:
+      consumes:
+      - application/json
+      description: Performs vector similarity search over document embeddings stored
+        for a given workspace and MAS.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Include raw embedding vectors in results (debug only)
+        in: query
+        name: include_embeddings
+        type: boolean
+      - description: Similarity search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.VectorSimilaritySearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            $ref: '#/definitions/sharedmemory.VectorSimilaritySearchResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search shared memory vectors by similarity
+      tags:
+      - Vector Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store:
+    post:
+      consumes:
+      - application/json
+      description: Onboards the shared memory vector store for a given MAS. The store
+        is scoped per-MAS.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Onboard vector store request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Vector Store successfully onboarded
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Onboards the shared memory vector store.
+      tags:
+      - Vector Store
   /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}:
     delete:
       consumes:
@@ -729,7 +893,7 @@ paths:
             type: object
       summary: Deletes the shared memory vector store.
       tags:
-      - shared-memories
+      - Vector Store
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:
@@ -1006,45 +1170,6 @@ paths:
               type: string
             type: object
       summary: Fetch shared memories
-      tags:
-      - shared-memories
-  /api/workspaces/{workspaceId}/shared-memories/vector-store:
-    post:
-      consumes:
-      - application/json
-      description: Onboards the shared memory vector store.
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: workspaceId
-        required: true
-        type: string
-      - description: Onboard vector store request
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Vector Store successfully onboarded
-          schema:
-            type: object
-        "400":
-          description: Invalid request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Onboards the shared memory vector store.
       tags:
       - shared-memories
 swagger: "2.0"
