@@ -35,7 +35,7 @@ func mapVectorSimilarityResults(src []iocmemoryprovider.KnowledgeVectorSimilarit
 // @Summary     Search shared memory vectors by similarity
 // @Description Performs vector similarity search over document embeddings stored for a given workspace and MAS.
 //
-// @Tags        shared-memories
+// @Tags        Vector Store
 // @Accept      json
 // @Produce     json
 //

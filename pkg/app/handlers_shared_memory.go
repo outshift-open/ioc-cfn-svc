@@ -573,7 +573,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 // @Summary     Onboards the shared memory vector store.
 // @Description Onboards the shared memory vector store for a given MAS. The store is scoped per-MAS.
 //
-// @Tags        shared-memories
+// @Tags        Vector Store
 // @Accept      json
 // @Produce     json
 //
@@ -585,7 +585,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store [post]
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store [post]
 func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
@@ -655,7 +655,7 @@ func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *
 // @Summary     Deletes the shared memory vector store.
 // @Description Deletes the shared memory vector store.
 //
-// @Tags        shared-memories
+// @Tags        Vector Store
 // @Accept      json
 // @Produce     json
 //
