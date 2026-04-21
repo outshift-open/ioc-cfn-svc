@@ -287,11 +287,15 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 	if vectorRecords := transformRagChunksToVectorRecords(workspaceID, masID, extractionResp.RagChunks); len(vectorRecords) > 0 {
 		vectorStoreReq := iocmemoryprovider.NewKnowledgeVectorStoreRequest(workspaceID, masID, vectorRecords)
 		if vectorResp, vectorErr := a.knowledgeMemSvcClient.UpsertKnowledgeVectors(ctx, vectorStoreReq); vectorErr != nil {
+			// Non-fatal: graph upsert already succeeded, log and continue
+
 			log.Errorf(
 				"UpsertKnowledgeVectors failed (non-fatal) | workspace=%s mas=%s err=%v",
 				workspaceID, masID, vectorErr,
 			)
-			// Non-fatal: graph upsert already succeeded, log and continue
+
+			errMsg := vectorErr.Error()
+			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 		} else if vectorResp != nil {
 			vectorStoreMessage = vectorResp.Message
 		}
