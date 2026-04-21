@@ -214,7 +214,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		)
 	}
 
-	log.Infof("Successfully extracted knowledge, response: %+v", extractionResp)
+	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
 
 	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
 		RequestID:    *requestId,
