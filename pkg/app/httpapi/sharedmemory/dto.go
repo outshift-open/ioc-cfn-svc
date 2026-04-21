@@ -148,10 +148,13 @@ type VectorSimilaritySearchRequest struct {
 
 // VectorSimilaritySearchResult is a single result from a vector similarity search
 type VectorSimilaritySearchResult struct {
-	Score    float64                `json:"score"`
-	ID       string                 `json:"id"`
-	Content  string                 `json:"content"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Score           float64   `json:"score"`
+	EmbeddedText    string    `json:"embedded_text"`
+	Timestamp       string    `json:"timestamp,omitempty"`
+	DocIndex        int       `json:"doc_index"`
+	ChunkIndex      int       `json:"chunk_index"`
+	Domain          string    `json:"domain,omitempty"`
+	EmbeddingVector []float64 `json:"embedding_vector,omitempty"`
 }
 
 // VectorSimilaritySearchResponse is the response for vector similarity search

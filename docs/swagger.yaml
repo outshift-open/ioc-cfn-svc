@@ -520,15 +520,22 @@ definitions:
     type: object
   sharedmemory.VectorSimilaritySearchResult:
     properties:
-      content:
+      chunk_index:
+        type: integer
+      doc_index:
+        type: integer
+      domain:
         type: string
-      id:
+      embedded_text:
         type: string
-      metadata:
-        additionalProperties: true
-        type: object
+      embedding_vector:
+        items:
+          type: number
+        type: array
       score:
         type: number
+      timestamp:
+        type: string
     type: object
 info:
   contact: {}
@@ -766,6 +773,10 @@ paths:
         name: masId
         required: true
         type: string
+      - description: Include raw embedding vectors in results (debug only)
+        in: query
+        name: include_embeddings
+        type: boolean
       - description: Similarity search request
         in: body
         name: body

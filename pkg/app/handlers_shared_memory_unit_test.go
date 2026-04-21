@@ -467,3 +467,171 @@ func TestMapKGRecordToQueryRecord_MapsConceptsAndRelations(t *testing.T) {
 		t.Errorf("expected relation 'knows', got %q", result.Relationships[0].Relation)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// mapVectorSimilarityResults
+// ---------------------------------------------------------------------------
+
+func TestMapVectorSimilarityResults_Empty(t *testing.T) {
+	result := mapVectorSimilarityResults(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil input, got %v", result)
+	}
+
+	result = mapVectorSimilarityResults([]iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{})
+	if result != nil {
+		t.Errorf("expected nil for empty slice, got %v", result)
+	}
+}
+
+func TestMapVectorSimilarityResults_MapsFieldsFromMetadata(t *testing.T) {
+	src := []iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{
+		{
+			Score:   0.1427,
+			ID:      "some-id",
+			Content: "concierge_agent selected policy route",
+			Metadata: map[string]interface{}{
+				"recorded_at": "2026-04-13T09:00:01Z",
+				"doc_index":   float64(12),
+				"chunk_index": float64(3),
+				"data_source": "openclaw",
+			},
+		},
+	}
+
+	result := mapVectorSimilarityResults(src)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+
+	r := result[0]
+	if r.Score != 0.1427 {
+		t.Errorf("expected score 0.1427, got %f", r.Score)
+	}
+	if r.EmbeddedText != "concierge_agent selected policy route" {
+		t.Errorf("expected embedded_text to be the content, got %q", r.EmbeddedText)
+	}
+	if r.Timestamp != "2026-04-13T09:00:01Z" {
+		t.Errorf("expected timestamp '2026-04-13T09:00:01Z', got %q", r.Timestamp)
+	}
+	if r.DocIndex != 12 {
+		t.Errorf("expected doc_index 12, got %d", r.DocIndex)
+	}
+	if r.ChunkIndex != 3 {
+		t.Errorf("expected chunk_index 3, got %d", r.ChunkIndex)
+	}
+	if r.Domain != "openclaw" {
+		t.Errorf("expected domain 'openclaw', got %q", r.Domain)
+	}
+}
+
+func TestMapVectorSimilarityResults_NilMetadata(t *testing.T) {
+	src := []iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{
+		{
+			Score:    0.5,
+			Content:  "some text",
+			Metadata: nil,
+		},
+	}
+
+	result := mapVectorSimilarityResults(src)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+
+	r := result[0]
+	if r.Score != 0.5 {
+		t.Errorf("expected score 0.5, got %f", r.Score)
+	}
+	if r.EmbeddedText != "some text" {
+		t.Errorf("expected embedded_text 'some text', got %q", r.EmbeddedText)
+	}
+	// All metadata-derived fields should be zero values
+	if r.Timestamp != "" {
+		t.Errorf("expected empty timestamp, got %q", r.Timestamp)
+	}
+	if r.DocIndex != 0 {
+		t.Errorf("expected doc_index 0, got %d", r.DocIndex)
+	}
+	if r.ChunkIndex != 0 {
+		t.Errorf("expected chunk_index 0, got %d", r.ChunkIndex)
+	}
+	if r.Domain != "" {
+		t.Errorf("expected empty domain, got %q", r.Domain)
+	}
+}
+
+func TestMapVectorSimilarityResults_IncludesEmbeddingVectorWhenPresent(t *testing.T) {
+	embedding := []float64{0.1, 0.2, 0.3}
+	src := []iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{
+		{
+			Score:           0.9,
+			Content:         "text",
+			EmbeddingVector: embedding,
+		},
+	}
+
+	result := mapVectorSimilarityResults(src)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+
+	if len(result[0].EmbeddingVector) != 3 {
+		t.Fatalf("expected embedding vector with 3 elements, got %d", len(result[0].EmbeddingVector))
+	}
+	for i, v := range embedding {
+		if result[0].EmbeddingVector[i] != v {
+			t.Errorf("embedding[%d]: want %f got %f", i, v, result[0].EmbeddingVector[i])
+		}
+	}
+}
+
+func TestMapVectorSimilarityResults_OmitsEmbeddingVectorWhenAbsent(t *testing.T) {
+	src := []iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{
+		{
+			Score:           0.5,
+			Content:         "text",
+			EmbeddingVector: nil,
+		},
+	}
+
+	result := mapVectorSimilarityResults(src)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].EmbeddingVector != nil {
+		t.Errorf("expected nil embedding vector, got %v", result[0].EmbeddingVector)
+	}
+}
+
+func TestMapVectorSimilarityResults_MultipleResults(t *testing.T) {
+	src := []iocmemoryprovider.KnowledgeVectorSimilaritySearchResult{
+		{
+			Score:   0.9,
+			Content: "first",
+			Metadata: map[string]interface{}{
+				"doc_index": float64(1), "chunk_index": float64(0), "data_source": "domain-a",
+			},
+		},
+		{
+			Score:   0.7,
+			Content: "second",
+			Metadata: map[string]interface{}{
+				"doc_index": float64(2), "chunk_index": float64(1), "data_source": "domain-b",
+			},
+		},
+	}
+
+	result := mapVectorSimilarityResults(src)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(result))
+	}
+
+	if result[0].EmbeddedText != "first" || result[0].Domain != "domain-a" {
+		t.Errorf("first result mismatch: %+v", result[0])
+	}
+	if result[1].EmbeddedText != "second" || result[1].Domain != "domain-b" {
+		t.Errorf("second result mismatch: %+v", result[1])
+	}
+}
+

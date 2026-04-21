@@ -355,6 +355,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "boolean",
+                        "description": "Include raw embedding vectors in results (debug only)",
+                        "name": "include_embeddings",
+                        "in": "query"
+                    },
+                    {
                         "description": "Similarity search request",
                         "name": "body",
                         "in": "body",
@@ -1604,18 +1610,29 @@ const docTemplate = `{
         "sharedmemory.VectorSimilaritySearchResult": {
             "type": "object",
             "properties": {
-                "content": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "doc_index": {
+                    "type": "integer"
+                },
+                "domain": {
                     "type": "string"
                 },
-                "id": {
+                "embedded_text": {
                     "type": "string"
                 },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
+                "embedding_vector": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
                 },
                 "score": {
                     "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
                 }
             }
         }

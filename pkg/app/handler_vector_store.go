@@ -20,12 +20,26 @@ func mapVectorSimilarityResults(src []iocmemoryprovider.KnowledgeVectorSimilarit
 
 	out := make([]sharedmemory.VectorSimilaritySearchResult, 0, len(src))
 	for _, r := range src {
-		out = append(out, sharedmemory.VectorSimilaritySearchResult{
-			Score:    r.Score,
-			ID:       r.ID,
-			Content:  r.Content,
-			Metadata: r.Metadata,
-		})
+		result := sharedmemory.VectorSimilaritySearchResult{
+			Score:           r.Score,
+			EmbeddedText:    r.Content,
+			EmbeddingVector: r.EmbeddingVector,
+		}
+		if r.Metadata != nil {
+			if v, ok := r.Metadata["recorded_at"].(string); ok {
+				result.Timestamp = v
+			}
+			if v, ok := r.Metadata["doc_index"].(float64); ok {
+				result.DocIndex = int(v)
+			}
+			if v, ok := r.Metadata["chunk_index"].(float64); ok {
+				result.ChunkIndex = int(v)
+			}
+			if v, ok := r.Metadata["data_source"].(string); ok {
+				result.Domain = v
+			}
+		}
+		out = append(out, result)
 	}
 	return out
 }
@@ -39,9 +53,10 @@ func mapVectorSimilarityResults(src []iocmemoryprovider.KnowledgeVectorSimilarit
 // @Accept      json
 // @Produce     json
 //
-// @Param       workspaceId path string true "Workspace ID"
-// @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body sharedmemory.VectorSimilaritySearchRequest true "Similarity search request"
+// @Param       workspaceId 				path string true "Workspace ID"
+// @Param       masId       				path string true "Multi-Agentic System ID"
+// @Param       include_embeddings 			query bool   alse "Include raw embedding vectors in results (debug only)"
+// @Param       body        				body sharedmemory.VectorSimilaritySearchRequest true "Similarity search request"
 //
 // @Success     200 {object} sharedmemory.VectorSimilaritySearchResponse "Search results"
 // @Failure     400 {object} map[string]string "Invalid request"
@@ -105,7 +120,8 @@ func (a *App) vectorSimilaritySearchHandler(w http.ResponseWriter, r *http.Reque
 		MetadataFilter: req.Payload.Filters,
 	}
 
-	response, err := a.knowledgeMemSvcClient.SimilaritySearchVectors(ctx, memoryProviderReq, false)
+	includeEmbeddings := r.URL.Query().Get("include_embeddings") == "true"
+	response, err := a.knowledgeMemSvcClient.SimilaritySearchVectors(ctx, memoryProviderReq, includeEmbeddings)
 	if err != nil {
 		log.Errorf(
 			"SimilaritySearchVectors failed | workspace=%s mas=%s err=%v",
