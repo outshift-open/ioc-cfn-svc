@@ -5,6 +5,7 @@ import (
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
+	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
 type Header struct {
@@ -56,8 +57,10 @@ type CreateOrUpdateResponse struct {
 	ResponseID *string `json:"response_id,omitempty"`
 	// Status of the request
 	Status string `json:"status"`
-	// Optional message providing additional information
-	Message *string `json:"message,omitempty"`
+	// Optional message from the graph store upsert operation
+	GraphStoreMessage *string `json:"graph_store_message,omitempty"`
+	// Optional message from the vector store upsert operation
+	VectorStoreMessage *string `json:"vector_store_message,omitempty"`
 }
 
 type QueryRequest struct {
@@ -125,6 +128,40 @@ type QueryRelation struct {
 	Relation   string                 `json:"relation"`
 	NodeIDs    []string               `json:"node_ids"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+// VectorSimilaritySearchPayload holds the search parameters nested under "payload"
+type VectorSimilaritySearchPayload struct {
+	EmbeddedText    string                                           `json:"embedded_text,omitempty"`
+	EmbeddingVector []float64                                        `json:"embedding_vector"`
+	Filters         *iocmemoryprovider.KnowledgeVectorMetadataFilter `json:"filters,omitempty"`
+	TopK            *int                                             `json:"top_k,omitempty"`
+	Metric          *string                                          `json:"search_metrics,omitempty"`
+}
+
+// VectorSimilaritySearchRequest is the request body for vector similarity search
+type VectorSimilaritySearchRequest struct {
+	Header    *Header                       `json:"header,omitempty"`
+	RequestId *string                       `json:"request_id,omitempty"`
+	Payload   VectorSimilaritySearchPayload `json:"payload"`
+}
+
+// VectorSimilaritySearchResult is a single result from a vector similarity search
+type VectorSimilaritySearchResult struct {
+	Score           float64   `json:"score"`
+	EmbeddedText    string    `json:"embedded_text"`
+	Timestamp       string    `json:"timestamp,omitempty"`
+	DocIndex        int       `json:"doc_index"`
+	ChunkIndex      int       `json:"chunk_index"`
+	Domain          string    `json:"domain,omitempty"`
+	EmbeddingVector []float64 `json:"embedding_vector,omitempty"`
+}
+
+// VectorSimilaritySearchResponse is the response for vector similarity search
+type VectorSimilaritySearchResponse struct {
+	Header    *Header                        `json:"header,omitempty"`
+	RequestId *string                        `json:"request_id,omitempty"`
+	Results   []VectorSimilaritySearchResult `json:"results,omitempty"`
 }
 
 // NeighborsResponse is the response for GET /graph/neighbors/{conceptId}
