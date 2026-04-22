@@ -198,8 +198,25 @@ type KnowledgeCognitionResponse struct {
 	Error      *common.ErrorDetail `json:"error,omitempty"`
 	Concepts   []Concept           `json:"concepts,omitempty"`
 	Relations  []Relation          `json:"relations,omitempty"`
+	RagChunks  []RagChunk          `json:"rag_chunks,omitempty"`
 	Descriptor string              `json:"descriptor,omitempty"`
 	Metadata   Meta                `json:"metadata,omitempty"`
+}
+
+// RagChunkMetadata contains metadata fields associated with a RAG chunk.
+type RagChunkMetadata struct {
+	Domain     string `json:"domain"`
+	Timestamp  string `json:"timestamp"`
+	DocIndex   int    `json:"doc_index"`
+	ChunkIndex int    `json:"chunk_index"`
+}
+
+// RagChunk represents a single text chunk with its embedding returned by the extraction service.
+// Embedding is a list of embedding vectors (one per model); we use the first one.
+type RagChunk struct {
+	Text      string           `json:"text"`
+	Metadata  RagChunkMetadata `json:"metadata"`
+	Embedding [][]float64      `json:"embedding,omitempty"`
 }
 
 type ConceptAttributes struct {

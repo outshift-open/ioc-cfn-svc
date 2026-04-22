@@ -46,6 +46,9 @@ var (
 
 	externalServiceURLFlag = flag.String("external_service_url", "", "")
 
+	defaultPageSizeFlag = flag.Int("default_page_size", 20, "default number of records per page")
+	maxPageSizeFlag     = flag.Int("max_page_size", 100, "maximum allowed number of records per page")
+
 	idpLabelFlag                     = flag.String("idp_label", "", "label for the idp")
 	idpClientIDFlag                  = flag.String("idp_client_id", "", "client id for the idp")
 	idpClientSecretFlag              = flag.String("idp_client_secret", "", "client secret for the idp")
@@ -68,6 +71,13 @@ type Config struct {
 	ExternalServiceURL       string
 	DB                       Database
 	IDP                      IdentityProvider
+	Pagination               Pagination
+}
+
+// Pagination holds configurable pagination defaults.
+type Pagination struct {
+	DefaultPageSize int
+	MaxPageSize     int
 }
 
 func Get() *Config {
@@ -89,6 +99,10 @@ func Get() *Config {
 			Password:    *dbPasswordFlag,
 			SSLMode:     *dbSslModeFlag,
 			SSLRootCert: *dbSslRootCertFlag,
+		},
+		Pagination: Pagination{
+			DefaultPageSize: *defaultPageSizeFlag,
+			MaxPageSize:     *maxPageSizeFlag,
 		},
 		IDP: IdentityProvider{
 			Label:                     *idpLabelFlag,

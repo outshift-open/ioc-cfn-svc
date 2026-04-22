@@ -90,7 +90,7 @@ type KnowledgeGraphStoreRequest struct {
 func NewKnowledgeGraphStoreRequest() *KnowledgeGraphStoreRequest {
 	return &KnowledgeGraphStoreRequest{
 		RequestID:    uuid.New().String(),
-		ForceReplace: false,
+		ForceReplace: true,
 	}
 }
 
@@ -338,21 +338,21 @@ const (
 // KnowledgeVectorStoreOnboardRequest represents a request to setup the Vector store
 type KnowledgeVectorStoreOnboardRequest struct {
 	RequestID string `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	WkspID    string `json:"wksp_id" description:"ID for the Workspace"`
+	MasID     string `json:"mas_id" description:"ID for the Multi-Agent System"`
 }
 
 // NewKnowledgeVectorStoreOnboardRequest creates a new onboard request with auto-generated UUID
-func NewKnowledgeVectorStoreOnboardRequest(wkspID string) *KnowledgeVectorStoreOnboardRequest {
+func NewKnowledgeVectorStoreOnboardRequest(masID string) *KnowledgeVectorStoreOnboardRequest {
 	return &KnowledgeVectorStoreOnboardRequest{
 		RequestID: uuid.New().String(),
-		WkspID:    wkspID,
+		MasID:     masID,
 	}
 }
 
 // Validate validates the onboard request
 func (k *KnowledgeVectorStoreOnboardRequest) Validate() error {
-	if k.WkspID == "" {
-		return fmt.Errorf("wksp_id is required")
+	if k.MasID == "" {
+		return fmt.Errorf("mas_id is required")
 	}
 	return nil
 }
@@ -383,21 +383,21 @@ func (k *KnowledgeVectorStoreOnboardResponse) MarshalJSON() ([]byte, error) {
 // KnowledgeVectorStoreOnboardDeleteRequest represents a request to delete the Container
 type KnowledgeVectorStoreOnboardDeleteRequest struct {
 	RequestID string `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	WkspID    string `json:"wksp_id" description:"ID for the Workspace"`
+	MasID     string `json:"mas_id" description:"ID for the Multi-Agent System"`
 }
 
 // NewKnowledgeVectorStoreOnboardDeleteRequest creates a new onboard delete request with auto-generated UUID
-func NewKnowledgeVectorStoreOnboardDeleteRequest(wkspID string) *KnowledgeVectorStoreOnboardDeleteRequest {
+func NewKnowledgeVectorStoreOnboardDeleteRequest(masID string) *KnowledgeVectorStoreOnboardDeleteRequest {
 	return &KnowledgeVectorStoreOnboardDeleteRequest{
 		RequestID: uuid.New().String(),
-		WkspID:    wkspID,
+		MasID:     masID,
 	}
 }
 
 // Validate validates the onboard delete request
 func (k *KnowledgeVectorStoreOnboardDeleteRequest) Validate() error {
-	if k.WkspID == "" {
-		return fmt.Errorf("wksp_id is required")
+	if k.MasID == "" {
+		return fmt.Errorf("mas_id is required")
 	}
 	return nil
 }
@@ -435,6 +435,7 @@ type KnowledgeVectorStoreRequestRecord struct {
 	ID        string                 `json:"id" description:"Unique identifier"`
 	Content   string                 `json:"content" description:"content in plain text"`
 	Embedding *VectorEmbeddingConfig `json:"embedding" description:"Embedding"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" description:"Optional arbitrary metadata"`
 }
 
 // Validate validates the vector store request record
@@ -676,6 +677,7 @@ type KnowledgeVectorQueryResponseRecord struct {
 	ID        string                 `json:"id" description:"Unique identifier"`
 	Content   string                 `json:"content" description:"content in plain text"`
 	Embedding *VectorEmbeddingConfig `json:"embedding" description:"Embedding configuration"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" description:"Metadata associated with the record"`
 	Distance  *float64               `json:"distance,omitempty" description:"Distance between query and record"`
 	CreatedAt *int64                 `json:"created_at,omitempty" description:"Timestamp of record creation in epoch time"`
 	UpdatedAt *int64                 `json:"updated_at,omitempty" description:"Timestamp of record update in epoch time"`
@@ -715,4 +717,89 @@ func (k *KnowledgeVectorQueryResponse) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(aux)
+}
+
+///////////////////////// RAG CHUNKS /////////////////////////
+
+// RagChunkMetadata contains metadata fields associated with a RAG chunk from cognition extraction.
+type RagChunkMetadata struct {
+	Domain     string `json:"domain"`      // maps to "data_source" in vector table
+	Timestamp  string `json:"timestamp"`   // maps to "recorded_at" in vector table
+	DocIndex   int    `json:"doc_index"`
+	ChunkIndex int    `json:"chunk_index"`
+}
+
+// RagChunk represents a single text chunk returned by the cognition extraction service.
+// Embedding is a list of embedding vectors (one per model); we use the first one.
+type RagChunk struct {
+	Text      string           `json:"text"`
+	Metadata  RagChunkMetadata `json:"metadata"`
+	Embedding [][]float64      `json:"embedding,omitempty"`
+}
+
+///////////////////////// VECTOR SIMILARITY SEARCH /////////////////////////
+
+// KnowledgeVectorMetadataFilter contains optional metadata filters for vector similarity search.
+type KnowledgeVectorMetadataFilter struct {
+	DocIndex       *int    `json:"doc_index,omitempty"`
+	ChunkIndex     *int    `json:"chunk_index,omitempty"`
+	DataSource     *string `json:"data_source,omitempty"`
+	RecordedAtFrom *string `json:"recorded_at_from,omitempty"`
+	RecordedAtTo   *string `json:"recorded_at_to,omitempty"`
+}
+
+// KnowledgeVectorSimilaritySearchRequest represents a request for vector similarity search.
+type KnowledgeVectorSimilaritySearchRequest struct {
+	RequestID      string                         `json:"request_id"`
+	WkspID         string                         `json:"wksp_id"`
+	MasID          string                         `json:"mas_id"`
+	Embedding      []float64                      `json:"embedding"`
+	Limit          int                            `json:"limit,omitempty"`
+	Metric         string                         `json:"metric,omitempty"`
+	MetadataFilter *KnowledgeVectorMetadataFilter `json:"metadata_filter,omitempty"`
+}
+
+// KnowledgeVectorSimilaritySearchResult represents a single similarity search result.
+type KnowledgeVectorSimilaritySearchResult struct {
+	Score           float64                `json:"score"`
+	ID              string                 `json:"id"`
+	Content         string                 `json:"content"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	EmbeddingVector []float64              `json:"embedding_vector,omitempty"`
+}
+
+// KnowledgeVectorSimilaritySearchResponse represents a response from a vector similarity search.
+type KnowledgeVectorSimilaritySearchResponse struct {
+	RequestID *string                                 `json:"request_id,omitempty"`
+	Status    ResponseStatus                          `json:"status"`
+	Message   *string                                 `json:"message,omitempty"`
+	Results   []KnowledgeVectorSimilaritySearchResult `json:"results,omitempty"`
+}
+
+///////////////////////// GRAPH SIMILARITY SEARCH /////////////////////////
+
+// KnowledgeGraphSimilaritySearchRequest represents a request to search for similar concepts by embedding vector
+type KnowledgeGraphSimilaritySearchRequest struct {
+	RequestID string    `json:"request_id"`
+	MasID     *string   `json:"mas_id,omitempty"`
+	WkspID    *string   `json:"wksp_id,omitempty"`
+	Embedding []float64 `json:"embedding"`
+	Limit     int       `json:"limit,omitempty"`
+	Metric    string    `json:"metric,omitempty"`
+}
+
+// KnowledgeGraphSimilaritySearchResult represents a single result from a similarity search
+type KnowledgeGraphSimilaritySearchResult struct {
+	Score           float64   `json:"score"`
+	ConceptID       string    `json:"concept_id"`
+	ConceptName     string    `json:"concept_name"`
+	EmbeddingVector []float64 `json:"embedding_vector,omitempty"`
+}
+
+// KnowledgeGraphSimilaritySearchResponse represents a response from a similarity search
+type KnowledgeGraphSimilaritySearchResponse struct {
+	RequestID *string                                `json:"request_id,omitempty"`
+	Status    ResponseStatus                         `json:"status"`
+	Message   *string                                `json:"message,omitempty"`
+	Results   []KnowledgeGraphSimilaritySearchResult `json:"results,omitempty"`
 }

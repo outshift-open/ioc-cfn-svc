@@ -1,12 +1,12 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
@@ -95,6 +95,43 @@ func transformExtractionRelations(src []cognitionagentclient.Relation) []iocmemo
 	return out
 }
 
+// ragChunkNamespace is the UUID v5 namespace for deriving deterministic chunk IDs.
+var ragChunkNamespace = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // uuid.NameSpaceURL
+
+func transformRagChunksToVectorRecords(wkspID, masID string, chunks []cognitionagentclient.RagChunk) []iocmemoryprovider.KnowledgeVectorStoreRequestRecord {
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	records := make([]iocmemoryprovider.KnowledgeVectorStoreRequestRecord, 0, len(chunks))
+	for _, chunk := range chunks {
+		if len(chunk.Embedding) == 0 || len(chunk.Embedding[0]) == 0 {
+			continue
+		}
+
+		// Deterministic ID derived from (wksp, mas, source, doc, chunk) so that
+		// re-ingesting the same chunk hits ON CONFLICT (id) DO UPDATE instead of inserting a duplicate.
+		chunkKey := fmt.Sprintf("%s:%s:%s:%d:%d", wkspID, masID, chunk.Metadata.Domain, chunk.Metadata.DocIndex, chunk.Metadata.ChunkIndex)
+		chunkID := uuid.NewSHA1(ragChunkNamespace, []byte(chunkKey)).String()
+
+		metadata := map[string]interface{}{
+			"data_source": chunk.Metadata.Domain,
+			"recorded_at": chunk.Metadata.Timestamp,
+			"doc_index":   chunk.Metadata.DocIndex,
+			"chunk_index": chunk.Metadata.ChunkIndex,
+		}
+
+		records = append(records, iocmemoryprovider.KnowledgeVectorStoreRequestRecord{
+			ID:        chunkID,
+			Content:   chunk.Text,
+			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{Data: chunk.Embedding[0]},
+			Metadata:  metadata,
+		})
+	}
+
+	return records
+}
+
 func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCognitionResponse) *iocmemoryprovider.Records {
 	if resp == nil {
 		return nil
@@ -103,6 +140,40 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 	return &iocmemoryprovider.Records{
 		Concepts:  transformExtractionConcepts(resp.Concepts),
 		Relations: transformExtractionRelations(resp.Relations),
+	}
+}
+
+// logSharedMemoryAudit creates an audit event for shared-memory operations.
+// It resolves the AuditResourceIdentifier from the summary API (falling back to
+// masID) and logs any audit-creation errors without propagating them.
+func (a *App) logSharedMemoryAudit(operationID, masID, auditType, status string, errMsg *string) {
+	log := getLogger()
+
+	ensureAuditResourceIDs()
+	auditResID := SharedMemoryID
+	if auditResID == "" {
+		auditResID = masID
+	}
+
+	info := map[string]string{"status": status}
+	if errMsg != nil {
+		info["error"] = *errMsg
+	}
+	auditInfo, _ := json.Marshal(info)
+
+	ev := &audit.Audit{
+		OperationID:             &operationID,
+		ResourceType:            audit.ResourceTypeMAS,
+		ResourceIdentifier:      masID,
+		AuditType:               auditType,
+		AuditResourceIdentifier: auditResID,
+		AuditInformation:        datatypes.JSON(auditInfo),
+		AuditExtraInformation:   errMsg,
+		CreatedBy:               uuid.Nil,
+		LastModifiedBy:          uuid.Nil,
+	}
+	if auditErr := a.db.CreateAuditEvent(ev); auditErr != nil {
+		log.Errorf("failed to create audit event: %v", auditErr)
 	}
 }
 
@@ -124,17 +195,111 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
-func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// createOrUpdateSharedMemoriesCore contains the core business logic for creating or updating shared memories.
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
 	log := getLogger()
-	ctx := r.Context()
-
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
 		"Creating or updating shared memories | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
+
+	requestId := req.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	// TODO: operationID is currently a random UUID; replace with a consistent request ID
+	// (e.g. trace ID or correlation ID from the incoming request) once available.
+	operationID := uuid.New().String()
+
+	extractionPayload := req.Payload
+
+	extractionReq := &cognitionagentclient.ExtractionRequest{
+		Header: common.Header{
+			WorkspaceID: workspaceID,
+			MASID:       masID,
+		},
+		RequestID: *requestId,
+		Payload:   extractionPayload,
+	}
+
+	if req.Header != nil && req.Header.AgentID != nil {
+		extractionReq.Header.AgentID = *req.Header.AgentID
+	}
+
+	extractionResp, err := a.cognitionAgentsClient.SendExtraction(ctx, extractionReq)
+	if err != nil {
+		log.Errorf("failed to send extraction call, error: %s", err.Error())
+
+		errMsg := err.Error()
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+
+		return nil, fmt.Errorf("unable to perform knowledge extraction: %w", err)
+	}
+
+	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
+		RequestID:    *requestId,
+		WkspID:       &workspaceID,
+		MasID:        &masID,
+		ForceReplace: true,
+		Records:      TransformExtractionResponseToRecords(extractionResp),
+	}
+
+	knowledgeGraphResp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
+			workspaceID, masID, err,
+		)
+
+		errMsg := err.Error()
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+
+		return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
+	}
+
+	// Upsert RAG chunks into vector DB if present in extraction response
+	var vectorStoreMessage *string
+	if vectorRecords := transformRagChunksToVectorRecords(workspaceID, masID, extractionResp.RagChunks); len(vectorRecords) > 0 {
+		vectorStoreReq := iocmemoryprovider.NewKnowledgeVectorStoreRequest(workspaceID, masID, vectorRecords)
+		if vectorResp, vectorErr := a.knowledgeMemSvcClient.UpsertKnowledgeVectors(ctx, vectorStoreReq); vectorErr != nil {
+			// Non-fatal: graph upsert already succeeded, log and continue
+
+			log.Errorf(
+				"UpsertKnowledgeVectors failed (non-fatal) | workspace=%s mas=%s err=%v",
+				workspaceID, masID, vectorErr,
+			)
+
+			errMsg := vectorErr.Error()
+			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+		} else if vectorResp != nil {
+			vectorStoreMessage = vectorResp.Message
+		}
+	}
+
+	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
+
+	resp := &sharedmemory.CreateOrUpdateResponse{
+		ResponseID:         knowledgeGraphResp.RequestID,
+		Status:             string(knowledgeGraphResp.Status),
+		GraphStoreMessage:  knowledgeGraphResp.Message,
+		VectorStoreMessage: vectorStoreMessage,
+	}
+
+	return resp, nil
+}
+
+// createOrUpdateSharedMemoriesHandler handles HTTP requests for creating or updating shared memories.
+// It parses the HTTP request and delegates to the core business logic function.
+func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
 
 	var reqPayload sharedmemory.CreateOrUpdateRequest
 	if r.Body != nil {
@@ -148,129 +313,14 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		}
 	}
 
-	requestId := reqPayload.RequestId
-	if requestId == nil {
-		requestId = common.StrToPtr(uuid.New().String())
-	}
-
-	extractionPayload := reqPayload.Payload
-
-	extractionReq := &cognitionagentclient.ExtractionRequest{
-		Header: common.Header{
-			WorkspaceID: workspaceID,
-			MASID:       masID,
-		},
-		RequestID: *requestId,
-		Payload:   extractionPayload,
-	}
-
-	if reqPayload.Header != nil && reqPayload.Header.AgentID != nil {
-		extractionReq.Header.AgentID = *reqPayload.Header.AgentID
-	}
-
-	extractionResp, err := a.cognitionAgentsClient.SendExtraction(r.Context(), extractionReq)
+	// Call core business logic
+	resp, err := a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, reqPayload)
 	if err != nil {
-		log.Errorf("failed to send extraction call, error: %s", err.Error())
-
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "unable to perform knowledge extraction"},
+			map[string]string{"error": err.Error()},
 		)
-	}
-
-	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
-
-	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
-		RequestID:    *requestId,
-		WkspID:       &workspaceID,
-		MasID:        &masID,
-		ForceReplace: true,
-		Records:      TransformExtractionResponseToRecords(extractionResp),
-	}
-
-	// TODO: Revisit audit logging for createOrUpdateSharedMemoriesHandler later.
-	// // TODO: operationID is currently a random UUID; replace with a consistent request ID
-	// // (e.g. trace ID or correlation ID from the incoming request) once available.
-	// operationID := uuid.New().String()
-	//
-	// // Audit: start of knowledge ingestion
-	// startAuditInfo, _ := json.Marshal(map[string]string{
-	// 	"status": "STARTED",
-	// })
-	// startAudit := &audit.Audit{
-	// 	OperationID:        &operationID,
-	// 	ResourceType:       audit.ResourceTypeMAS,
-	// 	ResourceIdentifier: masID,
-	// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-	// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-	// 	AuditResourceIdentifier: masID,
-	// 	AuditInformation:        datatypes.JSON(startAuditInfo),
-	// 	CreatedBy:               uuid.Nil,
-	// 	LastModifiedBy:          uuid.Nil,
-	// }
-	// if err := a.db.CreateAuditEvent(startAudit); err != nil {
-	// 	log.Errorf("failed to create start audit event: %v", err)
-	// }
-
-	knowledgeGraphResp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
-	if err != nil {
-		log.Errorf(
-			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
-		)
-		// // Audit: end of knowledge ingestion (failure)
-		// errMsg := err.Error()
-		// endAuditInfo, _ := json.Marshal(map[string]string{
-		// 	"status": "FAILED",
-		// 	"error":  errMsg,
-		// })
-		// endAudit := &audit.Audit{
-		// 	OperationID:        &operationID,
-		// 	ResourceType:       audit.ResourceTypeMemoryProvider,
-		// 	ResourceIdentifier: masID,
-		// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-		// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-		// 	AuditResourceIdentifier: masID,
-		// 	AuditInformation:        datatypes.JSON(endAuditInfo),
-		// 	AuditExtraInformation:   &errMsg,
-		// 	CreatedBy:               uuid.Nil,
-		// 	LastModifiedBy:          uuid.Nil,
-		// }
-		// if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		// 	log.Errorf("failed to create end audit event: %v", auditErr)
-		// }
-
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to create or update shared memories, error: %v", err)},
-		)
-	}
-
-	// // Audit: end of knowledge ingestion (success)
-	// endAuditInfo, _ := json.Marshal(map[string]string{
-	// 	"status": "SUCCESS",
-	// })
-	// endAudit := &audit.Audit{
-	// 	OperationID:        &operationID,
-	// 	ResourceType:       audit.ResourceTypeMemoryProvider,
-	// 	ResourceIdentifier: masID,
-	// 	AuditType:          audit.AuditTypeKnowledgeIngestion,
-	// 	// TODO: AuditResourceIdentifier may change to a different identifier if required.
-	// 	AuditResourceIdentifier: masID,
-	// 	AuditInformation:        datatypes.JSON(endAuditInfo),
-	// 	CreatedBy:               uuid.Nil,
-	// 	LastModifiedBy:          uuid.Nil,
-	// }
-	// if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-	// 	log.Errorf("failed to create end audit event: %v", auditErr)
-	// }
-
-	resp := &sharedmemory.CreateOrUpdateResponse{
-		ResponseID: knowledgeGraphResp.RequestID,
-		Status:     string(knowledgeGraphResp.Status),
-		Message:    knowledgeGraphResp.Message,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
@@ -320,35 +370,14 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
-func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// fetchSharedMemoriesCore contains the core business logic for fetching shared memories
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
 	log := getLogger()
 
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
-
-	log.Infof(
-		"Fetching shared memories | workspace=%s mas=%s",
-		workspaceID, masID,
-	)
-
-	var req sharedmemory.QueryRequest
-	if r.Body != nil {
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
-			log.Errorf("invalid JSON body: %s", err)
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": "invalid JSON body"},
-			)
-		}
-		if err := req.ValidateAndApplyDefault(); err != nil {
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": err.Error()},
-			)
-		}
+	// Validate and apply defaults
+	if err := req.ValidateAndApplyDefault(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	requestId := req.RequestId
@@ -382,46 +411,17 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
+	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(ctx, &reasoningRequest)
 	if err != nil {
 		log.Errorf(
-			"Failed to process evidence | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
+			"Failed to process evidence | workspace=%s mas=%s operation_id=%s err=%v",
+			workspaceID, masID, operationID, err,
 		)
 
-		// Audit: shared memory query (failure)
 		errMsg := err.Error()
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		// Hacky: fetch shared_memory.id from summary API on first audit call.
-		// TODO: Remove once IDs are available directly in CfnConfig global map.
-		ensureAuditResourceIDs()
-		auditResID := SharedMemoryID
-		if auditResID == "" {
-			auditResID = masID
-		}
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMAS,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeSharedMemoryOperation,
-			AuditResourceIdentifier: auditResID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create audit event: %v", auditErr)
-		}
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to process evidence: %v", err)},
-		)
+		return nil, fmt.Errorf("failed to process evidence: %w", err)
 	}
 
 	log.Debugf("Evidence gathering response: %+v", reasonerResp)
@@ -441,37 +441,10 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 			workspaceID, masID,
 		)
 
-		// Audit: shared memory query (insufficient evidence)
 		errMsg := "Insufficient evidence to answer provided user intent"
-		endAuditInfo, _ := json.Marshal(map[string]string{
-			"status": "FAILED",
-			"error":  errMsg,
-		})
-		ensureAuditResourceIDs()
-		auditResID := SharedMemoryID
-		if auditResID == "" {
-			auditResID = masID
-		}
-		endAudit := &audit.Audit{
-			OperationID:             &operationID,
-			ResourceType:            audit.ResourceTypeMAS,
-			ResourceIdentifier:      masID,
-			AuditType:               audit.AuditTypeSharedMemoryOperation,
-			AuditResourceIdentifier: auditResID,
-			AuditInformation:        datatypes.JSON(endAuditInfo),
-			AuditExtraInformation:   &errMsg,
-			CreatedBy:               uuid.Nil,
-			LastModifiedBy:          uuid.Nil,
-		}
-		if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-			log.Errorf("failed to create audit event: %v", auditErr)
-		}
+		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusNotFound,
-			map[string]string{"error": "Insufficient evidence to answer provided user intent"},
-		)
+		return nil, fmt.Errorf("insufficient evidence to answer provided user intent")
 	}
 
 	var message string
@@ -484,102 +457,27 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		message = "evidence processed"
 	}
 
-	// Audit: shared memory query (success)
-	endAuditInfo, _ := json.Marshal(map[string]string{
-		"status": "SUCCESS",
-	})
-	// Hacky: fetch shared_memory.id from summary API on first audit call.
-	// TODO: Remove once IDs are available directly in CfnConfig global map.
-	ensureAuditResourceIDs()
-	successAuditResID := SharedMemoryID
-	if successAuditResID == "" {
-		successAuditResID = masID
-	}
-	endAudit := &audit.Audit{
-		OperationID:             &operationID,
-		ResourceType:            audit.ResourceTypeMAS,
-		ResourceIdentifier:      masID,
-		AuditType:               audit.AuditTypeSharedMemoryOperation,
-		AuditResourceIdentifier: successAuditResID,
-		AuditInformation:        datatypes.JSON(endAuditInfo),
-		CreatedBy:               uuid.Nil,
-		LastModifiedBy:          uuid.Nil,
-	}
-	if auditErr := a.db.CreateAuditEvent(endAudit); auditErr != nil {
-		log.Errorf("failed to create audit event: %v", auditErr)
-	}
+	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "SUCCESS", nil)
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.QueryResponse{
+	return &sharedmemory.QueryResponse{
 		ResponseID: requestId,
 		Message:    common.StrToPtr(message),
-	})
+	}, nil
 }
 
-// Get neighbors by concept ID, returns the neighboring concepts of a given concept in the knowledge graph.
-// Internal API - not exposed in public Swagger documentation.
-func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
-	ctx := r.Context()
-
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
-	conceptID := eh.PathParam(r, "conceptId")
-
-	log.Infof(
-		"Querying neighbors | workspace=%s mas=%s concept_id=%s",
-		workspaceID, masID, conceptID,
-	)
-
-	req := &iocmemoryprovider.KnowledgeGraphQueryRequest{
-		RequestID: uuid.New().String(),
-		WkspID:    &workspaceID,
-		MasID:     &masID,
-		Records: iocmemoryprovider.QueryRecords{
-			Concepts: []iocmemoryprovider.ConceptRecord{{ID: conceptID}},
-		},
-		QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-			iocmemoryprovider.QueryTypeNeighbour, nil, nil,
-		),
-	}
-
-	kgResp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor(ctx, req)
-	if err != nil {
-		log.Errorf(
-			"Failed to fetch neighbors | workspace=%s mas=%s concept_id=%s err=%v",
-			workspaceID, masID, conceptID, err,
-		)
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to fetch concept: %v", err)},
-		)
-	}
-
-	log.Infof("%d neighbor(s) found for concept %s", len(kgResp.Records), conceptID)
-
-	records := make([]sharedmemory.QueryResponseRecord, 0, len(kgResp.Records))
-	for _, r := range kgResp.Records {
-		records = append(records, mapKGRecordToQueryRecord(r))
-	}
-
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.NeighborsResponse{Records: records})
-}
-
-// Fetch concepts by IDs, returns concept details for each of the provided concept IDs.
-// Internal API - not exposed in public Swagger documentation.
-func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	log := getLogger()
-	ctx := r.Context()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 
-	var reqBody sharedmemory.ConceptsByIdsRequest
+	var req sharedmemory.QueryRequest
 	if r.Body != nil {
 		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err != io.EOF {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			log.Errorf("invalid JSON body: %s", err)
 			return eh.RespondWithJSON(
 				w,
 				http.StatusBadRequest,
@@ -588,93 +486,60 @@ func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	log.Infof(
-		"Querying concepts | workspace=%s mas=%s concept_ids=%v",
-		workspaceID, masID, reqBody.IDs,
-	)
-
-	type result struct {
-		resp *iocmemoryprovider.KnowledgeGraphQueryResponse
-		err  error
-	}
-
-	results := make([]result, len(reqBody.IDs))
-	var wg sync.WaitGroup
-	for i, id := range reqBody.IDs {
-		wg.Add(1)
-		go func(idx int, conceptID string) {
-			defer wg.Done()
-			req := &iocmemoryprovider.KnowledgeGraphQueryRequest{
-				RequestID: uuid.New().String(),
-				WkspID:    &workspaceID,
-				MasID:     &masID,
-				Records: iocmemoryprovider.QueryRecords{
-					Concepts: []iocmemoryprovider.ConceptRecord{{ID: conceptID}},
-				},
-				QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-					iocmemoryprovider.QueryTypeConcept, nil, nil,
-				),
-			}
-			resp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept(ctx, req)
-			results[idx] = result{resp: resp, err: err}
-		}(i, id)
-	}
-	wg.Wait()
-
-	var concepts []sharedmemory.GraphConcept
-	for i, r := range results {
-		if r.err != nil {
-			log.Errorf(
-				"Failed to fetch concept %s | workspace=%s mas=%s err=%v",
-				reqBody.IDs[i], workspaceID, masID, r.err,
-			)
+	// Call core business logic
+	response, err := a.fetchSharedMemoriesCore(r.Context(), workspaceID, masID, req)
+	if err != nil {
+		if strings.Contains(err.Error(), "insufficient evidence") {
 			return eh.RespondWithJSON(
 				w,
-				http.StatusInternalServerError,
-				map[string]string{"error": fmt.Sprintf("failed to fetch concepts by IDs: %v", r.err)},
+				http.StatusNotFound,
+				map[string]string{"error": err.Error()},
 			)
 		}
-		for _, rec := range r.resp.Records {
-			for _, c := range rec.Concepts {
-				conceptType := ""
-				if v, ok := c.Attributes["concept_type"]; ok {
-					if s, ok := v.(string); ok {
-						conceptType = s
-					}
-				}
-				desc := ""
-				if c.Description != nil {
-					desc = *c.Description
-				}
-				concepts = append(concepts, sharedmemory.GraphConcept{
-					ID:          c.ID,
-					Name:        c.Name,
-					Type:        conceptType,
-					Description: desc,
-				})
-			}
-		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
 	}
 
-	log.Infof("%d concept(s) found for %v", len(concepts), reqBody.IDs)
-
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.ConceptsByIdsResponse{Concepts: concepts})
+	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
-//	@Summary	Fetch paths between two concepts, returns ordered paths through the knowledge graph between a source and target concept.
+// onboardSharedMemoriesVectorStoreHandler godoc
 //
-// Internal API - not exposed in public Swagger documentation.
-func (a *App) fetchPathsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// @Summary     Onboards the shared memory vector store.
+// @Description Onboards the shared memory vector store for a given MAS. The store is scoped per-MAS.
+//
+// @Tags        Vector Store
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       masId       path string true "Multi-Agentic System ID"
+// @Param       body        body object true "Onboard vector store request"
+//
+// @Success     201 {object} object "Vector Store successfully onboarded"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store [post]
+func (a *App) onboardSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 
-	var reqBody sharedmemory.GraphPathsRequest
+	log.Infof(
+		"onboarding shared memory store | workspace=%s mas=%s",
+		workspaceID, masID,
+	)
+
+	var reqPayload sharedmemory.OnboardVectorStoreRequest
 	if r.Body != nil {
 		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err != io.EOF {
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
 			return eh.RespondWithJSON(
 				w,
 				http.StatusBadRequest,
@@ -683,219 +548,124 @@ func (a *App) fetchPathsByIdsHandler(w http.ResponseWriter, r *http.Request) (in
 		}
 	}
 
-	log.Infof(
-		"Querying path | workspace=%s mas=%s source_id=%s target_id=%s",
-		workspaceID, masID, reqBody.SourceID, reqBody.TargetID,
-	)
-
-	kgReq := &iocmemoryprovider.KnowledgeGraphQueryRequest{
-		RequestID: uuid.New().String(),
-		WkspID:    &workspaceID,
-		MasID:     &masID,
-		Records: iocmemoryprovider.QueryRecords{
-			Concepts: []iocmemoryprovider.ConceptRecord{
-				{ID: reqBody.SourceID},
-				{ID: reqBody.TargetID},
-			},
-		},
-		QueryCriteria: iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
-			iocmemoryprovider.QueryTypePath,
-			reqBody.MaxDepth,
-			common.BoolToPtr(false),
-		),
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
 	}
 
-	kgResp, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphPath(ctx, kgReq)
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardRequest{
+		RequestID: *requestId,
+		MasID:     masID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.OnboardKnowledgeVectorStore(ctx, memoryProviderReq)
 	if err != nil {
 		log.Errorf(
-			"Failed to fetch paths | workspace=%s mas=%s source=%s target=%s err=%v",
-			workspaceID, masID, reqBody.SourceID, reqBody.TargetID, err,
+			"OnboardKnowledgeVectorStore failed | workspace=%s mas=%s err=%v",
+			workspaceID, masID, err,
 		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"OnboardKnowledgeVectorStore response | workspace=%s mas=%s response=%s",
+				workspaceID, masID, string(responseJSON),
+			)
+		}
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to fetch paths: %v", err)},
+			map[string]string{"error": fmt.Sprintf("failed to onboard knowledge vector store, error: %v", err)},
 		)
 	}
 
-	allowedRelations := make(map[string]struct{}, len(reqBody.Relations))
-	for _, rel := range reqBody.Relations {
-		allowedRelations[rel] = struct{}{}
+	resp := &sharedmemory.OnboardVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &masID,
 	}
 
-	var paths []sharedmemory.Path
-
-	for _, rec := range kgResp.Records {
-		// Build concept id->name map
-		idToName := make(map[string]string, len(rec.Concepts))
-		for _, c := range rec.Concepts {
-			idToName[c.ID] = c.Name
-		}
-
-		// Filter relationships by allowed relations (if specified)
-		var rels []iocmemoryprovider.Relation
-		for _, rel := range rec.Relationships {
-			if len(rel.NodeIDs) < 2 {
-				continue
-			}
-			if len(allowedRelations) > 0 {
-				if _, ok := allowedRelations[rel.Relation]; !ok {
-					continue
-				}
-			}
-			rels = append(rels, rel)
-		}
-
-		if len(rels) == 0 {
-			continue
-		}
-
-		// Build adjacency map and in-degree for path chaining
-		type adjEntry struct{ rel iocmemoryprovider.Relation }
-		fromToRels := make(map[string][]iocmemoryprovider.Relation)
-		inDegree := make(map[string]int)
-		for _, rel := range rels {
-			from, to := rel.NodeIDs[0], rel.NodeIDs[1]
-			fromToRels[from] = append(fromToRels[from], rel)
-			inDegree[to]++
-			if _, exists := inDegree[from]; !exists {
-				inDegree[from] = 0
-			}
-		}
-
-		// Determine start node
-		startID := reqBody.SourceID
-		if _, ok := fromToRels[startID]; !ok {
-			for nid, deg := range inDegree {
-				if deg == 0 {
-					if _, ok := fromToRels[nid]; ok {
-						startID = nid
-						break
-					}
-				}
-			}
-			if _, ok := fromToRels[startID]; !ok {
-				startID = rels[0].NodeIDs[0]
-			}
-		}
-
-		// Greedy walk to produce ordered relation list
-		visitedRelIDs := make(map[string]struct{})
-		var orderedRels []iocmemoryprovider.Relation
-		current := startID
-		for {
-			candidates, ok := fromToRels[current]
-			if !ok {
-				break
-			}
-			var nextRel *iocmemoryprovider.Relation
-			for i := range candidates {
-				rid := candidates[i].ID
-				if rid == "" {
-					rid = fmt.Sprintf("%s->%s->%s", candidates[i].NodeIDs[0], candidates[i].Relation, candidates[i].NodeIDs[1])
-				}
-				if _, used := visitedRelIDs[rid]; !used {
-					visitedRelIDs[rid] = struct{}{}
-					nextRel = &candidates[i]
-					break
-				}
-			}
-			if nextRel == nil {
-				break
-			}
-			orderedRels = append(orderedRels, *nextRel)
-			current = nextRel.NodeIDs[1]
-			if current == reqBody.TargetID {
-				break
-			}
-		}
-		if len(orderedRels) == 0 {
-			orderedRels = rels
-		}
-
-		// Build edges and node_ids
-		var edges []sharedmemory.PathEdge
-		var nodeIDs []string
-		for _, rel := range orderedRels {
-			fromID, toID := rel.NodeIDs[0], rel.NodeIDs[1]
-
-			fromName := idToName[fromID]
-			toName := idToName[toID]
-			if attrs, ok := rel.Attributes["source_name"].(string); ok && attrs != "" {
-				fromName = attrs
-			}
-			if attrs, ok := rel.Attributes["target_name"].(string); ok && attrs != "" {
-				toName = attrs
-			}
-
-			edges = append(edges, sharedmemory.PathEdge{
-				FromID:   fromID,
-				Relation: rel.Relation,
-				ToID:     toID,
-				FromName: fromName,
-				ToName:   toName,
-			})
-
-			if len(nodeIDs) == 0 {
-				nodeIDs = append(nodeIDs, fromID, toID)
-			} else if nodeIDs[len(nodeIDs)-1] == fromID {
-				nodeIDs = append(nodeIDs, toID)
-			} else {
-				if !containsStr(nodeIDs, fromID) {
-					nodeIDs = append(nodeIDs, fromID)
-				}
-				if !containsStr(nodeIDs, toID) {
-					nodeIDs = append(nodeIDs, toID)
-				}
-			}
-		}
-
-		if len(edges) == 0 {
-			continue
-		}
-
-		// Build symbolic representation
-		parts := make([]string, 0, len(edges))
-		for _, e := range edges {
-			from := e.FromName
-			if from == "" {
-				from = e.FromID
-			}
-			to := e.ToName
-			if to == "" {
-				to = e.ToID
-			}
-			parts = append(parts, fmt.Sprintf("%s-[%s]->%s", from, e.Relation, to))
-		}
-
-		paths = append(paths, sharedmemory.Path{
-			NodeIDs:    nodeIDs,
-			Edges:      edges,
-			PathLength: len(edges),
-			Symbolic:   strings.Join(parts, " -> "),
-		})
-
-		if reqBody.Limit != nil && *reqBody.Limit > 0 && len(paths) >= *reqBody.Limit {
-			break
-		}
-	}
-
-	log.Infof(
-		"%d path(s) found between %s and %s",
-		len(paths), reqBody.SourceID, reqBody.TargetID,
-	)
-
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.GraphPathsResponse{
-		Status: "success",
-		Paths:  paths,
-	})
+	return eh.RespondWithJSON(w, http.StatusCreated, resp)
 }
 
-func containsStr(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
+// deleteSharedMemoriesVectorStoreHandler godoc
+//
+// @Summary     Deletes the shared memory vector store.
+// @Description Deletes the shared memory vector store.
+//
+// @Tags        Vector Store
+// @Accept      json
+// @Produce     json
+//
+// @Param       workspaceId path string true "Workspace ID"
+// @Param       store_id    path string true "Store ID"
+// @Param       body        body object true "Delete vector store request"
+//
+// @Success     200 {object} object "Vector Store successfully deleted"
+// @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     500 {object} map[string]string "Internal server error"
+//
+// @Router      /api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id} [delete]
+func (a *App) deleteSharedMemoriesVectorStoreHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	storeID := eh.PathParam(r, "store_id")
+
+	log.Infof(
+		"deleting shared memory store | workspace=%s store_id=%s",
+		workspaceID, storeID,
+	)
+
+	var reqPayload sharedmemory.DeleteVectorStoreRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
 		}
 	}
-	return false
+
+	requestId := reqPayload.RequestId
+	if requestId == nil {
+		requestId = common.StrToPtr(uuid.New().String())
+	}
+
+	memoryProviderReq := &iocmemoryprovider.KnowledgeVectorStoreOnboardDeleteRequest{
+		RequestID: *requestId,
+		MasID:     storeID,
+	}
+
+	response, err := a.knowledgeMemSvcClient.DeleteKnowledgeVectorStore(ctx, memoryProviderReq)
+	if err != nil {
+		log.Errorf(
+			"DeleteKnowledgeVectorStore failed | workspace=%s store_id=%s err=%v",
+			workspaceID, storeID, err,
+		)
+		if response != nil {
+			responseJSON, _ := json.Marshal(response)
+			log.Infof(
+				"DeleteKnowledgeVectorStore response | workspace=%s store_id=%s response=%s",
+				workspaceID, storeID, string(responseJSON),
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": fmt.Sprintf("failed to delete knowledge vector store, error: %v", err)},
+		)
+	}
+
+	resp := &sharedmemory.DeleteVectorStoreResponse{
+		ResponseID: requestId,
+		Status:     string(response.Status),
+		Message:    response.Message,
+		StoreId:    &storeID,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }

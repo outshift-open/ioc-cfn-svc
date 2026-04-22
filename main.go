@@ -44,7 +44,8 @@ func main() {
 	if os.Getenv("MCP_ENABLED") == "true" {
 		// MCP mode: run MCP server for AI tool integration
 		go func() {
-			cfg := mcpclient.ServerConfigFromEnv()
+			cfg := mcpclient.ServerConfigs(a)
+			log.Infof("starting MCP server with config: %+v", cfg)
 			mcpclient.RunServer(cfg)
 		}()
 	} else {

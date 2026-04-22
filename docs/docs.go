@@ -15,6 +15,521 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph": {
+            "get": {
+                "description": "Returns all nodes and edges in the knowledge graph for the given MAS.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "knowledge-graph"
+                ],
+                "summary": "Fetch knowledge graph for a MAS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Knowledge graph data",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Workspace or MAS not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search": {
+            "post": {
+                "description": "Finds concept nodes nearest to a query embedding vector using HNSW index.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Concept similarity search",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include raw embedding vectors in results (debug only)",
+                        "name": "include_embeddings",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Similarity search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.conceptSimilaritySearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.conceptSimilaritySearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids": {
+            "post": {
+                "description": "Returns concept details for each of the provided concept IDs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Fetch concepts by IDs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concept IDs request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.ConceptsByIdsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}": {
+            "get": {
+                "description": "Returns the neighboring concepts of a given concept in the knowledge graph.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Get neighbors by concept ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Concept ID",
+                        "name": "conceptId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.NeighborsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths": {
+            "post": {
+                "description": "Returns ordered paths through the knowledge graph between a source and target concept.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Graph Store"
+                ],
+                "summary": "Fetch paths between two concepts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Graph paths request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.GraphPathsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.GraphPathsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search": {
+            "post": {
+                "description": "Performs vector similarity search over document embeddings stored for a given workspace and MAS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vector Store"
+                ],
+                "summary": "Search shared memory vectors by similarity",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include raw embedding vectors in results (debug only)",
+                        "name": "include_embeddings",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Similarity search request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "schema": {
+                            "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/vector-store": {
+            "post": {
+                "description": "Onboards the shared memory vector store for a given MAS. The store is scoped per-MAS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vector Store"
+                ],
+                "summary": "Onboards the shared memory vector store.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Onboard vector store request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Vector Store successfully onboarded",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/internal/workspaces/{workspaceId}/shared-memories/vector-store/{store_id}": {
+            "delete": {
+                "description": "Deletes the shared memory vector store.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vector Store"
+                ],
+                "summary": "Deletes the shared memory vector store.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Store ID",
+                        "name": "store_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Delete vector store request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vector Store successfully deleted",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
             "post": {
                 "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe ` + "`" + `http-url` + "`" + ` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**POST example** — add memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `",
@@ -380,6 +895,105 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "app.conceptSimilaritySearchHeader": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.conceptSimilaritySearchPayload": {
+            "type": "object",
+            "properties": {
+                "embedded_text": {
+                    "type": "string"
+                },
+                "embedding_vector": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "search_metrics": {
+                    "type": "string"
+                },
+                "top_k": {
+                    "type": "integer"
+                }
+            }
+        },
+        "app.conceptSimilaritySearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/app.conceptSimilaritySearchHeader"
+                },
+                "payload": {
+                    "$ref": "#/definitions/app.conceptSimilaritySearchPayload"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.conceptSimilaritySearchResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "header": {
+                    "$ref": "#/definitions/app.conceptSimilaritySearchResponseHeader"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.conceptSimilaritySearchResult"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.conceptSimilaritySearchResponseHeader": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.conceptSimilaritySearchResult": {
+            "type": "object",
+            "properties": {
+                "concept_id": {
+                    "type": "string"
+                },
+                "concept_name": {
+                    "type": "string"
+                },
+                "embedding_vector": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
         "cognitionagentclient.ExtractionPayload": {
             "type": "object",
             "properties": {
@@ -402,6 +1016,100 @@ const docTemplate = `{
             "properties": {
                 "format": {
                     "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionagents.RequestType": {
+            "type": "string",
+            "enum": [
+                "KNOWLEDGE_VECTORS_UPSERT",
+                "KNOWLEDGE_VECTORS_QUERY"
+            ],
+            "x-enum-varnames": [
+                "ReqTypeKnowledgeVectorsUpsert",
+                "ReqTypeKnowledgeVectorsQuery"
+            ]
+        },
+        "cognitionagents.SharedMemoryVectorsRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "request_body": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "request_type": {
+                    "$ref": "#/definitions/cognitionagents.RequestType"
+                }
+            }
+        },
+        "cognitionagents.SharedMemoryVectorsResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/common.ErrorDetail"
+                },
+                "header": {
+                    "$ref": "#/definitions/common.Header"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "common.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.Header": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "description": "Optional",
+                    "type": "string"
+                },
+                "mas_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "description": "Mandatory",
+                    "type": "string"
+                }
+            }
+        },
+        "iocmemoryprovider.KnowledgeVectorMetadataFilter": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "doc_index": {
+                    "type": "integer"
+                },
+                "recorded_at_from": {
+                    "type": "string"
+                },
+                "recorded_at_to": {
                     "type": "string"
                 }
             }
@@ -552,6 +1260,28 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.ConceptsByIdsRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.ConceptsByIdsResponse": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.GraphConcept"
+                    }
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
@@ -580,8 +1310,8 @@ const docTemplate = `{
         "sharedmemory.CreateOrUpdateResponse": {
             "type": "object",
             "properties": {
-                "message": {
-                    "description": "Optional message providing additional information",
+                "graph_store_message": {
+                    "description": "Optional message from the graph store upsert operation",
                     "type": "string"
                 },
                 "response_id": {
@@ -591,6 +1321,64 @@ const docTemplate = `{
                 "status": {
                     "description": "Status of the request",
                     "type": "string"
+                },
+                "vector_store_message": {
+                    "description": "Optional message from the vector store upsert operation",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.GraphConcept": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.GraphPathsRequest": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "max_depth": {
+                    "type": "integer"
+                },
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.GraphPathsResponse": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.Path"
+                    }
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -599,6 +1387,105 @@ const docTemplate = `{
             "properties": {
                 "agent_id": {
                     "description": "ID that represents the agent, optional for query operations",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.NeighborsResponse": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryResponseRecord"
+                    }
+                }
+            }
+        },
+        "sharedmemory.Path": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.PathEdge"
+                    }
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_length": {
+                    "type": "integer"
+                },
+                "symbolic": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.PathEdge": {
+            "type": "object",
+            "properties": {
+                "from_id": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "relation": {
+                    "type": "string"
+                },
+                "to_id": {
+                    "type": "string"
+                },
+                "to_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryConcept": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sharedmemory.QueryRelation": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relation": {
                     "type": "string"
                 }
             }
@@ -645,6 +1532,106 @@ const docTemplate = `{
                 },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.QueryResponseRecord": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryConcept"
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.QueryRelation"
+                    }
+                }
+            }
+        },
+        "sharedmemory.VectorSimilaritySearchPayload": {
+            "type": "object",
+            "properties": {
+                "embedded_text": {
+                    "type": "string"
+                },
+                "embedding_vector": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "filters": {
+                    "$ref": "#/definitions/iocmemoryprovider.KnowledgeVectorMetadataFilter"
+                },
+                "search_metrics": {
+                    "type": "string"
+                },
+                "top_k": {
+                    "type": "integer"
+                }
+            }
+        },
+        "sharedmemory.VectorSimilaritySearchRequest": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/sharedmemory.Header"
+                },
+                "payload": {
+                    "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchPayload"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sharedmemory.VectorSimilaritySearchResponse": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "$ref": "#/definitions/sharedmemory.Header"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.VectorSimilaritySearchResult"
+                    }
+                }
+            }
+        },
+        "sharedmemory.VectorSimilaritySearchResult": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "doc_index": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "embedded_text": {
+                    "type": "string"
+                },
+                "embedding_vector": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "score": {
+                    "type": "number"
+                },
+                "timestamp": {
                     "type": "string"
                 }
             }

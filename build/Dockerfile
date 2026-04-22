@@ -36,6 +36,8 @@ RUN apk add --no-cache curl
 WORKDIR /app
 
 COPY --from=builder /app/cfn-svc .
+COPY --from=builder /app/docs/swagger.json ./docs/swagger.json
+COPY --from=builder /app/docs/swagger-internal.json ./docs/swagger-internal.json
 
 EXPOSE 9002
 

@@ -137,6 +137,11 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -219,6 +224,11 @@ func (c *Client) DeleteKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -274,6 +284,11 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -310,7 +325,7 @@ func (c *Client) OnboardKnowledgeVectorStore(ctx context.Context, request *Knowl
 	}
 
 	// Make POST request
-	url := c.baseURL + "/api/knowledge/vectors/stores/" + request.WkspID
+	url := c.baseURL + "/api/knowledge/vectors/stores/" + request.MasID
 	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %w", err)
@@ -336,6 +351,11 @@ func (c *Client) OnboardKnowledgeVectorStore(ctx context.Context, request *Knowl
 	var response KnowledgeVectorStoreOnboardResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}
 
 	return &response, nil
@@ -390,6 +410,11 @@ func (c *Client) UpsertKnowledgeVectors(ctx context.Context, request *KnowledgeV
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -440,6 +465,11 @@ func (c *Client) QueryKnowledgeVectors(ctx context.Context, request *KnowledgeVe
 	var response KnowledgeVectorQueryResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}
 
 	return &response, nil
@@ -494,6 +524,11 @@ func (c *Client) DeleteKnowledgeVectors(ctx context.Context, request *KnowledgeV
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
 }
 
@@ -518,7 +553,7 @@ func (c *Client) DeleteKnowledgeVectorStore(ctx context.Context, request *Knowle
 	}
 
 	// Make DELETE request
-	url := c.baseURL + "/api/internal/knowledge/vectors/stores/" + request.WkspID
+	url := c.baseURL + "/api/internal/knowledge/vectors/stores/" + request.MasID
 	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DELETE request: %w", err)
@@ -546,7 +581,135 @@ func (c *Client) DeleteKnowledgeVectorStore(ctx context.Context, request *Knowle
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
 	return &response, nil
+}
+
+// SimilaritySearchVectors sends a POST request to search for similar document embeddings.
+// Set includeEmbeddings to true to include raw embedding vectors in the response (debug only).
+func (c *Client) SimilaritySearchVectors(ctx context.Context, request *KnowledgeVectorSimilaritySearchRequest, includeEmbeddings bool) (*KnowledgeVectorSimilaritySearchResponse, error) {
+	log := getLogger()
+
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	url := c.baseURL + "/api/knowledge/vectors/query/similarity"
+	if includeEmbeddings {
+		url += "?include_embeddings=true"
+	}
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Infof("POST request to %s completed with status %s", url, resp.Status)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("knowledge memory service error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var response KnowledgeVectorSimilaritySearchResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// SimilaritySearchConcepts sends a POST request to search for similar concepts by embedding vector.
+// Set includeEmbeddings to true to include raw embedding vectors in the response (debug only).
+func (c *Client) SimilaritySearchConcepts(ctx context.Context, request *KnowledgeGraphSimilaritySearchRequest, includeEmbeddings bool) (*KnowledgeGraphSimilaritySearchResponse, error) {
+	log := getLogger()
+
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	url := c.baseURL + "/api/knowledge/graphs/query/similarity"
+	if includeEmbeddings {
+		url += "?include_embeddings=true"
+	}
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Infof("POST request to %s completed with status %s", url, resp.Status)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("knowledge memory service error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var response KnowledgeGraphSimilaritySearchResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// FetchKnowledgeGraph fetches all nodes and edges for a given MAS from the knowledge memory service.
+// Returns the raw response body to be passed through to callers.
+func (c *Client) FetchKnowledgeGraph(ctx context.Context, masID string) ([]byte, int, error) {
+	log := getLogger()
+
+	url := fmt.Sprintf("%s/api/knowledge/graphs/query", c.baseURL)
+	payload := map[string]interface{}{
+		"mas_id": masID,
+		"query_criteria": map[string]string{
+			"query_type": "full_graph",
+		},
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	headers := map[string]string{"Content-Type": "application/json"}
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to call knowledge graph endpoint: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Infof("POST %s completed with status %s", url, resp.Status)
+	log.Debugf("Response body: %s", string(body))
+
+	return body, resp.StatusCode, nil
 }
 
 // stringPtr is a helper function to get a pointer to a string

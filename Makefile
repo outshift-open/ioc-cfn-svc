@@ -60,6 +60,7 @@ install-swag:
 .PHONY: docs
 docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
+	python3 scripts/split_swagger.py
 
 .PHONY: run
 run: build ## Build and run binary (loads .env via godotenv)
@@ -67,7 +68,7 @@ run: build ## Build and run binary (loads .env via godotenv)
 
 .PHONY: run-mcp
 run-mcp: build ## Build and run in MCP mode
-	MCP_ENABLED=true MCP_PORT=9002 ./$(PROJECT_NAME).bin
+	MCP_ENABLED=true MCP_PORT=$${MCP_PORT:-9002} ./$(PROJECT_NAME).bin
 
 .PHONY: dev
 dev: ## Run with go run (loads .env via godotenv, injects git info)
