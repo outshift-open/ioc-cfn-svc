@@ -2,11 +2,20 @@ package mcpclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	TOOL_NAME_RETAIN = "retain"
+	TOOL_NAME_RECALL = "recall"
 )
 
 func getEnv(key, defaultVal string) string {
@@ -25,12 +34,39 @@ func getEnvInt(key string, defaultVal int) int {
 	return defaultVal
 }
 
+// McpServiceSharedMemInterface defines the interface for MCP server shared memory operations.
+type McpServiceSharedMemInterface interface {
+	CreateOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error)
+	FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error)
+}
+
 // ServerConfig holds MCP server settings.
 type ServerConfig struct {
-	Name    string
-	Version string
-	Host    string
-	Port    int
+	Name         string
+	Version      string
+	Host         string
+	Port         int
+	SharedMemSvc McpServiceSharedMemInterface // service instance for accessing business logic
+}
+
+// CreateOrUpdateSharedMemoriesParams defines the parameters for the MCP tool.
+type CreateOrUpdateSharedMemoriesParams struct {
+	WorkspaceID string               `json:"workspace_id" jsonschema:"Workspace identifier"`
+	MasID       string               `json:"mas_id" jsonschema:"Multi-agent system identifier"`
+	Header      *sharedmemory.Header `json:"header,omitempty"`
+	RequestId   *string              `json:"request_id,omitempty" jsonschema:"Optional request ID"`
+	Payload     interface{}          `json:"payload"`
+}
+
+// FetchSharedMemoriesParams defines the parameters for the recall MCP tool.
+type FetchSharedMemoriesParams struct {
+	WorkspaceID       string                   `json:"workspace_id" jsonschema:"Workspace identifier"`
+	MasID             string                   `json:"mas_id" jsonschema:"Multi-agent system identifier"`
+	Header            *sharedmemory.Header     `json:"header,omitempty"`
+	RequestId         *string                  `json:"request_id,omitempty" jsonschema:"Optional request ID"`
+	SearchStrategy    *string                  `json:"search_strategy,omitempty" jsonschema:"Search strategy"`
+	Intent            *string                  `json:"intent" jsonschema:"User intent or natural-language query"`
+	AdditionalContext []map[string]interface{} `json:"additional_context,omitempty" jsonschema:"Optional contextual information"`
 }
 
 func (c ServerConfig) Addr() string {
@@ -45,6 +81,13 @@ func ServerConfigFromEnv() ServerConfig {
 		Host:    getEnv("MCP_HOST", ""),
 		Port:    getEnvInt("MCP_PORT", 9002),
 	}
+}
+
+// ServerConfig loads server config from environment variables and uses the provided services.
+func ServerConfigs(sharedMemSvc McpServiceSharedMemInterface) ServerConfig {
+	config := ServerConfigFromEnv()
+	config.SharedMemSvc = sharedMemSvc
+	return config
 }
 
 // ClientConfig holds MCP client settings.
@@ -85,11 +128,139 @@ func echoHandler(ctx context.Context, req *mcp.CallToolRequest, params *EchoPara
 	}, nil, nil
 }
 
-// RunServer starts an MCP server with the echo tool.
+var sharedMemoryService McpServiceSharedMemInterface
+
+func createOrUpdateSharedMemoriesToolHandler(ctx context.Context, req *mcp.CallToolRequest, params *CreateOrUpdateSharedMemoriesParams) (*mcp.CallToolResult, any, error) {
+	log := getLogger()
+	log.Infof("createOrUpdateSharedMemoriesToolHandler called, sharedMemoryService is nil: %v", sharedMemoryService == nil)
+
+	if sharedMemoryService == nil {
+		log.Infof("Returning error: shared memory service not initialized")
+		return nil, nil, fmt.Errorf("shared memory service not initialized")
+	}
+
+	log.Infof("Proceeding with tool execution - sharedMemoryService is not nil")
+
+	// Convert MCP params to internal request format
+	// Convert interface{} payload to ExtractionPayload
+	payloadBytes, err := json.Marshal(params.Payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	var payload cognitionagentclient.ExtractionPayload
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	// Ensure we have a request ID
+	requestId := params.RequestId
+	if requestId == nil {
+		uuid := "mcp-request-" + fmt.Sprintf("%d", time.Now().UnixNano())
+		requestId = &uuid
+	}
+
+	request := sharedmemory.CreateOrUpdateRequest{
+		Header:    params.Header,
+		RequestId: requestId,
+		Payload:   payload,
+	}
+
+	// Call core business logic
+	response, err := sharedMemoryService.CreateOrUpdateSharedMemoriesCore(
+		ctx,
+		params.WorkspaceID,
+		params.MasID,
+		request,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create or update shared memories: %w", err)
+	}
+
+	// Convert response to JSON for MCP
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(responseJSON)},
+		},
+	}, response, nil
+}
+
+func recallToolHandler(ctx context.Context, req *mcp.CallToolRequest, params *FetchSharedMemoriesParams) (*mcp.CallToolResult, any, error) {
+	log := getLogger()
+	log.Infof("recallToolHandler called, sharedMemoryService is nil: %v", sharedMemoryService == nil)
+
+	if sharedMemoryService == nil {
+		log.Infof("Returning error: shared memory service not initialized")
+		return nil, nil, fmt.Errorf("shared memory service not initialized")
+	}
+
+	log.Infof("Proceeding with recall tool execution - sharedMemoryService is not nil")
+
+	// Ensure we have a request ID
+	requestId := params.RequestId
+	if requestId == nil {
+		uuid := "mcp-recall-request-" + fmt.Sprintf("%d", time.Now().UnixNano())
+		requestId = &uuid
+	}
+
+	// Create QueryRequest from params
+	queryRequest := sharedmemory.QueryRequest{
+		Header:            params.Header,
+		RequestId:         requestId,
+		SearchStrategy:    params.SearchStrategy,
+		Intent:            params.Intent,
+		AdditionalContext: params.AdditionalContext,
+	}
+
+	// Call core business logic
+	response, err := sharedMemoryService.FetchSharedMemoriesCore(
+		ctx,
+		params.WorkspaceID,
+		params.MasID,
+		queryRequest,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch shared memories: %w", err)
+	}
+
+	// Convert response to JSON for MCP
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(responseJSON)},
+		},
+	}, response, nil
+}
+
+// RunServer starts an MCP server with the tools.
 func RunServer(cfg ServerConfig) {
 	log := getLogger()
 	server := NewServer(cfg.Name, cfg.Version)
+
+	// Set the service instance
+	sharedMemoryService = cfg.SharedMemSvc
+	log.Infof("Set shared memory service instance: %v", sharedMemoryService != nil)
+
+	// Register tools
+	log.Info("Registering MCP tools...")
 	AddTool(server, "echo", "Echo back the message", echoHandler)
+	log.Infof("Registered tool: %s", "echo")
+
+	AddTool(server, TOOL_NAME_RETAIN, "Retain shared memories", createOrUpdateSharedMemoriesToolHandler)
+	log.Infof("Registered tool: %s", TOOL_NAME_RETAIN)
+
+	AddTool(server, TOOL_NAME_RECALL, "Recall shared memories", recallToolHandler)
+	log.Infof("Registered tool: %s", TOOL_NAME_RECALL)
+
 	if err := ServeHTTP(server, cfg.Addr()); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

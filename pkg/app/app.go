@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
@@ -459,4 +460,16 @@ func (a *App) Stop() error {
 	log.Info("- closing connection to db")
 	err2 := a.db.Close()
 	return errors.Join(err1, err2)
+}
+
+// CreateOrUpdateSharedMemoriesCore implements the McpService interface.
+// This method provides access to the core business logic for creating or updating shared memories.
+func (a *App) CreateOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
+	return a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, req)
+}
+
+// FetchSharedMemoriesCore implements the McpService interface.
+// This method provides access to the core business logic for fetching shared memories.
+func (a *App) FetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
+	return a.fetchSharedMemoriesCore(ctx, workspaceID, masID, req)
 }

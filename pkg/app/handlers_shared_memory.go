@@ -1,10 +1,12 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
@@ -193,31 +195,17 @@ func (a *App) logSharedMemoryAudit(operationID, masID, auditType, status string,
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
-func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// createOrUpdateSharedMemoriesCore contains the core business logic for creating or updating shared memories.
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.CreateOrUpdateRequest) (*sharedmemory.CreateOrUpdateResponse, error) {
 	log := getLogger()
-	ctx := r.Context()
-
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
 		"Creating or updating shared memories | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
 
-	var reqPayload sharedmemory.CreateOrUpdateRequest
-	if r.Body != nil {
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": "invalid JSON body"},
-			)
-		}
-	}
-
-	requestId := reqPayload.RequestId
+	requestId := req.RequestId
 	if requestId == nil {
 		requestId = common.StrToPtr(uuid.New().String())
 	}
@@ -226,7 +214,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	extractionPayload := reqPayload.Payload
+	extractionPayload := req.Payload
 
 	extractionReq := &cognitionagentclient.ExtractionRequest{
 		Header: common.Header{
@@ -237,22 +225,18 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Payload:   extractionPayload,
 	}
 
-	if reqPayload.Header != nil && reqPayload.Header.AgentID != nil {
-		extractionReq.Header.AgentID = *reqPayload.Header.AgentID
+	if req.Header != nil && req.Header.AgentID != nil {
+		extractionReq.Header.AgentID = *req.Header.AgentID
 	}
 
-	extractionResp, err := a.cognitionAgentsClient.SendExtraction(r.Context(), extractionReq)
+	extractionResp, err := a.cognitionAgentsClient.SendExtraction(ctx, extractionReq)
 	if err != nil {
 		log.Errorf("failed to send extraction call, error: %s", err.Error())
 
 		errMsg := err.Error()
 		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": "unable to perform knowledge extraction"},
-		)
+		return nil, fmt.Errorf("unable to perform knowledge extraction: %w", err)
 	}
 
 	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
@@ -275,11 +259,7 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		errMsg := err.Error()
 		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to create or update shared memories, error: %v", err)},
-		)
+		return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
 	}
 
 	// Upsert RAG chunks into vector DB if present in extraction response
@@ -308,6 +288,39 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		Status:             string(knowledgeGraphResp.Status),
 		GraphStoreMessage:  knowledgeGraphResp.Message,
 		VectorStoreMessage: vectorStoreMessage,
+	}
+
+	return resp, nil
+}
+
+// createOrUpdateSharedMemoriesHandler handles HTTP requests for creating or updating shared memories.
+// It parses the HTTP request and delegates to the core business logic function.
+func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	ctx := r.Context()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var reqPayload sharedmemory.CreateOrUpdateRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	// Call core business logic
+	resp, err := a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, reqPayload)
+	if err != nil {
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
 	}
 
 	return eh.RespondWithJSON(w, http.StatusCreated, resp)
@@ -357,35 +370,14 @@ func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRec
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query [post]
-func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// fetchSharedMemoriesCore contains the core business logic for fetching shared memories
+// This function is reused by both HTTP and MCP handlers to avoid code duplication.
+func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID string, req sharedmemory.QueryRequest) (*sharedmemory.QueryResponse, error) {
 	log := getLogger()
 
-	workspaceID := eh.PathParam(r, "workspaceId")
-	masID := eh.PathParam(r, "masId")
-
-	log.Infof(
-		"Fetching shared memories | workspace=%s mas=%s",
-		workspaceID, masID,
-	)
-
-	var req sharedmemory.QueryRequest
-	if r.Body != nil {
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
-			log.Errorf("invalid JSON body: %s", err)
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": "invalid JSON body"},
-			)
-		}
-		if err := req.ValidateAndApplyDefault(); err != nil {
-			return eh.RespondWithJSON(
-				w,
-				http.StatusBadRequest,
-				map[string]string{"error": err.Error()},
-			)
-		}
+	// Validate and apply defaults
+	if err := req.ValidateAndApplyDefault(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	requestId := req.RequestId
@@ -419,21 +411,17 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(r.Context(), &reasoningRequest)
+	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(ctx, &reasoningRequest)
 	if err != nil {
 		log.Errorf(
-			"Failed to process evidence | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
+			"Failed to process evidence | workspace=%s mas=%s operation_id=%s err=%v",
+			workspaceID, masID, operationID, err,
 		)
 
 		errMsg := err.Error()
 		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": fmt.Sprintf("failed to process evidence: %v", err)},
-		)
+		return nil, fmt.Errorf("failed to process evidence: %w", err)
 	}
 
 	log.Debugf("Evidence gathering response: %+v", reasonerResp)
@@ -456,11 +444,7 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 		errMsg := "Insufficient evidence to answer provided user intent"
 		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
-		return eh.RespondWithJSON(
-			w,
-			http.StatusNotFound,
-			map[string]string{"error": "Insufficient evidence to answer provided user intent"},
-		)
+		return nil, fmt.Errorf("insufficient evidence to answer provided user intent")
 	}
 
 	var message string
@@ -477,10 +461,49 @@ func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
-	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.QueryResponse{
+	return &sharedmemory.QueryResponse{
 		ResponseID: requestId,
 		Message:    common.StrToPtr(message),
-	})
+	}, nil
+}
+
+func (a *App) fetchSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var req sharedmemory.QueryRequest
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			log.Errorf("invalid JSON body: %s", err)
+			return eh.RespondWithJSON(
+				w,
+				http.StatusBadRequest,
+				map[string]string{"error": "invalid JSON body"},
+			)
+		}
+	}
+
+	// Call core business logic
+	response, err := a.fetchSharedMemoriesCore(r.Context(), workspaceID, masID, req)
+	if err != nil {
+		if strings.Contains(err.Error(), "insufficient evidence") {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusNotFound,
+				map[string]string{"error": err.Error()},
+			)
+		}
+		return eh.RespondWithJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": err.Error()},
+		)
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // onboardSharedMemoriesVectorStoreHandler godoc
