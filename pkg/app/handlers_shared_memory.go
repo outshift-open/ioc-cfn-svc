@@ -424,7 +424,11 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 		return nil, fmt.Errorf("failed to process evidence: %w", err)
 	}
 
-	log.Debugf("Evidence gathering response: %+v", reasonerResp)
+	if b, err := json.Marshal(reasonerResp); err == nil {
+		log.Debugf("Evidence gathering response: %s", b)
+	} else {
+		log.Debugf("Evidence gathering response: %+v", reasonerResp)
+	}
 
 	// Extract evidence fields from first record
 	var evidenceStatus, finalResponse string
