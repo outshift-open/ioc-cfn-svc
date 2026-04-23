@@ -21,14 +21,16 @@ import (
 //    go test -v ./pkg/client/mcp -run TestRetainTool -count=1
 // 	  go test -v ./pkg/client/mcp -run TestRecallTool -count=1
 
-// Prerequisites-
-// 1. MCP server (running on port 9002 default if env var MCP_PORT is not set)
+// Prerequisites-(When running ioc-cfn-svc locally)
+// 1. Run the http Server
+// go run main.go -port=9002
+// 2. MCP server (running on port 9002 default if env var MCP_PORT is not set)
 // 	 - Env setup
 //     MCP_ENABLED=true
 //   - Start the server
 //     make run mcp-server
-// 2. Cognition Engine service (running on port 9006 default if env var COGNITION_ENGINE_SVC_URL is not set)
-// 3. Knowledge memory service (running on port 9003 default if env var KNOWLEDGE_MEMORY_SVC_URL is not set)
+// 3. Cognition Engine service (running on port 9006 default if env var COGNITION_ENGINE_SVC_URL is not set)
+// 4. Knowledge memory service (running on port 9003 default if env var KNOWLEDGE_MEMORY_SVC_URL is not set)
 
 // This test verifies that the MCP client can successfully call the retain tool
 // and that the tool executes without errors.
