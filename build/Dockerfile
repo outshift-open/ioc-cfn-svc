@@ -38,10 +38,12 @@ WORKDIR /app
 COPY --from=builder /app/cfn-svc .
 COPY --from=builder /app/docs/swagger.json ./docs/swagger.json
 COPY --from=builder /app/docs/swagger-internal.json ./docs/swagger-internal.json
+COPY build/start-servers.sh .
+RUN chmod +x start-servers.sh
 
-EXPOSE 9002
+EXPOSE 9002 9001
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:9002/api/internal/diagnostics/health || exit 1
 
-ENTRYPOINT ["./cfn-svc"]
+ENTRYPOINT ["./start-servers.sh"]
