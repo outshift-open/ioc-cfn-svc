@@ -23,7 +23,7 @@ func newDiagnosticsTestApp() *App {
 		gitBranch:     "main",
 		startTime:     time.Now(),
 		db:            client.NewMockDatabase(),
-		Cfg: &config.Config{
+		Cfg: config.Config{
 			McpPort: 9001,
 		},
 	}
