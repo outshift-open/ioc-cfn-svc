@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -213,9 +215,15 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to advance semantic negotiation, error: %s", err.Error())
-
 		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(err.Error()))
 
+		if errors.Is(err, cognitionagentclient.ErrNotFound) {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusNotFound,
+				map[string]string{"error": fmt.Sprintf("session %q not found", reqPayload.SessionID)},
+			)
+		}
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,

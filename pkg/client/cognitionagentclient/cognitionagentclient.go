@@ -487,6 +487,9 @@ func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *Semanti
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+// ErrNotFound is returned when the upstream cognition agent service responds with 404.
+var ErrNotFound = fmt.Errorf("not found")
+
 // jsonHeaders are the default headers sent with every request.
 var jsonHeaders = map[string]string{
 	"Content-Type": "application/json",
@@ -511,6 +514,9 @@ func (c *Client) post(ctx context.Context, path string, body []byte, dest interf
 		return fmt.Errorf("failed to read response body from %s: %w", path, readErr)
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
 	if resp.StatusCode != http.StatusOK {
 		if err := json.Unmarshal(respBody, dest); err == nil {
 			return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, path)
