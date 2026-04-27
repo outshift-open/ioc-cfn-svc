@@ -79,7 +79,7 @@ func ServerConfigFromEnv() ServerConfig {
 		Name:    getEnv("MCP_SERVER_NAME", "mcp-server"),
 		Version: getEnv("MCP_SERVER_VERSION", "1.0.0"),
 		Host:    getEnv("MCP_HOST", ""),
-		Port:    getEnvInt("MCP_PORT", 9002),
+		Port:    getEnvInt("MCP_PORT", 9001),
 	}
 }
 
@@ -110,7 +110,7 @@ func ClientConfigFromEnv() ClientConfig {
 		Name:    getEnv("MCP_CLIENT_NAME", "mcp-client"),
 		Version: getEnv("MCP_CLIENT_VERSION", "1.0.0"),
 		Host:    getEnv("MCP_HOST", "localhost"),
-		Port:    getEnvInt("MCP_PORT", 9002),
+		Port:    getEnvInt("MCP_PORT", 9001),
 		Tool:    getEnv("MCP_TOOL", "echo"),
 		Args:    map[string]any{"message": getEnv("MCP_MESSAGE", "Hello MCP!")},
 	}

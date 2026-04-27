@@ -66,10 +66,6 @@ docs: install-swag
 run: build ## Build and run binary (loads .env via godotenv)
 	./$(PROJECT_NAME).bin
 
-.PHONY: run-mcp
-run-mcp: build ## Build and run in MCP mode
-	MCP_ENABLED=true MCP_PORT=$${MCP_PORT:-9002} ./$(PROJECT_NAME).bin
-
 .PHONY: dev
 dev: ## Run with go run (loads .env via godotenv, injects git info)
 	$(GO_BUILD_ENV) go run -ldflags "-X main.buildVersion=${BUILD_VERSION} -X main.gitCommitSHA=${GIT_COMMIT_SHA} -X main.gitCommitTime=${GIT_COMMIT_TIME} -X main.gitBranch=${GIT_BRANCH}" .
