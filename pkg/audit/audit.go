@@ -23,17 +23,18 @@ const (
 
 // AuditType enum values
 const (
-	AuditTypeResourceCreated    = "RESOURCE_CREATED"
-	AuditTypeResourceUpdated    = "RESOURCE_UPDATED"
-	AuditTypeResourceDeleted    = "RESOURCE_DELETED"
-	AuditTypeResourcePurged     = "RESOURCE_PURGED"
-	AuditTypeResourcePruned     = "RESOURCE_PRUNED"
-	AuditTypeKnowledgeIngestion    = "KNOWLEDGE_INGESTION"
-	AuditTypeKnowledgeQuery        = "KNOWLEDGE_QUERY"
-	AuditTypeMemoryOperation       = "MEMORY_OPERATION"
-	AuditTypeSharedMemoryOperation = "SHARED_MEMORY_OPERATION"
-	AuditTypeAgentMemoryOperation  = "AGENT_MEMORY_OPERATION"
-	AuditTypeSemanticNegotiation   = "SEMANTIC_NEGOTIATION"
+	AuditTypeResourceCreated           = "RESOURCE_CREATED"
+	AuditTypeResourceUpdated           = "RESOURCE_UPDATED"
+	AuditTypeResourceDeleted           = "RESOURCE_DELETED"
+	AuditTypeResourcePurged            = "RESOURCE_PURGED"
+	AuditTypeResourcePruned            = "RESOURCE_PRUNED"
+	AuditTypeKnowledgeIngestion        = "KNOWLEDGE_INGESTION"
+	AuditTypeKnowledgeQuery            = "KNOWLEDGE_QUERY"
+	AuditTypeMemoryOperation           = "MEMORY_OPERATION"
+	AuditTypeSharedMemoryOperation     = "SHARED_MEMORY_OPERATION"
+	AuditTypeAgentMemoryOperation      = "AGENT_MEMORY_OPERATION"
+	AuditTypeSemanticNegotiationStart  = "SEMANTIC_NEGOTIATION_START"
+	AuditTypeSemanticNegotiationDecide = "SEMANTIC_NEGOTIATION_DECIDE"
 )
 
 var validResourceTypes = map[string]bool{
@@ -47,17 +48,18 @@ var validResourceTypes = map[string]bool{
 }
 
 var validAuditTypes = map[string]bool{
-	AuditTypeResourceCreated:    true,
-	AuditTypeResourceUpdated:    true,
-	AuditTypeResourceDeleted:    true,
-	AuditTypeResourcePurged:     true,
-	AuditTypeResourcePruned:     true,
-	AuditTypeKnowledgeIngestion:    true,
-	AuditTypeKnowledgeQuery:        true,
-	AuditTypeMemoryOperation:       true,
-	AuditTypeSharedMemoryOperation: true,
-	AuditTypeAgentMemoryOperation:  true,
-	AuditTypeSemanticNegotiation:   true,
+	AuditTypeResourceCreated:           true,
+	AuditTypeResourceUpdated:           true,
+	AuditTypeResourceDeleted:           true,
+	AuditTypeResourcePurged:            true,
+	AuditTypeResourcePruned:            true,
+	AuditTypeKnowledgeIngestion:        true,
+	AuditTypeKnowledgeQuery:            true,
+	AuditTypeMemoryOperation:           true,
+	AuditTypeSharedMemoryOperation:     true,
+	AuditTypeAgentMemoryOperation:      true,
+	AuditTypeSemanticNegotiationStart:  true,
+	AuditTypeSemanticNegotiationDecide: true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.
