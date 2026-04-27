@@ -206,7 +206,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	rtr := a.initializeRoutes()
 	a.server = easyhttp.NewServer(a.Cfg.AppPort, rtr)
 
-	//a.registerOnStartup()
+	a.registerOnStartup()
 	return a, nil
 }
 
