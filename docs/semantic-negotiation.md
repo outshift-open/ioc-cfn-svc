@@ -1,7 +1,7 @@
 # Semantic Negotiation via CFN
 
 The CFN acts as a proxy between a MAS client and the Cognition Engine server
-([`semantic_negotiation`](../../ioc-cfn-cognitive-agents/semantic_negotiation)).
+([`semantic_negotiation`](https://github.com/cisco-eti/ioc-cfn-cognitive-agents/tree/main/semantic_negotiation)).
 The client drives the negotiation loop turn-by-turn; CFN wraps each request in the
 required SSTP envelope and forwards it to the negotiation server.
 
@@ -16,8 +16,8 @@ MAS Client
 CFN (ioc-cfn-svc)
     │  wraps in SSTPNegotiateMessage envelope
     │
-    │  POST /api/negotiate/initiate
-    │  POST /api/negotiate/decide          (repeated)
+    │  POST /api/semantic-negotiation/negotiate/initiate
+    │  POST /api/semantic-negotiation/negotiate/decide          (repeated)
     ▼
 Cognition Engine Server (Semantic Negotiation)
 ```
@@ -26,8 +26,8 @@ Cognition Engine Server (Semantic Negotiation)
 
 | CFN Route | Method | Proxies to |
 | --- | --- | --- |
-| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start` | POST | `POST /api/negotiate/initiate` |
-| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide` | POST | `POST /api/negotiate/decide` |
+| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start` | POST | `POST /api/semantic-negotiation/negotiate/initiate` |
+| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide` | POST | `POST /api/semantic-negotiation/negotiate/decide` |
 
 ---
 

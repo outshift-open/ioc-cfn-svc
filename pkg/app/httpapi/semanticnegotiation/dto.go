@@ -35,7 +35,7 @@ type DecideRequest struct {
 	// AgentReplies are the full SSTPNegotiateMessage objects produced by the
 	// local agent server (/decide) for this round. Each element is a complete
 	// SSTP envelope as returned by the agent callback server and is forwarded
-	// verbatim to the negotiation server's /api/negotiate/decide endpoint.
+	// verbatim to the negotiation server's /api/semantic-negotiation/negotiate/decide endpoint.
 	AgentReplies []json.RawMessage `json:"agent_replies"`
 }
 

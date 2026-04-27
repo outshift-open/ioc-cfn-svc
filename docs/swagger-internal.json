@@ -827,7 +827,7 @@
             "type": "object",
             "properties": {
                 "agent_replies": {
-                    "description": "AgentReplies are the full SSTPNegotiateMessage objects produced by the\nlocal agent server (/decide) for this round. Each element is a complete\nSSTP envelope as returned by the agent callback server and is forwarded\nverbatim to the negotiation server's /api/negotiate/decide endpoint.",
+                    "description": "AgentReplies are the full SSTPNegotiateMessage objects produced by the\nlocal agent server (/decide) for this round. Each element is a complete\nSSTP envelope as returned by the agent callback server and is forwarded\nverbatim to the negotiation server's /api/semantic-negotiation/negotiate/decide endpoint.",
                     "type": "array",
                     "items": {
                         "type": "array",
