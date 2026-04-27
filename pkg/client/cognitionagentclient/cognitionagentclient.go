@@ -121,7 +121,7 @@ type SemanticNegotiationAgent struct {
 	Name string `json:"name"`
 }
 
-// SemanticNegotiationStartRequest is the request body for POST /negotiate/initiate.
+// SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/negotiate/initiate.
 type SemanticNegotiationStartRequest struct {
 	SessionID   string                     `json:"session_id"`
 	ContentText string                     `json:"content_text"`
@@ -129,7 +129,7 @@ type SemanticNegotiationStartRequest struct {
 	NSteps      *int                       `json:"n_steps,omitempty"`
 }
 
-// SemanticNegotiationDecideRequest is the request body for POST /negotiate/decide.
+// SemanticNegotiationDecideRequest is the request body for POST  /api/semantic-negotiation/negotiate/decide.
 // AgentReplies are full SSTPNegotiateMessage objects returned by the agent callback
 // server and forwarded verbatim inside the SSTP envelope to the negotiation server.
 type SemanticNegotiationDecideRequest struct {
