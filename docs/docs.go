@@ -395,6 +395,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Vector store not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {

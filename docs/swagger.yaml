@@ -808,6 +808,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "404":
+          description: Vector store not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal server error
           schema:
