@@ -123,11 +123,12 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-		assert.Equal(t, "UP", resp["status"])
+		assert.Equal(t, "DEGRADED", resp["status"]) // MCP server not running in test
 		checks := resp["checks"].(map[string]any)
 		assert.Equal(t, true, checks["management_plane"])
 		assert.Equal(t, true, checks["memory_providers"].(map[string]any)["mem-svc"])
 		assert.Equal(t, true, checks["cognition_engines"].(map[string]any)["CE1"])
+		assert.Equal(t, false, checks["mcp_server"]) // MCP server check added
 	})
 
 	t.Run("critical memory provider DOWN returns DOWN and 500", func(t *testing.T) {
@@ -242,11 +243,12 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-		assert.Equal(t, "UP", resp["status"])
+		assert.Equal(t, "DEGRADED", resp["status"]) // MCP server not running in test
 		checks := resp["checks"].(map[string]any)
 		assert.Equal(t, true, checks["management_plane"])
 		assert.Empty(t, checks["memory_providers"].(map[string]any))
 		assert.Empty(t, checks["cognition_engines"].(map[string]any))
+		assert.Equal(t, false, checks["mcp_server"]) // MCP server check added
 	})
 }
 
