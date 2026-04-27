@@ -432,7 +432,7 @@ func (a *App) Run() error {
 	var serverErr error
 	go func() {
 		defer wg.Done()
-		log.Infof("starting the web server")
+		log.Infof("starting the web server on port %d", a.Cfg.AppPort)
 		serverErr = a.server.Start() // blocks
 		a.readyForRequests.Store(false)
 	}()

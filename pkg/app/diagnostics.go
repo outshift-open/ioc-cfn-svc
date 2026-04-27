@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"net"
 	"net/http"
@@ -38,7 +39,24 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 // populated from CfnConfig. The basic check (no query param) is used by Docker health checks.
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	if r.URL.Query().Get("dependencies") != "true" {
-		return eh.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+		// Basic health check - verify both HTTP and MCP servers are running
+		mcpPort := fmt.Sprintf("%d", a.Cfg.McpPort)
+		mcpHealthy := a.probeTCPPort("localhost:" + mcpPort)
+
+		if !mcpHealthy {
+			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]any{
+				"status":  "DOWN",
+				"message": "MCP server not responding on port " + mcpPort,
+			})
+		}
+
+		return eh.RespondWithJSON(w, http.StatusOK, map[string]any{
+			"status": "UP",
+			"servers": map[string]bool{
+				"http": true,
+				"mcp":  mcpHealthy,
+			},
+		})
 	}
 
 	// probe checks reachability via TCP dial — works for any service regardless
@@ -135,12 +153,20 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 		httpStatus = http.StatusInternalServerError
 	}
 
+	// Add MCP server check to detailed health response
+	mcpPort := fmt.Sprintf("%d", a.Cfg.McpPort)
+	mcpHealthy := a.probeTCPPort("localhost:" + mcpPort)
+	if !mcpHealthy && status != "DOWN" {
+		status = "DEGRADED"
+	}
+
 	return eh.RespondWithJSON(w, httpStatus, map[string]any{
 		"status": status,
 		"checks": map[string]any{
 			"management_plane":  mgmtHealthy,
 			"memory_providers":  memoryProviders,
 			"cognition_engines": cognitionEngines,
+			"mcp_server":        mcpHealthy,
 		},
 	})
 }
@@ -219,4 +245,14 @@ func (a *App) diagnosticsSetLoggersHandler(w http.ResponseWriter, r *http.Reques
 	log.Infof("log level changed to %s (module: %s)", level, moduleName)
 	w.WriteHeader(http.StatusNoContent)
 	return http.StatusNoContent, nil
+}
+
+// probeTCPPort checks if a TCP port is reachable
+func (a *App) probeTCPPort(address string) bool {
+	conn, err := net.DialTimeout("tcp", address, 3*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }

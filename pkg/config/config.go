@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	l       *zap.SugaredLogger
+	l    *zap.SugaredLogger
 	once sync.Once
 )
 
@@ -27,6 +27,7 @@ func getLogger() *zap.SugaredLogger {
 
 var (
 	portFlag             = flag.Int("port", 9002, "port to run app server")
+	mcpPortFlag          = flag.Int("mcp_port", 9001, "port to run MCP server")
 	metricsPortFlag      = flag.Int("metrics_port", 9022, "port to run metrics server")
 	replicaIDFlag        = flag.String("hostname", uuid.NewString(), "unique id of service")
 	helmChartVersionFlag = flag.String("chart_version", "", "")
@@ -62,6 +63,7 @@ var (
 
 type Config struct {
 	AppPort                  int
+	McpPort                  int
 	MetricsPort              int
 	HostID                   string
 	HelmChartVersion         string
@@ -84,6 +86,7 @@ func Get() *Config {
 	flag.Parse()
 	return &Config{
 		AppPort:                  *portFlag,
+		McpPort:                  *mcpPortFlag,
 		MetricsPort:              *metricsPortFlag,
 		HostID:                   *replicaIDFlag,
 		HelmChartVersion:         *helmChartVersionFlag,
