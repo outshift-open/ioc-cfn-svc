@@ -121,13 +121,6 @@ type SemanticNegotiationAgent struct {
 	Name string `json:"name"`
 }
 
-// SemanticNegotiationAgentReply represents a single agent reply in a negotiation session.
-type SemanticNegotiationAgentReply struct {
-	AgentID string                 `json:"agent_id"`
-	Action  string                 `json:"action"` // "accept", "reject", or "counter_offer"
-	Offer   map[string]interface{} `json:"offer,omitempty"`
-}
-
 // SemanticNegotiationStartRequest is the request body for POST /negotiate/initiate.
 type SemanticNegotiationStartRequest struct {
 	SessionID   string                     `json:"session_id"`
@@ -137,9 +130,11 @@ type SemanticNegotiationStartRequest struct {
 }
 
 // SemanticNegotiationDecideRequest is the request body for POST /negotiate/decide.
+// AgentReplies are full SSTPNegotiateMessage objects returned by the agent callback
+// server and forwarded verbatim inside the SSTP envelope to the negotiation server.
 type SemanticNegotiationDecideRequest struct {
-	SessionID    string                          `json:"session_id"`
-	AgentReplies []SemanticNegotiationAgentReply `json:"agent_replies"`
+	SessionID    string            `json:"session_id"`
+	AgentReplies []json.RawMessage `json:"agent_replies"`
 }
 
 // ---------------------------------------------------------------------------
@@ -314,7 +309,7 @@ type SemanticNegotiationResponse struct {
 	Status      string                 `json:"status,omitempty"`
 	SessionID   string                 `json:"session_id,omitempty"`
 	Round       *int                   `json:"round,omitempty"`
-	Messages    []interface{}          `json:"messages,omitempty"`
+	Messages    []json.RawMessage      `json:"messages,omitempty"`
 	FinalResult map[string]interface{} `json:"final_result,omitempty"`
 
 	Error *common.ErrorDetail `json:"error,omitempty"`
@@ -450,23 +445,12 @@ func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *Semantic
 //
 // The Python service expects an SSTPNegotiateMessage envelope where:
 //   - payload.session_id identifies the active session
-//   - payload.agent_replies holds the list of agent reply dicts
+//   - payload.agent_replies holds the full SSTPNegotiateMessage objects returned
+//     by the agent callback server, forwarded verbatim.
 func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *SemanticNegotiationDecideRequest, workspaceID, masID string) (*SemanticNegotiationResponse, error) {
-	repliesRaw := make([]map[string]interface{}, len(req.AgentReplies))
-	for i, r := range req.AgentReplies {
-		m := map[string]interface{}{
-			"agent_id": r.AgentID,
-			"action":   r.Action,
-		}
-		if r.Offer != nil {
-			m["offer"] = r.Offer
-		}
-		repliesRaw[i] = m
-	}
-
 	payload := map[string]interface{}{
 		"session_id":    req.SessionID,
-		"agent_replies": repliesRaw,
+		"agent_replies": req.AgentReplies,
 	}
 
 	envelope := sstpNegotiateMessage{

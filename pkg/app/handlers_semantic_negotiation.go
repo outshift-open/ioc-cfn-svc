@@ -1,12 +1,15 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/semanticnegotiation"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
@@ -175,19 +178,9 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		)
 	}
 
-	// Transform DTO to client request
-	agentReplies := make([]cognitionagentclient.SemanticNegotiationAgentReply, len(reqPayload.AgentReplies))
-	for i, reply := range reqPayload.AgentReplies {
-		agentReplies[i] = cognitionagentclient.SemanticNegotiationAgentReply{
-			AgentID: reply.AgentID,
-			Action:  reply.Action,
-			Offer:   reply.Offer,
-		}
-	}
-
 	cogReq := &cognitionagentclient.SemanticNegotiationDecideRequest{
 		SessionID:    reqPayload.SessionID,
-		AgentReplies: agentReplies,
+		AgentReplies: reqPayload.AgentReplies,
 	}
 
 	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
@@ -207,6 +200,33 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		Round:       cogResp.Round,
 		Messages:    cogResp.Messages,
 		FinalResult: cogResp.FinalResult,
+	}
+
+	// If agreement is reached, persist the final result to shared memory in the background.
+	if cogResp.Status == "agreed" && len(cogResp.FinalResult) > 0 {
+		// Wrap FinalResult in an array to match the extraction endpoint's `data: list[dict]` schema.
+		finalResultJSON, err := json.Marshal([]map[string]interface{}{cogResp.FinalResult})
+		if err != nil {
+			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
+				workspaceID, masID, reqPayload.SessionID, err)
+		} else {
+			persistReq := sharedmemory.CreateOrUpdateRequest{
+				RequestId: common.StrToPtr(reqPayload.SessionID),
+				Payload: cognitionagentclient.ExtractionPayload{
+					Metadata: cognitionagentclient.ExtractionPayloadMetadata{
+						Format: common.FormatSemNeg,
+					},
+					Data: json.RawMessage(finalResultJSON),
+				},
+			}
+			if _, err := a.createOrUpdateSharedMemoriesCore(context.Background(), workspaceID, masID, persistReq); err != nil {
+				log.Errorf("failed to persist negotiation agreement | workspace=%s mas=%s session=%s err=%v",
+					workspaceID, masID, reqPayload.SessionID, err)
+			} else {
+				log.Infof("persisted negotiation agreement to shared memory | workspace=%s mas=%s session=%s",
+					workspaceID, masID, reqPayload.SessionID)
+			}
+		}
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)

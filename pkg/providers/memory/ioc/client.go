@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
@@ -21,6 +22,9 @@ var (
 	l    *zap.SugaredLogger
 	once sync.Once
 )
+
+// ErrNotFound is returned when the upstream knowledge memory service responds with 404.
+var ErrNotFound = fmt.Errorf("not found")
 
 func getLogger() *zap.SugaredLogger {
 	once.Do(func() {
@@ -276,7 +280,7 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 	}
 
 	// Pretty print JSON response
-	c.prettyPrintJSON(body)
+	c.prettyPrintJSON(body, "debug")
 
 	// Parse response
 	var response KnowledgeGraphQueryResponse
@@ -292,14 +296,29 @@ func (c *Client) executeQuery(ctx context.Context, request *KnowledgeGraphQueryR
 	return &response, nil
 }
 
-// prettyPrintJSON logs JSON in a formatted way
-func (c *Client) prettyPrintJSON(data []byte) {
+// prettyPrintJSON logs JSON in a formatted way.
+// An optional log level may be passed as the second argument ("debug", "warn", "error").
+// Defaults to "info" if omitted or unrecognised.
+func (c *Client) prettyPrintJSON(data []byte, level ...string) {
 	log := getLogger()
 
 	var prettyJSON interface{}
 	if err := json.Unmarshal(data, &prettyJSON); err == nil {
 		if formatted, err := json.MarshalIndent(prettyJSON, "", "  "); err == nil {
-			log.Infof("Pretty JSON:\n%s", string(formatted))
+			lvl := "info"
+			if len(level) > 0 && level[0] != "" {
+				lvl = level[0]
+			}
+			switch lvl {
+			case "debug":
+				log.Debugf("Pretty JSON:\n%s", string(formatted))
+			case "warn":
+				log.Warnf("Pretty JSON:\n%s", string(formatted))
+			case "error":
+				log.Errorf("Pretty JSON:\n%s", string(formatted))
+			default:
+				log.Infof("Pretty JSON:\n%s", string(formatted))
+			}
 		}
 	}
 }
@@ -665,6 +684,9 @@ func (c *Client) SimilaritySearchConcepts(ctx context.Context, request *Knowledg
 	log.Infof("POST request to %s completed with status %s", url, resp.Status)
 	log.Debugf("Response body: %s", string(body))
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("knowledge memory service error (%d): %s", resp.StatusCode, string(body))
 	}

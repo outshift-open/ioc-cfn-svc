@@ -237,28 +237,28 @@ func testSendSemanticNegotiationStart(ctx context.Context, client *Client) {
 }
 
 // testSendSemanticNegotiationDecide sends a sample semantic negotiation decide request.
-func testSendSemanticNegotiationDecide(ctx context.Context, client *Client) {
-	fmt.Println("=== POST /api/semantic-negotiation/decide ===")
-
-	req := &SemanticNegotiationDecideRequest{
-		SessionID: "sample-session-id",
-		AgentReplies: []SemanticNegotiationAgentReply{
-			{
-				AgentID: "agent-1",
-				Action:  "counter_offer",
-				Offer:   map[string]interface{}{"task": "backend", "hours": 40},
-			},
-		},
-	}
-
-	resp, err := client.SendSemanticNegotiationDecide(ctx, req, "sample-workspace-id", "sample-mas-id")
-	if err != nil {
-		fmt.Printf("  error: %v\n", err)
-		return
-	}
-
-	printJSON("SemanticNegotiationResponse", resp)
-}
+//func testSendSemanticNegotiationDecide(ctx context.Context, client *Client) {
+//	fmt.Println("=== POST /api/semantic-negotiation/decide ===")
+//
+//	req := &SemanticNegotiationDecideRequest{
+//		SessionID: "sample-session-id",
+//		AgentReplies: []SemanticNegotiationAgentReply{
+//			{
+//				AgentID: "agent-1",
+//				Action:  "counter_offer",
+//				Offer:   map[string]interface{}{"task": "backend", "hours": 40},
+//			},
+//		},
+//	}
+//
+//	resp, err := client.SendSemanticNegotiationDecide(ctx, req, "sample-workspace-id", "sample-mas-id")
+//	if err != nil {
+//		fmt.Printf("  error: %v\n", err)
+//		return
+//	}
+//
+//	printJSON("SemanticNegotiationResponse", resp)
+//}
 
 // ---------------------------------------------------------------------------
 // Output helpers
