@@ -67,70 +67,119 @@ first round's messages inside `envelope`.
 ```json
 {
   "status": "initiated",
-  "envelope": {
-    "status": "initiated",
-    "session_id": "sess-test-001",
-    "round": 1,
-    "issues": ["timeline", "budget", "support terms"],
-    "options_per_issue": {
-      "timeline": ["3 months for delivery", "6 months for delivery", "9 months for delivery", "12 months for delivery"],
-      "budget": ["$10,000", "$25,000", "$50,000", "$100,000"],
-      "support terms": ["No support after project delivery", "3 months of support post-delivery", "6 months of ongoing support", "12 months of ongoing support"]
-    },
-    "messages": [
-      {
-        "kind": "negotiate",
-        "version": "0",
-        "message_id": "0ba39775-9d79-5fe8-b641-ca01c081a0bb",
-        "dt_created": "2026-04-23T17:23:06.036542+00:00",
-        "origin": { "actor_id": "negotiation-server", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "issues": ["timeline", "budget", "support terms"],
-          "options_per_issue": { "...": "..." }
-        },
-        "payload": {
-          "action": "respond",
-          "participant_id": "server",
-          "next_proposer_id": "agent-a",
-          "proposer_id": "server",
-          "round": 1,
-          "n_steps": 20,
-          "current_offer": {
-            "timeline": "3 months for delivery",
-            "budget": "$50,000",
-            "support terms": "12 months of ongoing support"
-          },
-          "allowed_actions": ["accept", "reject", "counter_offer"]
-        },
-        "payload_hash": "...",
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] }
-      }
+  "session_id": "sess-test-001",
+  "issues": [
+    "timeline",
+    "budget",
+    "support terms"
+  ],
+  "options_per_issue": {
+    "budget": [
+      "$10,000",
+      "$50,000",
+      "$100,000",
+      "$200,000"
+    ],
+    "support terms": [
+      "Email support only",
+      "Email and chat support",
+      "24/7 support with dedicated representative",
+      "Support for 6 months after project completion"
+    ],
+    "timeline": [
+      "3 months",
+      "6 months",
+      "9 months",
+      "12 months"
     ]
-  }
+  },
+  "n_steps": 20,
+  "round": 1,
+  "messages": [
+    {
+      "dt_created": "2026-04-27T22:25:30.625912+00:00",
+      "kind": "negotiate",
+      "message_id": "e4f7a3e0-e4d5-559b-ac3a-769b8a803182",
+      "origin": {
+        "actor_id": "negotiation-server",
+        "attestation": null,
+        "tenant_id": "sess-test-001"
+      },
+      "payload": {
+        "action": "respond",
+        "allowed_actions": [
+          "accept",
+          "reject",
+          "counter_offer"
+        ],
+        "current_offer": {
+          "budget": "$10,000",
+          "support terms": "Email support only",
+          "timeline": "12 months"
+        },
+        "n_steps": 20,
+        "next_proposer_id": "agent-a",
+        "participant_id": "server",
+        "proposer_id": "server",
+        "round": 1
+      },
+      "payload_hash": "efb09dd314c1694107816b2dc0e85421459f2e291153eb25f3dded394997cc27",
+      "semantic_context": {
+        "encoding": "json",
+        "issues": [
+          "timeline",
+          "budget",
+          "support terms"
+        ],
+        "options_per_issue": {
+          "budget": [
+            "$10,000",
+            "$50,000",
+            "$100,000",
+            "$200,000"
+          ],
+          "support terms": [
+            "Email support only",
+            "Email and chat support",
+            "24/7 support with dedicated representative",
+            "Support for 6 months after project completion"
+          ],
+          "timeline": [
+            "3 months",
+            "6 months",
+            "9 months",
+            "12 months"
+          ]
+        },
+        "schema_id": "urn:ioc:schema:negotiate:negmas-sao:v1",
+        "schema_version": "1.0",
+        "session_id": "sess-test-001"
+      },
+      "version": "0"
+    }
+  ]
 }
 ```
 
-Use `envelope.messages[0].payload` to understand the current offer and which agent
-should propose next (`next_proposer_id`), then construct your `agent_replies` for
-Step 2.
+Use `messages[0].payload` to understand the current offer and which agent should
+propose next (`next_proposer_id`), then construct your `agent_replies` for Step 2.
 
 ---
 
 ## Step 2 — Advance the negotiation
 
-POST agent replies as full `SSTPNegotiateMessage` objects in `agent_replies`.
-The `agent_replies` field carries raw SSTP envelopes verbatim — **not** simplified
-`{agent_id, action, offer}` dicts.
+For each message in `messages`, forward it to the corresponding agent (identified by
+`payload.participant_id`) and collect its reply. Submit all replies together in
+`agent_replies`. CFN wraps each reply in the required SSTP envelope before forwarding
+to the negotiation server — callers never deal with SSTP.
 
-Each reply's `semantic_context.sao_response` encodes the agent's decision:
+**`AgentReply` fields:**
 
-| `response` | Meaning | `outcome` |
+| Field | Required | Description |
 | --- | --- | --- |
-| `0` | ACCEPT_OFFER | The accepted offer dict |
-| `1` + `outcome` dict | REJECT_OFFER + counter-offer | The counter-offer dict |
-| `1` + `outcome: null` | REJECT_OFFER (hard reject) | `null` |
+| `participant_id` | yes | ID of the agent replying (matches `payload.participant_id` in the message) |
+| `action` | yes | One of `"accept"`, `"reject"`, or `"counter_offer"` |
+| `offer` | when `action` is `"counter_offer"` | Proposed option per issue: `{"issue_id": "option_label"}` |
 
 ### Example — round 1 (mixed responses)
 
@@ -143,55 +192,97 @@ curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agen
     "session_id": "sess-test-001",
     "agent_replies": [
       {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-a", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": {
-            "response": 1,
-            "outcome": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" }
-          }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": {
-          "action": "counter_offer", "round": 1, "participant_id": "agent-a",
-          "offer": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" }
-        }
+        "participant_id": "agent-a",
+        "action": "counter_offer",
+        "offer": { "timeline": "6 months", "budget": "$25,000", "support terms": "3 months of support post-delivery" }
       },
       {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-b", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": { "response": 1, "outcome": null }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": { "action": "reject", "round": 1, "participant_id": "agent-b" }
+        "participant_id": "agent-b",
+        "action": "reject"
       },
       {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-c", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": {
-            "response": 0,
-            "outcome": { "timeline": "3 months for delivery", "budget": "$50,000", "support terms": "12 months of ongoing support" }
-          }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": { "action": "accept", "round": 1, "participant_id": "agent-c" }
+        "participant_id": "agent-c",
+        "action": "accept"
       }
     ]
   }'
 ```
 
+Example response:
+
+```json
+{
+    "session_id": "sess-test-001",
+    "status": "ongoing",
+    "round": 3,
+    "messages": [
+        {
+            "version": "0",
+            "message_id": "000b3ce7-028a-5340-b665-58914c0a9ed9",
+            "dt_created": "2026-04-27T22:32:20.905155+00:00",
+            "origin": {
+                "actor_id": "negotiation-server",
+                "tenant_id": "sess-test-001",
+                "attestation": null
+            },
+            "semantic_context": {
+                "schema_id": "urn:ioc:schema:negotiate:negmas-sao:v1",
+                "schema_version": "1.0",
+                "encoding": "json",
+                "session_id": "sess-test-001",
+                "issues": [
+                    "timeline",
+                    "budget",
+                    "support terms"
+                ],
+                "options_per_issue": {
+                    "timeline": [
+                        "3 months",
+                        "6 months",
+                        "9 months",
+                        "12 months"
+                    ],
+                    "budget": [
+                        "$10,000",
+                        "$50,000",
+                        "$100,000",
+                        "$200,000"
+                    ],
+                    "support terms": [
+                        "Email support only",
+                        "Email and chat support",
+                        "24/7 support with dedicated representative",
+                        "Support for 6 months after project completion"
+                    ]
+                }
+            },
+            "payload_hash": "5028e819b50e8da33d640c2a2413650b472c4ad1c830e5b6fde36dba5471e42a",
+            "payload": {
+                "action": "respond",
+                "participant_id": "server",
+                "next_proposer_id": "agent-b",
+                "round": 2,
+                "n_steps": 20,
+                "allowed_actions": [
+                    "accept",
+                    "reject",
+                    "counter_offer"
+                ],
+                "current_offer": {
+                    "timeline": "6 months",
+                    "budget": "$25,000",
+                    "support terms": "3 months of support post-delivery"
+                },
+                "proposer_id": "agent-a"
+            },
+            "kind": "negotiate"
+        }
+    ]
+}
+```
 ### Example — accept all (terminal round)
 
-When all agents accept the standing offer the negotiation concludes. Set every
-agent's `sao_response.response` to `0` and `outcome` to the current offer:
+When all agents accept the standing offer the negotiation concludes:
 
 ```bash
 curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-negotiation/decide \
@@ -199,39 +290,9 @@ curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agen
   -d '{
     "session_id": "sess-test-001",
     "agent_replies": [
-      {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-a", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": { "response": 0, "outcome": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" } }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": { "action": "accept", "round": 2, "participant_id": "agent-a" }
-      },
-      {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-b", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": { "response": 0, "outcome": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" } }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": { "action": "accept", "round": 2, "participant_id": "agent-b" }
-      },
-      {
-        "kind": "negotiate",
-        "origin": { "actor_id": "agent-c", "tenant_id": "sess-test-001" },
-        "semantic_context": {
-          "session_id": "sess-test-001",
-          "sao_response": { "response": 0, "outcome": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" } }
-        },
-        "policy_labels": { "sensitivity": "internal", "propagation": "restricted", "retention_policy": "default" },
-        "provenance": { "sources": [], "transforms": [] },
-        "payload": { "action": "accept", "round": 2, "participant_id": "agent-c" }
-      }
+      { "participant_id": "agent-a", "action": "accept" },
+      { "participant_id": "agent-b", "action": "accept" },
+      { "participant_id": "agent-c", "action": "accept" }
     ]
   }'
 ```
@@ -257,62 +318,172 @@ decide again.
 ### Agreed
 
 All agents accepted the same offer. `final_result` is the full `SSTPCommitMessage`.
+CFN automatically persists the agreement to shared memory (format `semneg`) so it
+can be retrieved later via the shared memory API.
 
 ```json
 {
-  "status": "agreed",
   "session_id": "sess-test-001",
+  "status": "agreed",
   "round": 2,
   "final_result": {
+    "confidence_score": 1,
+    "dt_created": "2026-04-27T22:34:02.814903+00:00",
     "kind": "commit",
-    "semantic_context": {
-      "final_agreement": [
-        { "issue_id": "timeline",      "chosen_option": "6 months for delivery" },
-        { "issue_id": "budget",        "chosen_option": "$25,000" },
-        { "issue_id": "support terms", "chosen_option": "3 months of support post-delivery" }
-      ],
-      "outcome": "agreement"
+    "logical_clock": {
+      "type": "lamport",
+      "value": 2
     },
+    "merge_strategy": "add",
+    "message_id": "sess-test-001",
+    "origin": {
+      "actor_id": "negotiation-server",
+      "attestation": null,
+      "tenant_id": "sess-test-001"
+    },
+    "parent_ids": [
+      "sess-test-001"
+    ],
     "payload": {
+      "session_id": "sess-test-001",
       "status": "agreed",
       "total_rounds": 2,
       "trace": {
-        "timedout": false,
         "broken": false,
         "rounds": [
           {
-            "round": 1,
-            "proposer_id": "server",
-            "offer": { "timeline": "3 months for delivery", "budget": "$50,000", "support terms": "12 months of ongoing support" },
             "decisions": [
-              { "participant_id": "agent-a", "action": "counter_offer", "offer": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" } },
-              { "participant_id": "agent-b", "action": "reject", "offer": null },
-              { "participant_id": "agent-c", "action": "accept", "offer": null }
-            ]
+              {
+                "action": "counter_offer",
+                "offer": {
+                  "budget": "$25,000",
+                  "support terms": "3 months of support post-delivery",
+                  "timeline": "6 months"
+                },
+                "participant_id": "agent-a"
+              },
+              {
+                "action": "reject",
+                "offer": null,
+                "participant_id": "agent-b"
+              },
+              {
+                "action": "accept",
+                "offer": null,
+                "participant_id": "agent-c"
+              }
+            ],
+            "next_proposer_id": "agent-a",
+            "offer": {
+              "budget": "$10,000",
+              "support terms": "Email support only",
+              "timeline": "12 months"
+            },
+            "proposer_id": "server",
+            "round": 1
           },
           {
-            "round": 2,
-            "proposer_id": "agent-a",
-            "offer": { "timeline": "6 months for delivery", "budget": "$25,000", "support terms": "3 months of support post-delivery" },
             "decisions": [
-              { "participant_id": "agent-a", "action": "accept", "offer": null },
-              { "participant_id": "agent-b", "action": "accept", "offer": null },
-              { "participant_id": "agent-c", "action": "accept", "offer": null }
-            ]
+              {
+                "action": "accept",
+                "offer": null,
+                "participant_id": "agent-a"
+              },
+              {
+                "action": "accept",
+                "offer": null,
+                "participant_id": "agent-b"
+              },
+              {
+                "action": "accept",
+                "offer": null,
+                "participant_id": "agent-c"
+              }
+            ],
+            "next_proposer_id": "agent-b",
+            "offer": {
+              "budget": "$25,000",
+              "support terms": "3 months of support post-delivery",
+              "timeline": "6 months"
+            },
+            "proposer_id": "agent-a",
+            "round": 2
           }
-        ]
+        ],
+        "sstp_message_trace": null,
+        "timedout": false
       }
-    }
+    },
+    "payload_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "payload_refs": [],
+    "policy_labels": {
+      "propagation": "restricted",
+      "retention_policy": "default",
+      "sensitivity": "internal"
+    },
+    "provenance": {
+      "sources": [],
+      "transforms": []
+    },
+    "risk_score": 0,
+    "semantic_context": {
+      "agents_negotiating": [
+        "agent-a",
+        "agent-b",
+        "agent-c"
+      ],
+      "content_text": "Negotiate a software project contract covering timeline, budget, and support terms.",
+      "encoding": "json",
+      "error_message": null,
+      "final_agreement": [
+        {
+          "chosen_option": "6 months",
+          "issue_id": "timeline"
+        },
+        {
+          "chosen_option": "$25,000",
+          "issue_id": "budget"
+        },
+        {
+          "chosen_option": "3 months of support post-delivery",
+          "issue_id": "support terms"
+        }
+      ],
+      "issues": [
+        "timeline",
+        "budget",
+        "support terms"
+      ],
+      "options_per_issue": {
+        "budget": [
+          "$10,000",
+          "$50,000",
+          "$100,000",
+          "$200,000"
+        ],
+        "support terms": [
+          "Email support only",
+          "Email and chat support",
+          "24/7 support with dedicated representative",
+          "Support for 6 months after project completion"
+        ],
+        "timeline": [
+          "3 months",
+          "6 months",
+          "9 months",
+          "12 months"
+        ]
+      },
+      "outcome": "agreement",
+      "schema_id": "urn:ioc:schema:negotiate:commit:v1",
+      "schema_version": "1.0",
+      "session_id": "sess-test-001"
+    },
+    "state_object_id": "sess-test-001",
+    "ttl_seconds": 86400,
+    "version": "0"
   }
 }
 ```
-
-### Terminal statuses
-
-| `status` | Meaning |
-| --- | --- |
-| `agreed` | All agents accepted the same offer. `final_result` is present. |
-| `broken` | Negotiation ended without agreement (e.g. all agents hard-rejected). |
-| `timeout` | `n_steps` rounds elapsed without agreement. |
 
 ---

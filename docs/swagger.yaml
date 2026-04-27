@@ -212,63 +212,132 @@ definitions:
         description: Name is the human-readable agent name.
         type: string
     type: object
+  semanticnegotiation.AgentDecision:
+    properties:
+      action:
+        description: Action is one of "accept", "reject", or "counter_offer".
+        type: string
+      offer:
+        additionalProperties:
+          type: string
+        description: |-
+          Offer is the proposed option per issue when Action is "counter_offer".
+          Shape: {issue_id: option_label}
+        type: object
+      participant_id:
+        description: ParticipantID is the ID of the participant who made this decision.
+        type: string
+    type: object
+  semanticnegotiation.AgentReply:
+    properties:
+      action:
+        description: Action is one of "accept", "reject", or "counter_offer".
+        type: string
+      offer:
+        additionalProperties:
+          type: string
+        description: |-
+          Offer is the proposed option per issue when Action is "counter_offer".
+          Shape: {issue_id: option_label}
+        type: object
+      participant_id:
+        description: ParticipantID is the ID of the agent replying.
+        type: string
+    type: object
   semanticnegotiation.DecideRequest:
     properties:
       agent_replies:
-        description: |-
-          AgentReplies are the full SSTPNegotiateMessage objects produced by the
-          local agent server (/decide) for this round. Each element is a complete
-          SSTP envelope as returned by the agent callback server and is forwarded
-          verbatim to the negotiation server's /api/semantic-negotiation/negotiate/decide endpoint.
+        description: AgentReplies contains each agent's reply to the current round.
         items:
-          items:
-            type: integer
-          type: array
+          $ref: '#/definitions/semanticnegotiation.AgentReply'
         type: array
       session_id:
-        description: SessionID is the session identifier previously provided to the
-          start endpoint.
+        description: SessionID is the session identifier from the /start response.
         type: string
     type: object
-  semanticnegotiation.Response:
+  semanticnegotiation.DecideResponse:
     properties:
-      envelope:
-        additionalProperties: true
-        description: Envelope is the full SSTPNegotiateMessage returned by /negotiate/initiate.
-        type: object
       final_result:
         additionalProperties: true
         description: |-
           FinalResult holds the terminal negotiation envelope when Status is
-          "agreed", "broken", or "timeout" (returned by /negotiate/decide).
+          "agreed", "broken", or "timeout".
         type: object
       messages:
         description: |-
-          Messages contains the next round's SSTPNegotiateMessage objects when
-          Status is "ongoing". Pass these directly to the agent callback server's
-          POST /decide endpoint, then collect replies and send them back via
-          the /semantic-negotiation/decide endpoint.
+          Messages contains the next round's messages to dispatch to agents.
+          Present only when Status is "ongoing". Forward these to each agent's
+          callback endpoint, collect their replies, and submit via /decide again.
         items:
           items:
             type: integer
           type: array
         type: array
       round:
-        description: Round is the SAO round number that was evaluated.
+        description: Round is the round number that was just evaluated.
         type: integer
       session_id:
-        description: SessionID echoes the session identifier from the upstream response.
+        description: SessionID echoes the session identifier.
         type: string
       status:
-        description: |-
-          Status indicates the result of the negotiation step.
-          Possible values: "ongoing", "agreed", "broken", "timeout".
+        description: Status is "ongoing", "agreed", "broken", or "timeout".
         type: string
+    type: object
+  semanticnegotiation.NegotiationOutcome:
+    properties:
+      chosen_option:
+        type: string
+      issue_id:
+        type: string
+    type: object
+  semanticnegotiation.NegotiationTrace:
+    properties:
+      broken:
+        description: Broken indicates whether a participant explicitly broke off.
+        type: boolean
+      final_agreement:
+        description: FinalAgreement is the agreed option per issue, if any.
+        items:
+          $ref: '#/definitions/semanticnegotiation.NegotiationOutcome'
+        type: array
+      rounds:
+        description: Rounds contains all SAO rounds in order (1-based).
+        items:
+          $ref: '#/definitions/semanticnegotiation.RoundOffer'
+        type: array
+      timedout:
+        description: Timedout indicates whether the SAO exhausted its step budget.
+        type: boolean
+    type: object
+  semanticnegotiation.RoundOffer:
+    properties:
+      decisions:
+        description: Decisions contains each participant's response to this round's
+          offer.
+        items:
+          $ref: '#/definitions/semanticnegotiation.AgentDecision'
+        type: array
+      next_proposer_id:
+        description: |-
+          NextProposerID is the ID of the participant who will propose in the next round.
+          Omitted on the final round.
+        type: string
+      offer:
+        additionalProperties:
+          type: string
+        description: 'Offer is the proposed option per issue. Shape: {issue_id: option_label}'
+        type: object
+      proposer_id:
+        description: ProposerID is the ID of the participant who made this proposal.
+        type: string
+      round:
+        description: Round is the 1-based round number.
+        type: integer
     type: object
   semanticnegotiation.StartRequest:
     properties:
       agents:
-        description: Agents is the list of participating agents.
+        description: Agents is the list of participating agents (minimum 2).
         items:
           $ref: '#/definitions/semanticnegotiation.Agent'
         type: array
@@ -278,14 +347,63 @@ definitions:
         type: string
       n_steps:
         description: |-
-          NSteps is the maximum number of negotiation steps.
-          If omitted, defaults to 20.
+          NSteps is the maximum number of SAO rounds.
+          If omitted, the service computes a budget from negotiation complexity.
         type: integer
       session_id:
-        description: |-
-          SessionID is the client-provided session identifier.
-          Currently assumed globally unique (not scoped by workspace/mas).
+        description: SessionID is the client-provided session identifier.
         type: string
+    type: object
+  semanticnegotiation.StartResponse:
+    properties:
+      current_round:
+        allOf:
+        - $ref: '#/definitions/semanticnegotiation.RoundOffer'
+        description: CurrentRound is the first offer in the trace (SSTP envelope path
+          only).
+      issues:
+        description: Issues is the list of negotiable issues discovered from content_text.
+        items:
+          type: string
+        type: array
+      messages:
+        description: |-
+          Messages contains the first round's messages to dispatch to agents.
+          Forward each message to the corresponding agent's callback endpoint,
+          collect their replies, and submit via /decide.
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      n_steps:
+        description: NSteps is the SAO round budget for this session.
+        type: integer
+      options_per_issue:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        description: OptionsPerIssue lists the candidate options for each issue.
+        type: object
+      round:
+        description: Round is the current round number (1-based).
+        type: integer
+      session_id:
+        description: SessionID echoes the session identifier.
+        type: string
+      status:
+        description: Status is "initiated", "ongoing", "agreed", "broken", or "timeout".
+        type: string
+      total_rounds:
+        description: TotalRounds is the total SAO rounds in the pre-computed trace
+          (SSTP envelope path only).
+        type: integer
+      trace:
+        allOf:
+        - $ref: '#/definitions/semanticnegotiation.NegotiationTrace'
+        description: Trace is the complete pre-computed SAO trace (SSTP envelope path
+          only).
     type: object
   sharedmemory.ConceptsByIdsRequest:
     properties:
@@ -1034,7 +1152,7 @@ paths:
         "200":
           description: Negotiation step executed successfully
           schema:
-            $ref: '#/definitions/semanticnegotiation.Response'
+            $ref: '#/definitions/semanticnegotiation.DecideResponse'
         "400":
           description: Invalid request
           schema:
@@ -1084,7 +1202,7 @@ paths:
         "200":
           description: Negotiation session started successfully
           schema:
-            $ref: '#/definitions/semanticnegotiation.Response'
+            $ref: '#/definitions/semanticnegotiation.StartResponse'
         "400":
           description: Invalid request
           schema:
