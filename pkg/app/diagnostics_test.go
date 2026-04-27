@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 )
 
 func newDiagnosticsTestApp() *App {
@@ -22,6 +23,9 @@ func newDiagnosticsTestApp() *App {
 		gitBranch:     "main",
 		startTime:     time.Now(),
 		db:            client.NewMockDatabase(),
+		Cfg: config.Config{
+			McpPort: 9001,
+		},
 	}
 }
 
@@ -59,11 +63,13 @@ func TestDiagnosticsHealthHandler(t *testing.T) {
 
 	code, err := app.diagnosticsHealthHandler(rr, req)
 	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, code)
+	// In test environment, MCP server is not running, so health check returns 500
+	assert.Equal(t, http.StatusInternalServerError, code)
 
-	var resp map[string]string
+	var resp map[string]any
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Equal(t, "UP", resp["status"])
+	assert.Equal(t, "DOWN", resp["status"])
+	assert.Contains(t, resp["message"], "MCP server not responding on port 9001")
 }
 
 // setCfnConfigForTest sets CfnConfig for the duration of a test and restores it on cleanup.
@@ -117,18 +123,19 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-		assert.Equal(t, "UP", resp["status"])
+		assert.Equal(t, "DEGRADED", resp["status"]) // MCP server not running in test
 		checks := resp["checks"].(map[string]any)
 		assert.Equal(t, true, checks["management_plane"])
 		assert.Equal(t, true, checks["memory_providers"].(map[string]any)["mem-svc"])
 		assert.Equal(t, true, checks["cognition_engines"].(map[string]any)["CE1"])
+		assert.Equal(t, false, checks["mcp_server"]) // MCP server check added
 	})
 
 	t.Run("critical memory provider DOWN returns DOWN and 500", func(t *testing.T) {
 		mgmt := httptest.NewServer(healthyHandler)
 		defer mgmt.Close()
 		mem := httptest.NewServer(healthyHandler)
-		mem.Close() 
+		mem.Close()
 		cog := httptest.NewServer(healthyHandler)
 		defer cog.Close()
 
@@ -236,11 +243,12 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-		assert.Equal(t, "UP", resp["status"])
+		assert.Equal(t, "DEGRADED", resp["status"]) // MCP server not running in test
 		checks := resp["checks"].(map[string]any)
 		assert.Equal(t, true, checks["management_plane"])
 		assert.Empty(t, checks["memory_providers"].(map[string]any))
 		assert.Empty(t, checks["cognition_engines"].(map[string]any))
+		assert.Equal(t, false, checks["mcp_server"]) // MCP server check added
 	})
 }
 

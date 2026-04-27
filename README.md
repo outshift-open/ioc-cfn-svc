@@ -42,16 +42,14 @@ CGO_ENABLED=0 go run -ldflags "-X main.buildVersion=latest -X main.gitCommitSHA=
 ### Option 2: Using Make
 
 ```bash
-make dev                    # same as above
-MCP_ENABLED=true make dev   # MCP mode
+make dev                    # runs both HTTP and MCP servers
 ```
 
 ### Option 3: Build binary
 
 ```bash
 make build
-make run        # HTTP mode
-make run-mcp    # MCP mode
+make run        # runs both HTTP and MCP servers
 ```
 
 App runs on **http://localhost:9002**
@@ -299,8 +297,7 @@ The app automatically loads `.env` on startup via [godotenv](https://github.com/
 **Using Make:**
 ```bash
 make dev       # go run with git info injected
-make run       # build binary then run
-make run-mcp   # build and run in MCP mode
+make run       # build binary then run (both HTTP and MCP servers)
 ```
 
 **Using Go directly:**
@@ -338,7 +335,7 @@ Uses robust HTTP client with 3 retries and exponential backoff.
 
 ## MCP Server Mode
 
-The service supports MCP (Model Context Protocol) for AI tool integration. Toggle between HTTP and MCP mode using `MCP_ENABLED` environment variable.
+The service runs both HTTP and MCP (Model Context Protocol) servers simultaneously for AI tool integration.
 
 ```bash
 # Test MCP client-server communication
@@ -363,8 +360,7 @@ Environment variables (uppercase):
 | `MGMT_URL` | http://localhost:9000 | Management plane URL |
 | `CFN_NAME` | My Cognition Fabric Node | CFN instance name |
 | `HEARTBEAT_INTERVAL_SECONDS` | 29 | Heartbeat interval in seconds |
-| `MCP_ENABLED` | false | Enable MCP server mode |
-| `MCP_PORT` | 9002 | MCP server port |
+| `MCP_PORT` | 9001 | MCP server port |
 | `MCP_HOST` | (empty) | MCP server host |
 | `DEFAULT_PAGE_SIZE` | 20 | Default number of records per page (audit list) |
 | `MAX_PAGE_SIZE` | 100 | Maximum allowed records per page (audit list) |
@@ -375,8 +371,7 @@ Environment variables (uppercase):
 # Build & Run
 make dev            # go run with git info (loads .env)
 make build          # Build binary
-make run            # Build and run binary
-make run-mcp        # Build and run in MCP mode
+make run            # Build and run binary (both HTTP and MCP servers)
 
 # Other
 make test           # Run tests
