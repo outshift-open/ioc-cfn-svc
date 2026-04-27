@@ -212,54 +212,6 @@ func testSendReasoningEvidence(ctx context.Context, client *Client) {
 	printJSON("ReasonerCognitionResponse", resp)
 }
 
-// testSendSemanticNegotiationStart sends a sample semantic negotiation start request.
-func testSendSemanticNegotiationStart(ctx context.Context, client *Client) {
-	fmt.Println("=== POST /api/semantic-negotiation/start ===")
-
-	nSteps := 20
-	req := &SemanticNegotiationStartRequest{
-		SessionID:   "sample-session-id",
-		ContentText: "Let's negotiate the task allocation for the project",
-		Agents: []SemanticNegotiationAgent{
-			{ID: "agent-1", Name: "Alice"},
-			{ID: "agent-2", Name: "Bob"},
-		},
-		NSteps: &nSteps,
-	}
-
-	resp, err := client.SendSemanticNegotiationStart(ctx, req, "sample-workspace-id", "sample-mas-id")
-	if err != nil {
-		fmt.Printf("  error: %v\n", err)
-		return
-	}
-
-	printJSON("SemanticNegotiationResponse", resp)
-}
-
-// testSendSemanticNegotiationDecide sends a sample semantic negotiation decide request.
-//func testSendSemanticNegotiationDecide(ctx context.Context, client *Client) {
-//	fmt.Println("=== POST /api/semantic-negotiation/decide ===")
-//
-//	req := &SemanticNegotiationDecideRequest{
-//		SessionID: "sample-session-id",
-//		AgentReplies: []SemanticNegotiationAgentReply{
-//			{
-//				AgentID: "agent-1",
-//				Action:  "counter_offer",
-//				Offer:   map[string]interface{}{"task": "backend", "hours": 40},
-//			},
-//		},
-//	}
-//
-//	resp, err := client.SendSemanticNegotiationDecide(ctx, req, "sample-workspace-id", "sample-mas-id")
-//	if err != nil {
-//		fmt.Printf("  error: %v\n", err)
-//		return
-//	}
-//
-//	printJSON("SemanticNegotiationResponse", resp)
-//}
-
 // ---------------------------------------------------------------------------
 // Output helpers
 // ---------------------------------------------------------------------------
