@@ -640,6 +640,9 @@ func (c *Client) SimilaritySearchVectors(ctx context.Context, request *Knowledge
 	log.Infof("POST request to %s completed with status %s", url, resp.Status)
 	log.Debugf("Response body: %s", string(body))
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("knowledge memory service error (%d): %s", resp.StatusCode, string(body))
 	}

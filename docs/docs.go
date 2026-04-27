@@ -130,6 +130,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Graph not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
@@ -1184,32 +1193,17 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.AgentReply": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "description": "Action is the agent action.\nAllowed values: \"accept\", \"reject\", \"counter_offer\"",
-                    "type": "string"
-                },
-                "agent_id": {
-                    "description": "AgentID is the agent identifier (must match one of the initiated agents).",
-                    "type": "string"
-                },
-                "offer": {
-                    "description": "Offer is an optional structured offer payload.\nRequired when Action is \"counter_offer\".",
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            }
-        },
         "semanticnegotiation.DecideRequest": {
             "type": "object",
             "properties": {
                 "agent_replies": {
-                    "description": "AgentReplies are the replies produced by agents since the last step.",
+                    "description": "AgentReplies are the full SSTPNegotiateMessage objects produced by the\nlocal agent server (/decide) for this round. Each element is a complete\nSSTP envelope as returned by the agent callback server and is forwarded\nverbatim to the negotiation server's /api/negotiate/decide endpoint.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.AgentReply"
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
                     }
                 },
                 "session_id": {
@@ -1221,17 +1215,36 @@ const docTemplate = `{
         "semanticnegotiation.Response": {
             "type": "object",
             "properties": {
-                "message": {
-                    "description": "Message provides additional information about the negotiation state.",
-                    "type": "string"
-                },
-                "result": {
-                    "description": "Result contains the pipeline execution result.\nThe structure depends on the semantic negotiation library implementation.",
+                "envelope": {
+                    "description": "Envelope is the full SSTPNegotiateMessage returned by /negotiate/initiate.",
                     "type": "object",
                     "additionalProperties": true
                 },
+                "final_result": {
+                    "description": "FinalResult holds the terminal negotiation envelope when Status is\n\"agreed\", \"broken\", or \"timeout\" (returned by /negotiate/decide).",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "messages": {
+                    "description": "Messages contains the next round's SSTPNegotiateMessage objects when\nStatus is \"ongoing\". Pass these directly to the agent callback server's\nPOST /decide endpoint, then collect replies and send them back via\nthe /semantic-negotiation/decide endpoint.",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "round": {
+                    "description": "Round is the SAO round number that was evaluated.",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID echoes the session identifier from the upstream response.",
+                    "type": "string"
+                },
                 "status": {
-                    "description": "Status indicates the result of the negotiation step.",
+                    "description": "Status indicates the result of the negotiation step.\nPossible values: \"ongoing\", \"agreed\", \"broken\", \"timeout\".",
                     "type": "string"
                 }
             }

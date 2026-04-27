@@ -212,31 +212,18 @@ definitions:
         description: Name is the human-readable agent name.
         type: string
     type: object
-  semanticnegotiation.AgentReply:
-    properties:
-      action:
-        description: |-
-          Action is the agent action.
-          Allowed values: "accept", "reject", "counter_offer"
-        type: string
-      agent_id:
-        description: AgentID is the agent identifier (must match one of the initiated
-          agents).
-        type: string
-      offer:
-        additionalProperties: true
-        description: |-
-          Offer is an optional structured offer payload.
-          Required when Action is "counter_offer".
-        type: object
-    type: object
   semanticnegotiation.DecideRequest:
     properties:
       agent_replies:
-        description: AgentReplies are the replies produced by agents since the last
-          step.
+        description: |-
+          AgentReplies are the full SSTPNegotiateMessage objects produced by the
+          local agent server (/decide) for this round. Each element is a complete
+          SSTP envelope as returned by the agent callback server and is forwarded
+          verbatim to the negotiation server's /api/negotiate/decide endpoint.
         items:
-          $ref: '#/definitions/semanticnegotiation.AgentReply'
+          items:
+            type: integer
+          type: array
         type: array
       session_id:
         description: SessionID is the session identifier previously provided to the
@@ -245,18 +232,37 @@ definitions:
     type: object
   semanticnegotiation.Response:
     properties:
-      message:
-        description: Message provides additional information about the negotiation
-          state.
-        type: string
-      result:
+      envelope:
+        additionalProperties: true
+        description: Envelope is the full SSTPNegotiateMessage returned by /negotiate/initiate.
+        type: object
+      final_result:
         additionalProperties: true
         description: |-
-          Result contains the pipeline execution result.
-          The structure depends on the semantic negotiation library implementation.
+          FinalResult holds the terminal negotiation envelope when Status is
+          "agreed", "broken", or "timeout" (returned by /negotiate/decide).
         type: object
+      messages:
+        description: |-
+          Messages contains the next round's SSTPNegotiateMessage objects when
+          Status is "ongoing". Pass these directly to the agent callback server's
+          POST /decide endpoint, then collect replies and send them back via
+          the /semantic-negotiation/decide endpoint.
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      round:
+        description: Round is the SAO round number that was evaluated.
+        type: integer
+      session_id:
+        description: SessionID echoes the session identifier from the upstream response.
+        type: string
       status:
-        description: Status indicates the result of the negotiation step.
+        description: |-
+          Status indicates the result of the negotiation step.
+          Possible values: "ongoing", "agreed", "broken", "timeout".
         type: string
     type: object
   semanticnegotiation.StartRequest:
@@ -618,6 +624,12 @@ paths:
             $ref: '#/definitions/app.conceptSimilaritySearchResponse'
         "400":
           description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Graph not found
           schema:
             additionalProperties:
               type: string
