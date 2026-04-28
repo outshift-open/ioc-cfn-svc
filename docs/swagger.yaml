@@ -279,6 +279,12 @@ definitions:
       session_id:
         description: SessionID echoes the session identifier.
         type: string
+      shared_memory:
+        allOf:
+        - $ref: '#/definitions/semanticnegotiation.SharedMemoryResult'
+        description: |-
+          SharedMemory reports the outcome of persisting the agreement to shared
+          memory. Only present when Status is "agreed".
       status:
         description: Status is "ongoing", "agreed", "broken", or "timeout".
         type: string
@@ -333,6 +339,16 @@ definitions:
       round:
         description: Round is the 1-based round number.
         type: integer
+    type: object
+  semanticnegotiation.SharedMemoryResult:
+    properties:
+      error:
+        description: Error contains a human-readable reason when Persisted is false.
+        type: string
+      persisted:
+        description: Persisted is true when the agreement was successfully written
+          to shared memory.
+        type: boolean
     type: object
   semanticnegotiation.StartRequest:
     properties:

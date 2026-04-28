@@ -138,6 +138,16 @@ type DecideRequest struct {
 	AgentReplies []AgentReply `json:"agent_replies"`
 }
 
+// SharedMemoryResult reports whether the negotiation agreement was persisted
+// to shared memory. Only present on terminal decide responses (agreed/broken/timeout).
+type SharedMemoryResult struct {
+	// Persisted is true when the agreement was successfully written to shared memory.
+	Persisted bool `json:"persisted"`
+
+	// Error contains a human-readable reason when Persisted is false.
+	Error string `json:"error,omitempty"`
+}
+
 // DecideResponse is the response from the /decide endpoint.
 type DecideResponse struct {
 	// SessionID echoes the session identifier.
@@ -157,4 +167,8 @@ type DecideResponse struct {
 	// FinalResult holds the terminal negotiation envelope when Status is
 	// "agreed", "broken", or "timeout".
 	FinalResult map[string]interface{} `json:"final_result,omitempty"`
+
+	// SharedMemory reports the outcome of persisting the agreement to shared
+	// memory. Only present when Status is "agreed".
+	SharedMemory *SharedMemoryResult `json:"shared_memory,omitempty"`
 }

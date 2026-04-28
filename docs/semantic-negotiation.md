@@ -482,8 +482,9 @@ can be retrieved later via the shared memory API.
     "state_object_id": "sess-test-001",
     "ttl_seconds": 86400,
     "version": "0"
+  },
+  "shared_memory": {
+    "persisted": true
   }
 }
 ```
-
----

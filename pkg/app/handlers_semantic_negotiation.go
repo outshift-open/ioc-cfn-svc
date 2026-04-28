@@ -256,6 +256,10 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
 				workspaceID, masID, reqPayload.SessionID, err)
 			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to marshall final result for persistence"))
+			resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+				Persisted: false,
+				Error:     "failed to marshal final result for persistence",
+			}
 		} else {
 			persistReq := sharedmemory.CreateOrUpdateRequest{
 				RequestId: common.StrToPtr(reqPayload.SessionID),
@@ -270,9 +274,16 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 				log.Errorf("failed to persist negotiation agreement | workspace=%s mas=%s session=%s err=%v",
 					workspaceID, masID, reqPayload.SessionID, err)
 				a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to persist negotiation agreement"))
+				resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+					Persisted: false,
+					Error:     "failed to persist negotiation agreement to shared memory",
+				}
 			} else {
 				log.Infof("persisted negotiation agreement to shared memory | workspace=%s mas=%s session=%s",
 					workspaceID, masID, reqPayload.SessionID)
+				resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+					Persisted: true,
+				}
 			}
 		}
 	}

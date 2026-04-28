@@ -1284,6 +1284,14 @@ const docTemplate = `{
                     "description": "SessionID echoes the session identifier.",
                     "type": "string"
                 },
+                "shared_memory": {
+                    "description": "SharedMemory reports the outcome of persisting the agreement to shared\nmemory. Only present when Status is \"agreed\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.SharedMemoryResult"
+                        }
+                    ]
+                },
                 "status": {
                     "description": "Status is \"ongoing\", \"agreed\", \"broken\", or \"timeout\".",
                     "type": "string"
@@ -1356,6 +1364,19 @@ const docTemplate = `{
                 "round": {
                     "description": "Round is the 1-based round number.",
                     "type": "integer"
+                }
+            }
+        },
+        "semanticnegotiation.SharedMemoryResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error contains a human-readable reason when Persisted is false.",
+                    "type": "string"
+                },
+                "persisted": {
+                    "description": "Persisted is true when the agreement was successfully written to shared memory.",
+                    "type": "boolean"
                 }
             }
         },
