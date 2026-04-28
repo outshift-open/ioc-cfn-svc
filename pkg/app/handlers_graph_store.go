@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,6 +65,7 @@ type conceptSimilaritySearchResponse struct {
 // @Param       body               body     conceptSimilaritySearchRequest  true  "Similarity search request"
 // @Success     200                {object} conceptSimilaritySearchResponse
 // @Failure     400                {object} map[string]string "Invalid request"
+// @Failure     404                {object} map[string]string "Graph not found"
 // @Failure     500                {object} map[string]string "Internal server error"
 // @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search [post]
 func (a *App) conceptSimilaritySearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -120,6 +122,15 @@ func (a *App) conceptSimilaritySearchHandler(w http.ResponseWriter, r *http.Requ
 	searchResp, err := a.knowledgeMemSvcClient.SimilaritySearchConcepts(r.Context(), searchReq, includeEmbeddings)
 	if err != nil {
 		log.Errorf("Concept similarity search failed | workspace=%s mas=%s err=%v", workspaceID, masID, err)
+		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
+			errMsg := fmt.Sprintf("graph not found for workspace=%s mas=%s", workspaceID, masID)
+			return eh.RespondWithJSON(w, http.StatusNotFound, conceptSimilaritySearchResponse{
+				Header:     conceptSimilaritySearchResponseHeader{WorkspaceID: workspaceID, MasID: masID, AgentID: agentID},
+				ResponseID: requestID,
+				Status:     "not found",
+				Error:      &errMsg,
+			})
+		}
 		errMsg := fmt.Sprintf("similarity search failed: %v", err)
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, conceptSimilaritySearchResponse{
 			Header:     conceptSimilaritySearchResponseHeader{WorkspaceID: workspaceID, MasID: masID, AgentID: agentID},

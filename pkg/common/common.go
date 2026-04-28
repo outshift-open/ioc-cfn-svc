@@ -5,6 +5,7 @@ type CognitionAgent string
 const (
 	FormatObserveSDKOTel = "observe-sdk-otel"
 	FormatOpenClaw       = "openclaw"
+	FormatSemNeg         = "semneg"
 )
 
 // Header carries routing context for CFN requests and responses.

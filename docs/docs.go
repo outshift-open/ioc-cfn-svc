@@ -130,6 +130,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Graph not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
@@ -379,6 +388,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vector store not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -663,7 +681,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Negotiation step executed successfully",
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.Response"
+                            "$ref": "#/definitions/semanticnegotiation.DecideResponse"
                         }
                     },
                     "400": {
@@ -738,7 +756,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Negotiation session started successfully",
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.Response"
+                            "$ref": "#/definitions/semanticnegotiation.StartResponse"
                         }
                     },
                     "400": {
@@ -1184,21 +1202,43 @@ const docTemplate = `{
                 }
             }
         },
+        "semanticnegotiation.AgentDecision": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "Action is one of \"accept\", \"reject\", or \"counter_offer\".",
+                    "type": "string"
+                },
+                "offer": {
+                    "description": "Offer is the proposed option per issue when Action is \"counter_offer\".\nShape: {issue_id: option_label}",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "participant_id": {
+                    "description": "ParticipantID is the ID of the participant who made this decision.",
+                    "type": "string"
+                }
+            }
+        },
         "semanticnegotiation.AgentReply": {
             "type": "object",
             "properties": {
                 "action": {
-                    "description": "Action is the agent action.\nAllowed values: \"accept\", \"reject\", \"counter_offer\"",
-                    "type": "string"
-                },
-                "agent_id": {
-                    "description": "AgentID is the agent identifier (must match one of the initiated agents).",
+                    "description": "Action is one of \"accept\", \"reject\", or \"counter_offer\".",
                     "type": "string"
                 },
                 "offer": {
-                    "description": "Offer is an optional structured offer payload.\nRequired when Action is \"counter_offer\".",
+                    "description": "Offer is the proposed option per issue when Action is \"counter_offer\".\nShape: {issue_id: option_label}",
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "participant_id": {
+                    "description": "ParticipantID is the ID of the agent replying.",
+                    "type": "string"
                 }
             }
         },
@@ -1206,33 +1246,137 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agent_replies": {
-                    "description": "AgentReplies are the replies produced by agents since the last step.",
+                    "description": "AgentReplies contains each agent's reply to the current round.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/semanticnegotiation.AgentReply"
                     }
                 },
                 "session_id": {
-                    "description": "SessionID is the session identifier previously provided to the start endpoint.",
+                    "description": "SessionID is the session identifier from the /start response.",
                     "type": "string"
                 }
             }
         },
-        "semanticnegotiation.Response": {
+        "semanticnegotiation.DecideResponse": {
             "type": "object",
             "properties": {
-                "message": {
-                    "description": "Message provides additional information about the negotiation state.",
-                    "type": "string"
-                },
-                "result": {
-                    "description": "Result contains the pipeline execution result.\nThe structure depends on the semantic negotiation library implementation.",
+                "final_result": {
+                    "description": "FinalResult holds the terminal negotiation envelope when Status is\n\"agreed\", \"broken\", or \"timeout\".",
                     "type": "object",
                     "additionalProperties": true
                 },
-                "status": {
-                    "description": "Status indicates the result of the negotiation step.",
+                "messages": {
+                    "description": "Messages contains the next round's messages to dispatch to agents.\nPresent only when Status is \"ongoing\". Forward these to each agent's\ncallback endpoint, collect their replies, and submit via /decide again.",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "round": {
+                    "description": "Round is the round number that was just evaluated.",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID echoes the session identifier.",
                     "type": "string"
+                },
+                "shared_memory": {
+                    "description": "SharedMemory reports the outcome of persisting the agreement to shared\nmemory. Only present when Status is \"agreed\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.SharedMemoryResult"
+                        }
+                    ]
+                },
+                "status": {
+                    "description": "Status is \"ongoing\", \"agreed\", \"broken\", or \"timeout\".",
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.NegotiationOutcome": {
+            "type": "object",
+            "properties": {
+                "chosen_option": {
+                    "type": "string"
+                },
+                "issue_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.NegotiationTrace": {
+            "type": "object",
+            "properties": {
+                "broken": {
+                    "description": "Broken indicates whether a participant explicitly broke off.",
+                    "type": "boolean"
+                },
+                "final_agreement": {
+                    "description": "FinalAgreement is the agreed option per issue, if any.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.NegotiationOutcome"
+                    }
+                },
+                "rounds": {
+                    "description": "Rounds contains all SAO rounds in order (1-based).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.RoundOffer"
+                    }
+                },
+                "timedout": {
+                    "description": "Timedout indicates whether the SAO exhausted its step budget.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "semanticnegotiation.RoundOffer": {
+            "type": "object",
+            "properties": {
+                "decisions": {
+                    "description": "Decisions contains each participant's response to this round's offer.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/semanticnegotiation.AgentDecision"
+                    }
+                },
+                "next_proposer_id": {
+                    "description": "NextProposerID is the ID of the participant who will propose in the next round.\nOmitted on the final round.",
+                    "type": "string"
+                },
+                "offer": {
+                    "description": "Offer is the proposed option per issue. Shape: {issue_id: option_label}",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "proposer_id": {
+                    "description": "ProposerID is the ID of the participant who made this proposal.",
+                    "type": "string"
+                },
+                "round": {
+                    "description": "Round is the 1-based round number.",
+                    "type": "integer"
+                }
+            }
+        },
+        "semanticnegotiation.SharedMemoryResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error contains a human-readable reason when Persisted is false.",
+                    "type": "string"
+                },
+                "persisted": {
+                    "description": "Persisted is true when the agreement was successfully written to shared memory.",
+                    "type": "boolean"
                 }
             }
         },
@@ -1240,7 +1384,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agents": {
-                    "description": "Agents is the list of participating agents.",
+                    "description": "Agents is the list of participating agents (minimum 2).",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/semanticnegotiation.Agent"
@@ -1251,12 +1395,80 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "n_steps": {
-                    "description": "NSteps is the maximum number of negotiation steps.\nIf omitted, defaults to 20.",
+                    "description": "NSteps is the maximum number of SAO rounds.\nIf omitted, the service computes a budget from negotiation complexity.",
                     "type": "integer"
                 },
                 "session_id": {
-                    "description": "SessionID is the client-provided session identifier.\nCurrently assumed globally unique (not scoped by workspace/mas).",
+                    "description": "SessionID is the client-provided session identifier.",
                     "type": "string"
+                }
+            }
+        },
+        "semanticnegotiation.StartResponse": {
+            "type": "object",
+            "properties": {
+                "current_round": {
+                    "description": "CurrentRound is the first offer in the trace (SSTP envelope path only).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.RoundOffer"
+                        }
+                    ]
+                },
+                "issues": {
+                    "description": "Issues is the list of negotiable issues discovered from content_text.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "messages": {
+                    "description": "Messages contains the first round's messages to dispatch to agents.\nForward each message to the corresponding agent's callback endpoint,\ncollect their replies, and submit via /decide.",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "n_steps": {
+                    "description": "NSteps is the SAO round budget for this session.",
+                    "type": "integer"
+                },
+                "options_per_issue": {
+                    "description": "OptionsPerIssue lists the candidate options for each issue.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "round": {
+                    "description": "Round is the current round number (1-based).",
+                    "type": "integer"
+                },
+                "session_id": {
+                    "description": "SessionID echoes the session identifier.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is \"initiated\", \"ongoing\", \"agreed\", \"broken\", or \"timeout\".",
+                    "type": "string"
+                },
+                "total_rounds": {
+                    "description": "TotalRounds is the total SAO rounds in the pre-computed trace (SSTP envelope path only).",
+                    "type": "integer"
+                },
+                "trace": {
+                    "description": "Trace is the complete pre-computed SAO trace (SSTP envelope path only).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.NegotiationTrace"
+                        }
+                    ]
                 }
             }
         },

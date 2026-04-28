@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,6 +61,7 @@ func mapVectorSimilarityResults(src []iocmemoryprovider.KnowledgeVectorSimilarit
 //
 // @Success     200 {object} sharedmemory.VectorSimilaritySearchResponse "Search results"
 // @Failure     400 {object} map[string]string "Invalid request"
+// @Failure     404 {object} map[string]string "Vector store not found"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search [post]
@@ -127,6 +129,13 @@ func (a *App) vectorSimilaritySearchHandler(w http.ResponseWriter, r *http.Reque
 			"SimilaritySearchVectors failed | workspace=%s mas=%s err=%v",
 			workspaceID, masID, err,
 		)
+		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
+			return eh.RespondWithJSON(
+				w,
+				http.StatusNotFound,
+				map[string]string{"error": fmt.Sprintf("vector store not found for workspace=%s mas=%s", workspaceID, masID)},
+			)
+		}
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,

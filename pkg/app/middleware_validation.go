@@ -66,8 +66,13 @@ func validateWorkspaceAndMas(r *http.Request, workspaceID, masID string) (int, e
 	if code, err := validateWorkspace(r, workspaceID); err != nil {
 		return code, err
 	}
-
 	log := getLogger()
+
+	if isValidationDisabled() {
+		log.Debugf("workspace/MAS validation disabled — skipping (masID=%s)", masID)
+		return 0, nil
+	}
+
 	mgmtURL := getMgmtURL()
 	client := httpclient.New(10 * time.Second)
 	headers := map[string]string{"Accept": "application/json"}

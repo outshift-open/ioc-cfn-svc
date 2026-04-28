@@ -121,14 +121,7 @@ type SemanticNegotiationAgent struct {
 	Name string `json:"name"`
 }
 
-// SemanticNegotiationAgentReply represents a single agent reply in a negotiation session.
-type SemanticNegotiationAgentReply struct {
-	AgentID string                 `json:"agent_id"`
-	Action  string                 `json:"action"` // "accept", "reject", or "counter_offer"
-	Offer   map[string]interface{} `json:"offer,omitempty"`
-}
-
-// SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/start.
+// SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/negotiate/initiate.
 type SemanticNegotiationStartRequest struct {
 	SessionID   string                     `json:"session_id"`
 	ContentText string                     `json:"content_text"`
@@ -136,10 +129,57 @@ type SemanticNegotiationStartRequest struct {
 	NSteps      *int                       `json:"n_steps,omitempty"`
 }
 
-// SemanticNegotiationDecideRequest is the request body for POST /api/semantic-negotiation/decide.
+// SemanticNegotiationDecideRequest is the request body for POST  /api/semantic-negotiation/negotiate/decide.
+// AgentReplies are full SSTPNegotiateMessage objects returned by the agent callback
+// server and forwarded verbatim inside the SSTP envelope to the negotiation server.
 type SemanticNegotiationDecideRequest struct {
-	SessionID    string                          `json:"session_id"`
-	AgentReplies []SemanticNegotiationAgentReply `json:"agent_replies"`
+	SessionID    string            `json:"session_id"`
+	AgentReplies []json.RawMessage `json:"agent_replies"`
+}
+
+// ---------------------------------------------------------------------------
+// SSTP envelope types (required by the semantic negotiation API)
+// ---------------------------------------------------------------------------
+
+// sstpOrigin identifies the actor and tenant for an SSTP message.
+type sstpOrigin struct {
+	ActorID  string `json:"actor_id"`
+	TenantID string `json:"tenant_id"`
+}
+
+// sstpNegotiateSemanticContext carries the SAO session identifier.
+// Only session_id is required on outbound requests; issues and options_per_issue
+// are populated by the server on response messages.
+type sstpNegotiateSemanticContext struct {
+	SessionID string `json:"session_id"`
+}
+
+// sstpPolicyLabels carries data-handling policy annotations.
+type sstpPolicyLabels struct {
+	Sensitivity     string `json:"sensitivity"`
+	Propagation     string `json:"propagation"`
+	RetentionPolicy string `json:"retention_policy"`
+}
+
+// sstpProvenance carries message lineage information.
+type sstpProvenance struct {
+	Sources    []string `json:"sources"`
+	Transforms []string `json:"transforms"`
+}
+
+// sstpNegotiateMessage is the SSTPNegotiateMessage envelope expected by
+// POST /negotiate/initiate and POST /negotiate/decide.
+type sstpNegotiateMessage struct {
+	Kind            string                       `json:"kind"`
+	Version         string                       `json:"version"`
+	MessageID       string                       `json:"message_id"`
+	DtCreated       string                       `json:"dt_created"`
+	Origin          sstpOrigin                   `json:"origin"`
+	SemanticContext sstpNegotiateSemanticContext `json:"semantic_context"`
+	PayloadHash     string                       `json:"payload_hash"`
+	PolicyLabels    sstpPolicyLabels             `json:"policy_labels"`
+	Provenance      sstpProvenance               `json:"provenance"`
+	Payload         map[string]interface{}       `json:"payload"`
 }
 
 // ---------------------------------------------------------------------------
@@ -251,12 +291,28 @@ type ReasonerCognitionResponse struct {
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// SemanticNegotiationResponse is the response from POST /api/semantic-negotiation/* endpoints.
+// SemanticNegotiationResponse is the response from POST /negotiate/initiate and
+// POST /negotiate/decide. Both endpoints return an SSTPNegotiateMessage envelope
+// whose payload carries the negotiation result.
+//
+// For /negotiate/initiate the payload contains the full InitiateResponse (status,
+// current_round, trace, etc.). For /negotiate/decide the payload carries either
+// {session_id, status, round, messages} (ongoing) or {session_id, status, round,
+// final_result} (terminal).
 type SemanticNegotiationResponse struct {
-	Status  string                 `json:"status,omitempty"`
-	Message string                 `json:"message,omitempty"`
-	Result  map[string]interface{} `json:"result,omitempty"`
-	Error   *common.ErrorDetail    `json:"error,omitempty"`
+	// Top-level SSTP envelope fields
+	Kind      string                 `json:"kind,omitempty"`
+	MessageID string                 `json:"message_id,omitempty"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+
+	// Flat fields returned by /negotiate/decide (non-envelope path)
+	Status      string                 `json:"status,omitempty"`
+	SessionID   string                 `json:"session_id,omitempty"`
+	Round       *int                   `json:"round,omitempty"`
+	Messages    []json.RawMessage      `json:"messages,omitempty"`
+	FinalResult map[string]interface{} `json:"final_result,omitempty"`
+
+	Error *common.ErrorDetail `json:"error,omitempty"`
 }
 
 // Meta contains metadata about the knowledge cognition processing.
@@ -333,30 +389,95 @@ func (c *Client) SendReasoningEvidence(ctx context.Context, req *ReasoningEviden
 }
 
 // SendSemanticNegotiationStart initiates a new semantic negotiation session.
-// POST /api/semantic-negotiation/start
-func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *SemanticNegotiationStartRequest) (*SemanticNegotiationResponse, error) {
-	body, err := json.Marshal(req)
+// POST /negotiate/initiate
+//
+// The Python service expects a full SSTPNegotiateMessage envelope where:
+//   - semantic_context.session_id carries the caller-supplied session ID
+//   - origin.actor_id / origin.tenant_id are set to a placeholder (the server
+//     reads workspace/mas from the SSTP origin on the initiate path)
+//   - payload carries content_text, agents, and optional n_steps
+func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *SemanticNegotiationStartRequest, workspaceID, masID string) (*SemanticNegotiationResponse, error) {
+	agentsRaw := make([]map[string]string, len(req.Agents))
+	for i, a := range req.Agents {
+		agentsRaw[i] = map[string]string{"id": a.ID, "name": a.Name}
+	}
+
+	payload := map[string]interface{}{
+		"content_text": req.ContentText,
+		"agents":       agentsRaw,
+	}
+	if req.NSteps != nil {
+		payload["n_steps"] = *req.NSteps
+	}
+
+	envelope := sstpNegotiateMessage{
+		Kind:      "negotiate",
+		Version:   "0",
+		MessageID: req.SessionID,
+		DtCreated: time.Now().UTC().Format(time.RFC3339),
+		Origin: sstpOrigin{
+			ActorID:  masID,
+			TenantID: workspaceID,
+		},
+		SemanticContext: sstpNegotiateSemanticContext{
+			SessionID: req.SessionID,
+		},
+		PayloadHash:  "",
+		PolicyLabels: sstpPolicyLabels{Sensitivity: "internal", Propagation: "restricted", RetentionPolicy: "default"},
+		Provenance:   sstpProvenance{Sources: []string{}, Transforms: []string{}},
+		Payload:      payload,
+	}
+
+	body, err := json.Marshal(envelope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal semantic negotiation start request: %w", err)
+		return nil, fmt.Errorf("failed to marshal semantic negotiation initiate envelope: %w", err)
 	}
 
 	var result SemanticNegotiationResponse
-	if err := c.post(ctx, "/api/semantic-negotiation/start", body, &result); err != nil {
+	if err := c.post(ctx, "/api/semantic-negotiation/negotiate/initiate", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 // SendSemanticNegotiationDecide advances an existing semantic negotiation session.
-// POST /api/semantic-negotiation/decide
-func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *SemanticNegotiationDecideRequest) (*SemanticNegotiationResponse, error) {
-	body, err := json.Marshal(req)
+// POST /negotiate/decide
+//
+// The Python service expects an SSTPNegotiateMessage envelope where:
+//   - payload.session_id identifies the active session
+//   - payload.agent_replies holds the full SSTPNegotiateMessage objects returned
+//     by the agent callback server, forwarded verbatim.
+func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *SemanticNegotiationDecideRequest, workspaceID, masID string) (*SemanticNegotiationResponse, error) {
+	payload := map[string]interface{}{
+		"session_id":    req.SessionID,
+		"agent_replies": req.AgentReplies,
+	}
+
+	envelope := sstpNegotiateMessage{
+		Kind:      "negotiate",
+		Version:   "0",
+		MessageID: req.SessionID,
+		DtCreated: time.Now().UTC().Format(time.RFC3339),
+		Origin: sstpOrigin{
+			ActorID:  masID,
+			TenantID: workspaceID,
+		},
+		SemanticContext: sstpNegotiateSemanticContext{
+			SessionID: req.SessionID,
+		},
+		PayloadHash:  "",
+		PolicyLabels: sstpPolicyLabels{Sensitivity: "internal", Propagation: "restricted", RetentionPolicy: "default"},
+		Provenance:   sstpProvenance{Sources: []string{}, Transforms: []string{}},
+		Payload:      payload,
+	}
+
+	body, err := json.Marshal(envelope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal semantic negotiation decide request: %w", err)
+		return nil, fmt.Errorf("failed to marshal semantic negotiation decide envelope: %w", err)
 	}
 
 	var result SemanticNegotiationResponse
-	if err := c.post(ctx, "/api/semantic-negotiation/decide", body, &result); err != nil {
+	if err := c.post(ctx, "/api/semantic-negotiation/negotiate/decide", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -365,6 +486,9 @@ func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *Semanti
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+// ErrNotFound is returned when the upstream cognition agent service responds with 404.
+var ErrNotFound = fmt.Errorf("not found")
 
 // jsonHeaders are the default headers sent with every request.
 var jsonHeaders = map[string]string{
@@ -390,6 +514,9 @@ func (c *Client) post(ctx context.Context, path string, body []byte, dest interf
 		return fmt.Errorf("failed to read response body from %s: %w", path, readErr)
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrNotFound
+	}
 	if resp.StatusCode != http.StatusOK {
 		if err := json.Unmarshal(respBody, dest); err == nil {
 			return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, path)
