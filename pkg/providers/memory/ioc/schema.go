@@ -72,18 +72,19 @@ func (r *Relation) Validate() error {
 
 // Records represents the records structure containing concepts and relations
 type Records struct {
-	Concepts  []Concept  `json:"concepts,omitempty"`
+	Concepts  []Concept  `json:"concepts"`
 	Relations []Relation `json:"relations"`
 }
 
 // KnowledgeGraphStoreRequest represents a request to the Store for storing and managing knowledge graph data
 type KnowledgeGraphStoreRequest struct {
-	RequestID    string   `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	Records      *Records `json:"records,omitempty" description:"Dictionary containing concepts and relations"`
-	MemoryType   *string  `json:"memory_type,omitempty" description:"Type of memory being stored"`
-	MasID        *string  `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (Not required for Global Knowledge)"`
-	WkspID       *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
-	ForceReplace bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
+	RequestID        string   `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Records          *Records `json:"records,omitempty" description:"Dictionary containing concepts and relations"`
+	MemoryType       *string  `json:"memory_type,omitempty" description:"Type of memory being stored"`
+	MasID            *string  `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (Not required for Global Knowledge)"`
+	WkspID           *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
+	ForceReplace     bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
+	SkipNodeIDCheck  bool     `json:"skip_node_id_check" description:"Skip cross-request node-id validation for incremental graph updates"`
 }
 
 // NewKnowledgeGraphStoreRequest creates a new store request with auto-generated UUID
@@ -94,8 +95,10 @@ func NewKnowledgeGraphStoreRequest() *KnowledgeGraphStoreRequest {
 	}
 }
 
-// Validate validates the store request
-func (k *KnowledgeGraphStoreRequest) Validate() error {
+// Validate validates the store request.
+// Set skipNodeIDCheck to true when relations may reference nodes already
+// present in the graph (incremental update path).
+func (k *KnowledgeGraphStoreRequest) Validate(skipNodeIDCheck ...bool) error {
 	// Validate that either mas_id or wksp_id is provided
 	if (k.MasID == nil || *k.MasID == "") && (k.WkspID == nil || *k.WkspID == "") {
 		return errors.New("either 'mas_id' or 'wksp_id' or both must be provided")
@@ -104,6 +107,8 @@ func (k *KnowledgeGraphStoreRequest) Validate() error {
 	if k.Records == nil {
 		return nil
 	}
+
+	skipCheck := len(skipNodeIDCheck) > 0 && skipNodeIDCheck[0]
 
 	// Get all concept IDs for reference
 	conceptIDs := make(map[string]bool)
@@ -117,10 +122,11 @@ func (k *KnowledgeGraphStoreRequest) Validate() error {
 			return fmt.Errorf("relation %s validation failed: %w", relation.ID, err)
 		}
 
-		// Validate that edges only contain nodes specified in this request's nodes
-		for _, nodeID := range relation.NodeIDs {
-			if !conceptIDs[nodeID] {
-				return fmt.Errorf("relation %s references non-existent node ID '%s'. Node IDs must be present in the 'concepts' list", relation.ID, nodeID)
+		if !skipCheck {
+			for _, nodeID := range relation.NodeIDs {
+				if !conceptIDs[nodeID] {
+					return fmt.Errorf("relation %s references non-existent node ID '%s'. Node IDs must be present in the 'concepts' list", relation.ID, nodeID)
+				}
 			}
 		}
 	}

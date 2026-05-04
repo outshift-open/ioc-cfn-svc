@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
@@ -567,4 +568,134 @@ func containsStr(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// ── Update graph ─────────────────────────────────────────────────────────────
+
+type updateGraphHeader struct {
+	AgentID string `json:"agent_id,omitempty"`
+}
+
+type updateGraphConcept struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Type        string                 `json:"type,omitempty"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type updateGraphRelation struct {
+	ID           string                 `json:"id"`
+	NodeIDs      []string               `json:"node_ids"`
+	Relationship string                 `json:"relationship"`
+	Attributes   map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type updateGraphRequest struct {
+	Header     updateGraphHeader      `json:"header,omitempty"`
+	RequestID  *string                `json:"request_id,omitempty"`
+	Concepts   []updateGraphConcept   `json:"concepts,omitempty"`
+	Relations  []updateGraphRelation  `json:"relations,omitempty"`
+	Descriptor string                 `json:"descriptor,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type updateGraphResponse struct {
+	Header           updateGraphHeader      `json:"header"`
+	ResponseID       string                 `json:"response_id"`
+	Error            *string                `json:"error"`
+	UpdatedAt        int64                  `json:"updated_at"`
+	Descriptor       string                 `json:"descriptor,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	ConceptsUpdated  int                    `json:"concepts_updated"`
+	RelationsUpdated int                    `json:"relations_updated"`
+}
+
+// @Summary     Update knowledge graph
+// @Description Adds or updates concepts and relations in an existing knowledge graph for a given workspace and MAS.
+// @Tags        Graph Store
+// @Accept      json
+// @Produce     json
+// @Param       workspaceId path     string             true  "Workspace ID"
+// @Param       masId       path     string             true  "Multi-Agentic System ID"
+// @Param       body        body     updateGraphRequest true  "Update graph request"
+// @Success     200         {object} updateGraphResponse
+// @Failure     400         {object} map[string]string "Invalid request"
+// @Failure     500         {object} map[string]string "Internal server error"
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update [post]
+func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var req updateGraphRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+	}
+
+	requestID := uuid.New().String()
+	if req.RequestID != nil && *req.RequestID != "" {
+		requestID = *req.RequestID
+	}
+
+	log.Infof(
+		"Update graph | workspace=%s mas=%s agent=%s request_id=%s concepts=%d relations=%d",
+		workspaceID, masID, req.Header.AgentID, requestID, len(req.Concepts), len(req.Relations),
+	)
+
+	// Map to the provider request format
+	concepts := make([]iocmemoryprovider.Concept, 0, len(req.Concepts))
+	for _, c := range req.Concepts {
+		desc := c.Description
+		concepts = append(concepts, iocmemoryprovider.Concept{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: &desc,
+			Attributes:  c.Attributes,
+		})
+	}
+
+	relations := make([]iocmemoryprovider.Relation, 0, len(req.Relations))
+	for _, rel := range req.Relations {
+		relations = append(relations, iocmemoryprovider.Relation{
+			ID:         rel.ID,
+			Relation:   rel.Relationship,
+			NodeIDs:    rel.NodeIDs,
+			Attributes: rel.Attributes,
+		})
+	}
+
+	storeReq := iocmemoryprovider.NewKnowledgeGraphStoreRequest()
+	storeReq.RequestID = requestID
+	storeReq.MasID = common.StrToPtr(masID)
+	storeReq.WkspID = common.StrToPtr(workspaceID)
+	storeReq.SkipNodeIDCheck = true
+	storeReq.Records = &iocmemoryprovider.Records{
+		Concepts:  concepts,
+		Relations: relations,
+	}
+
+	_, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraphUpdate(r.Context(), storeReq)
+	if err != nil {
+		log.Errorf("Update graph failed | workspace=%s mas=%s err=%v", workspaceID, masID, err)
+		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
+			errMsg := fmt.Sprintf("graph not found for workspace=%s mas=%s", workspaceID, masID)
+			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": errMsg})
+		}
+
+		errMsg := fmt.Sprintf("update graph failed: %v", err)
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": errMsg})
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, updateGraphResponse{
+		Header:           req.Header,
+		ResponseID:       requestID,
+		Error:            nil,
+		UpdatedAt:        time.Now().Unix(),
+		Descriptor:       req.Descriptor,
+		Metadata:         req.Metadata,
+		ConceptsUpdated:  len(req.Concepts),
+		RelationsUpdated: len(req.Relations),
+	})
 }
