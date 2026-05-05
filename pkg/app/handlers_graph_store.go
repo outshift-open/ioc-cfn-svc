@@ -716,7 +716,7 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 	storeReq.RequestID = requestID
 	storeReq.MasID = common.StrToPtr(masID)
 	storeReq.WkspID = common.StrToPtr(workspaceID)
-	storeReq.SkipNodeIDCheck = true
+	storeReq.IncrementalUpdate = true
 	storeReq.Records = &iocmemoryprovider.Records{
 		Concepts:  concepts,
 		Relations: relations,
@@ -725,12 +725,11 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 	_, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraphUpdate(r.Context(), storeReq)
 	if err != nil {
 		log.Errorf("Update graph failed | workspace=%s mas=%s err=%v", workspaceID, masID, err)
+		errMsg := fmt.Sprintf("update graph failed: %v", err)
+
 		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
-			errMsg := fmt.Sprintf("graph not found for workspace=%s mas=%s", workspaceID, masID)
 			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": errMsg})
 		}
-
-		errMsg := fmt.Sprintf("update graph failed: %v", err)
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": errMsg})
 	}
 

@@ -86,21 +86,21 @@ func (c *Client) healthCheck() error {
 
 // UpsertKnowledgeGraph sends a POST request to upsert knowledge graph data using schema types
 func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
-	return c.upsertKnowledgeGraph(ctx, request, false)
+	return c.upsertKnowledgeGraph(ctx, request)
 }
 
-// UpsertKnowledgeGraphUpdate upserts concepts and relations into an existing graph,
-// skipping the cross-request node-id check so relations may reference nodes already
-// present in the graph (not just nodes in this batch).
+// UpsertKnowledgeGraphUpdate upserts concepts and relations into an existing graph.
+// Relations may reference nodes already present in the graph (not just nodes in this batch).
 func (c *Client) UpsertKnowledgeGraphUpdate(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
-	return c.upsertKnowledgeGraph(ctx, request, true)
+	request.IncrementalUpdate = true
+	return c.upsertKnowledgeGraph(ctx, request)
 }
 
-func (c *Client) upsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest, skipNodeIDCheck bool) (*KnowledgeGraphStoreResponse, error) {
+func (c *Client) upsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
 	log := getLogger()
 
 	// Validate request
-	if err := request.Validate(skipNodeIDCheck); err != nil {
+	if err := request.Validate(); err != nil {
 		return nil, fmt.Errorf("request validation failed: %w", err)
 	}
 
@@ -136,7 +136,13 @@ func (c *Client) upsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	log.Debugf("Response body: %s", string(body))
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
+		var parsed struct {
+			Message string `json:"message"`
+		}
+		if jsonErr := json.Unmarshal(body, &parsed); jsonErr == nil && parsed.Message != "" {
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, parsed.Message)
+		}
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, string(body))
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

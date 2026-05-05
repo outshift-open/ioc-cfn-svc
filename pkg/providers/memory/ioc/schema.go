@@ -83,8 +83,8 @@ type KnowledgeGraphStoreRequest struct {
 	MemoryType       *string  `json:"memory_type,omitempty" description:"Type of memory being stored"`
 	MasID            *string  `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (Not required for Global Knowledge)"`
 	WkspID           *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
-	ForceReplace     bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
-	SkipNodeIDCheck  bool     `json:"skip_node_id_check" description:"Skip cross-request node-id validation for incremental graph updates"`
+	ForceReplace      bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
+	IncrementalUpdate bool     `json:"incremental_update" description:"Indicates an incremental update where relations may reference nodes already present in the graph"`
 }
 
 // NewKnowledgeGraphStoreRequest creates a new store request with auto-generated UUID
@@ -96,9 +96,7 @@ func NewKnowledgeGraphStoreRequest() *KnowledgeGraphStoreRequest {
 }
 
 // Validate validates the store request.
-// Set skipNodeIDCheck to true when relations may reference nodes already
-// present in the graph (incremental update path).
-func (k *KnowledgeGraphStoreRequest) Validate(skipNodeIDCheck ...bool) error {
+func (k *KnowledgeGraphStoreRequest) Validate() error {
 	// Validate that either mas_id or wksp_id is provided
 	if (k.MasID == nil || *k.MasID == "") && (k.WkspID == nil || *k.WkspID == "") {
 		return errors.New("either 'mas_id' or 'wksp_id' or both must be provided")
@@ -108,21 +106,20 @@ func (k *KnowledgeGraphStoreRequest) Validate(skipNodeIDCheck ...bool) error {
 		return nil
 	}
 
-	skipCheck := len(skipNodeIDCheck) > 0 && skipNodeIDCheck[0]
-
 	// Get all concept IDs for reference
 	conceptIDs := make(map[string]bool)
 	for _, concept := range k.Records.Concepts {
 		conceptIDs[concept.ID] = true
 	}
 
-	// Validate that all node_ids in relations exist in concepts
+	// Validate that all node_ids in relations exist in concepts.
+	// For incremental updates, relations may reference existing graph nodes — skip this check.
 	for _, relation := range k.Records.Relations {
 		if err := relation.Validate(); err != nil {
 			return fmt.Errorf("relation %s validation failed: %w", relation.ID, err)
 		}
 
-		if !skipCheck {
+		if !k.IncrementalUpdate {
 			for _, nodeID := range relation.NodeIDs {
 				if !conceptIDs[nodeID] {
 					return fmt.Errorf("relation %s references non-existent node ID '%s'. Node IDs must be present in the 'concepts' list", relation.ID, nodeID)
