@@ -49,7 +49,7 @@ func doUpdateGraph(t *testing.T, app *App, workspaceID, masID string, body inter
 
 func TestUpdateGraphHandler_Success(t *testing.T) {
 	app, svc := newUpdateGraphApp(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut || r.URL.Path != "/api/knowledge/graphs" {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/knowledge/graphs" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
