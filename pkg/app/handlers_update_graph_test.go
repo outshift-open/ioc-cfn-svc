@@ -373,3 +373,93 @@ func TestUpdateGraphHandler_MetadataEchoed(t *testing.T) {
 		t.Errorf("expected metadata.concepts_updated=7, got %v", resp.Metadata["concepts_updated"])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// extractEmbeddingFromAttributes unit tests
+// ---------------------------------------------------------------------------
+
+func TestExtractEmbeddingFromAttributes_NilAttrs(t *testing.T) {
+	attrs, emb := extractEmbeddingFromAttributes(nil)
+	if attrs != nil {
+		t.Errorf("expected nil attrs, got %v", attrs)
+	}
+	if emb != nil {
+		t.Errorf("expected nil embedding, got %v", emb)
+	}
+}
+
+func TestExtractEmbeddingFromAttributes_NoEmbeddingKey(t *testing.T) {
+	input := map[string]interface{}{"category": "Technology", "founded_year": 1956}
+	attrs, emb := extractEmbeddingFromAttributes(input)
+	if emb != nil {
+		t.Errorf("expected nil embedding, got %v", emb)
+	}
+	if attrs["category"] != "Technology" || attrs["founded_year"] != 1956 {
+		t.Errorf("attributes should be unchanged, got %v", attrs)
+	}
+}
+
+func TestExtractEmbeddingFromAttributes_Float64Slice(t *testing.T) {
+	input := map[string]interface{}{
+		"category":  "Technology",
+		"embedding": []float64{0.1, 0.2, 0.3},
+	}
+	attrs, emb := extractEmbeddingFromAttributes(input)
+	if emb == nil {
+		t.Fatal("expected non-nil embedding")
+	}
+	if len(emb.Data) != 3 || emb.Data[0] != 0.1 {
+		t.Errorf("unexpected embedding data: %v", emb.Data)
+	}
+	if _, ok := attrs["embedding"]; ok {
+		t.Error("embedding key should be removed from attributes")
+	}
+	if attrs["category"] != "Technology" {
+		t.Errorf("other attributes should be preserved, got %v", attrs)
+	}
+}
+
+func TestExtractEmbeddingFromAttributes_InterfaceSlice(t *testing.T) {
+	// Simulates JSON-unmarshaled []interface{} from map[string]interface{}
+	input := map[string]interface{}{
+		"embedding": []interface{}{float64(0.042), float64(0.018), float64(-0.079)},
+	}
+	attrs, emb := extractEmbeddingFromAttributes(input)
+	if emb == nil {
+		t.Fatal("expected non-nil embedding")
+	}
+	if len(emb.Data) != 3 || emb.Data[2] != -0.079 {
+		t.Errorf("unexpected embedding data: %v", emb.Data)
+	}
+	if _, ok := attrs["embedding"]; ok {
+		t.Error("embedding key should be removed from attributes")
+	}
+}
+
+func TestExtractEmbeddingFromAttributes_EmptyVector(t *testing.T) {
+	input := map[string]interface{}{
+		"embedding": []float64{},
+	}
+	attrs, emb := extractEmbeddingFromAttributes(input)
+	if emb != nil {
+		t.Errorf("expected nil embedding for empty vector, got %v", emb)
+	}
+	// original attrs returned unchanged when vector is empty
+	if _, ok := attrs["embedding"]; !ok {
+		t.Error("embedding key should remain when vector is empty")
+	}
+}
+
+func TestExtractEmbeddingFromAttributes_WrongType(t *testing.T) {
+	input := map[string]interface{}{
+		"embedding": "not-a-vector",
+	}
+	attrs, emb := extractEmbeddingFromAttributes(input)
+	if emb != nil {
+		t.Errorf("expected nil embedding for wrong type, got %v", emb)
+	}
+	// original attrs returned unchanged for unrecognised type
+	if attrs["embedding"] != "not-a-vector" {
+		t.Errorf("embedding key should remain for unrecognised type, got %v", attrs)
+	}
+}

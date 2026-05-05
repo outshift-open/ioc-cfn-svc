@@ -611,6 +611,50 @@ type updateGraphResponse struct {
 	RelationsUpdated int                    `json:"relations_updated"`
 }
 
+// extractEmbeddingFromAttributes removes the "embedding" key from attributes (if present)
+// and returns it as a dedicated EmbeddingConfig, keeping attributes clean for domain metadata.
+func extractEmbeddingFromAttributes(attrs map[string]interface{}) (map[string]interface{}, *iocmemoryprovider.EmbeddingConfig) {
+	if attrs == nil {
+		return nil, nil
+	}
+
+	raw, ok := attrs["embedding"]
+	if !ok {
+		return attrs, nil
+	}
+
+	// Copy attributes without the embedding key
+	clean := make(map[string]interface{}, len(attrs)-1)
+	for k, v := range attrs {
+		if k != "embedding" {
+			clean[k] = v
+		}
+	}
+
+	// Accept []float64 or []interface{} (the latter comes from JSON unmarshaling into map[string]interface{})
+	var vector []float64
+	switch v := raw.(type) {
+	case []float64:
+		vector = v
+	case []interface{}:
+		vector = make([]float64, 0, len(v))
+		for _, elem := range v {
+			if f, ok := elem.(float64); ok {
+				vector = append(vector, f)
+			}
+		}
+	}
+
+	if len(vector) == 0 {
+		return attrs, nil
+	}
+
+	return clean, &iocmemoryprovider.EmbeddingConfig{
+		Name: "ibm-granite/granite-embedding-30m-english",
+		Data: vector,
+	}
+}
+
 // @Summary     Update knowledge graph
 // @Description Adds or updates concepts and relations in an existing knowledge graph for a given workspace and MAS.
 // @Tags        Graph Store
@@ -648,11 +692,13 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 	concepts := make([]iocmemoryprovider.Concept, 0, len(req.Concepts))
 	for _, c := range req.Concepts {
 		desc := c.Description
+		attrs, embeddings := extractEmbeddingFromAttributes(c.Attributes)
 		concepts = append(concepts, iocmemoryprovider.Concept{
 			ID:          c.ID,
 			Name:        c.Name,
 			Description: &desc,
-			Attributes:  c.Attributes,
+			Attributes:  attrs,
+			Embeddings:  embeddings,
 		})
 	}
 
