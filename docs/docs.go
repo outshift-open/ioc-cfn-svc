@@ -336,7 +336,7 @@ const docTemplate = `{
             }
         },
         "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update": {
-            "post": {
+            "put": {
                 "description": "Adds or updates concepts and relations in an existing knowledge graph for a given workspace and MAS.",
                 "consumes": [
                     "application/json"

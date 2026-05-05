@@ -976,7 +976,7 @@ paths:
       tags:
       - Graph Store
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update:
-    post:
+    put:
       consumes:
       - application/json
       description: Adds or updates concepts and relations in an existing knowledge

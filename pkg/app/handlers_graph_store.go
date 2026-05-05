@@ -622,7 +622,7 @@ type updateGraphResponse struct {
 // @Success     200         {object} updateGraphResponse
 // @Failure     400         {object} map[string]string "Invalid request"
 // @Failure     500         {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update [post]
+// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update [put]
 func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 

@@ -24,7 +24,7 @@ func newUpdateGraphApp(t *testing.T, svcHandler http.HandlerFunc) (*App, *httpte
 	return &App{knowledgeMemSvcClient: client}, svc
 }
 
-// doUpdateGraph sends a POST to updateGraphHandler via httptest.
+// doUpdateGraph sends a PUT to updateGraphHandler via httptest.
 func doUpdateGraph(t *testing.T, app *App, workspaceID, masID string, body interface{}) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -33,7 +33,7 @@ func doUpdateGraph(t *testing.T, app *App, workspaceID, masID string, body inter
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/internal/workspaces/"+workspaceID+"/multi-agentic-systems/"+masID+"/graph/update", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPut, "/api/internal/workspaces/"+workspaceID+"/multi-agentic-systems/"+masID+"/graph/update", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetPathValue("workspaceId", workspaceID)
 	req.SetPathValue("masId", masID)
@@ -49,7 +49,7 @@ func doUpdateGraph(t *testing.T, app *App, workspaceID, masID string, body inter
 
 func TestUpdateGraphHandler_Success(t *testing.T) {
 	app, svc := newUpdateGraphApp(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/knowledge/graphs" {
+		if r.Method != http.MethodPut || r.URL.Path != "/api/knowledge/graphs" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
@@ -94,7 +94,7 @@ func TestUpdateGraphHandler_Success(t *testing.T) {
 		},
 		"relations": []map[string]interface{}{
 			{
-				"id":           "91b581b91afb041bdcca33d74ab687c2",
+				"id": "91b581b91afb041bdcca33d74ab687c2",
 				// anchor_concept_id is an existing graph node, not in concepts above.
 				"node_ids":     []string{"4e706aec50174e58f15a52a53e6ca4f5", "15118c8b99e5813a2239279f0d7fb7c6"},
 				"relationship": "CoDi",
@@ -287,7 +287,7 @@ func TestUpdateGraphHandler_InvalidJSON(t *testing.T) {
 	})
 	defer svc.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/internal/workspaces/ws-1/multi-agentic-systems/mas-1/graph/update", bytes.NewBufferString("{not valid json"))
+	req := httptest.NewRequest(http.MethodPut, "/api/internal/workspaces/ws-1/multi-agentic-systems/mas-1/graph/update", bytes.NewBufferString("{not valid json"))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetPathValue("workspaceId", "ws-1")
 	req.SetPathValue("masId", "mas-1")
