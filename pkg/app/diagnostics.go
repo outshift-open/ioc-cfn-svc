@@ -124,7 +124,7 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 			if !ok {
 				continue
 			}
-			engines, ok := workspace["cognitive_engines"].([]interface{})
+			engines, ok := workspace["cognition_engines"].([]interface{})
 			if !ok {
 				continue
 			}
@@ -133,7 +133,7 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 				if !ok {
 					continue
 				}
-				name, _ := engine["cognitive_engine_name"].(string)
+				name, _ := engine["name"].(string)
 				if name == "" {
 					continue
 				}
