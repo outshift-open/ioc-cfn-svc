@@ -234,7 +234,7 @@ func (a *App) registerOnStartup() {
 	log.Infof("registering CFN at %s", registerURL)
 
 	body, _ := json.Marshal(map[string]any{
-		"cfn_name":   cfnName,
+		"name":       cfnName,
 		"ip_address": appIP,
 		"port":       appPort,
 	})
@@ -261,10 +261,10 @@ func (a *App) registerOnStartup() {
 		log.Fatalf("CFN registration failed: status=%d, response=%v", resp.StatusCode, result)
 	}
 
-	// Store cfn_id from response globally
-	id, ok := result["cfn_id"].(string)
+	// Store id from response globally
+	id, ok := result["id"].(string)
 	if !ok || id == "" {
-		log.Fatalf("registration response missing cfn_id")
+		log.Fatalf("registration response missing id")
 	}
 	CfnID = id
 

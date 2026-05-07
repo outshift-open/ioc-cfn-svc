@@ -106,8 +106,8 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			},
 			"workspaces": []interface{}{
 				map[string]interface{}{
-					"cognitive_engines": []interface{}{
-						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					"cognition_engines": []interface{}{
+						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
 					},
 				},
 			},
@@ -146,8 +146,8 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			},
 			"workspaces": []interface{}{
 				map[string]interface{}{
-					"cognitive_engines": []interface{}{
-						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					"cognition_engines": []interface{}{
+						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
 					},
 				},
 			},
@@ -185,8 +185,8 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			},
 			"workspaces": []interface{}{
 				map[string]interface{}{
-					"cognitive_engines": []interface{}{
-						map[string]interface{}{"cognitive_engine_name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
+					"cognition_engines": []interface{}{
+						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
 					},
 				},
 			},

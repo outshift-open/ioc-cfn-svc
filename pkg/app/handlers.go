@@ -135,8 +135,8 @@ func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memo
 	}
 	baseURL = strings.TrimSuffix(baseURL, "/")
 
-	// Read memory_provider_name
-	providerName, _ := agenticMemory["memory_provider_name"].(string)
+	// Read memory provider name
+	providerName, _ := agenticMemory["name"].(string)
 
 	// Parse auth from config
 	var auth *memoryProviderAuth
