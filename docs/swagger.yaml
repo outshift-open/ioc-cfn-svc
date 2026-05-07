@@ -64,6 +64,79 @@ definitions:
       score:
         type: number
     type: object
+  app.updateGraphConcept:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  app.updateGraphHeader:
+    properties:
+      agent_id:
+        type: string
+    type: object
+  app.updateGraphRelation:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      node_ids:
+        items:
+          type: string
+        type: array
+      relationship:
+        type: string
+    type: object
+  app.updateGraphRequest:
+    properties:
+      concepts:
+        items:
+          $ref: '#/definitions/app.updateGraphConcept'
+        type: array
+      descriptor:
+        type: string
+      header:
+        $ref: '#/definitions/app.updateGraphHeader'
+      metadata:
+        additionalProperties: true
+        type: object
+      relations:
+        items:
+          $ref: '#/definitions/app.updateGraphRelation'
+        type: array
+      request_id:
+        type: string
+    type: object
+  app.updateGraphResponse:
+    properties:
+      concepts_updated:
+        type: integer
+      descriptor:
+        type: string
+      error:
+        type: string
+      header:
+        $ref: '#/definitions/app.updateGraphHeader'
+      metadata:
+        additionalProperties: true
+        type: object
+      relations_updated:
+        type: integer
+      response_id:
+        type: string
+      updated_at:
+        type: integer
+    type: object
   cognitionagentclient.ExtractionPayload:
     properties:
       data:
@@ -900,6 +973,51 @@ paths:
               type: string
             type: object
       summary: Fetch paths between two concepts
+      tags:
+      - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update:
+    put:
+      consumes:
+      - application/json
+      description: Adds or updates concepts and relations in an existing knowledge
+        graph for a given workspace and MAS.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Update graph request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.updateGraphRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.updateGraphResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update knowledge graph
       tags:
       - Graph Store
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search:

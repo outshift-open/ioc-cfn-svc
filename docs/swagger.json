@@ -472,6 +472,116 @@
                 }
             }
         },
+        "app.updateGraphConcept": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.updateGraphHeader": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.updateGraphRelation": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relationship": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.updateGraphRequest": {
+            "type": "object",
+            "properties": {
+                "concepts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.updateGraphConcept"
+                    }
+                },
+                "descriptor": {
+                    "type": "string"
+                },
+                "header": {
+                    "$ref": "#/definitions/app.updateGraphHeader"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.updateGraphRelation"
+                    }
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.updateGraphResponse": {
+            "type": "object",
+            "properties": {
+                "concepts_updated": {
+                    "type": "integer"
+                },
+                "descriptor": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "header": {
+                    "$ref": "#/definitions/app.updateGraphHeader"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "relations_updated": {
+                    "type": "integer"
+                },
+                "response_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "integer"
+                }
+            }
+        },
         "cognitionagentclient.ExtractionPayload": {
             "type": "object",
             "properties": {

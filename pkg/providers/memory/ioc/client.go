@@ -86,6 +86,17 @@ func (c *Client) healthCheck() error {
 
 // UpsertKnowledgeGraph sends a POST request to upsert knowledge graph data using schema types
 func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
+	return c.upsertKnowledgeGraph(ctx, request)
+}
+
+// UpsertKnowledgeGraphUpdate upserts concepts and relations into an existing graph.
+// Relations may reference nodes already present in the graph (not just nodes in this batch).
+func (c *Client) UpsertKnowledgeGraphUpdate(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
+	request.IncrementalUpdate = true
+	return c.upsertKnowledgeGraph(ctx, request)
+}
+
+func (c *Client) upsertKnowledgeGraph(ctx context.Context, request *KnowledgeGraphStoreRequest) (*KnowledgeGraphStoreResponse, error) {
 	log := getLogger()
 
 	// Validate request
@@ -124,6 +135,16 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	log.Debugf("Response headers: %v", resp.Header)
 	log.Debugf("Response body: %s", string(body))
 
+	if resp.StatusCode == http.StatusNotFound {
+		var parsed struct {
+			Message string `json:"message"`
+		}
+		if jsonErr := json.Unmarshal(body, &parsed); jsonErr == nil && parsed.Message != "" {
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, parsed.Message)
+		}
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, string(body))
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf(
 			"knowledge memory service error (%d): %s",
@@ -147,6 +168,19 @@ func (c *Client) UpsertKnowledgeGraph(ctx context.Context, request *KnowledgeGra
 	}
 
 	return &response, nil
+}
+
+// NewClientForTest creates a Client pointed at baseURL with retries disabled and no health check.
+// Intended for use in unit tests only.
+func NewClientForTest(baseURL string) *Client {
+	config := httpclient.DefaultConfig()
+	config.Timeout = 5 * time.Second
+	config.MaxRetries = 0
+	config.RetryableFunc = func(_ *http.Response, _ error) bool { return false }
+	return &Client{
+		httpClient: httpclient.NewWithConfig(config),
+		baseURL:    baseURL,
+	}
 }
 
 // QueryKnowledgeGraphPath sends a POST request to query knowledge graph path using schema types

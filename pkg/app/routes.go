@@ -47,6 +47,7 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId}", withWorkspaceAndMasValidation(a.getNeighborsByIdHandler))
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids", withWorkspaceAndMasValidation(a.fetchConceptsByIdsHandler))
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths", withWorkspaceAndMasValidation(a.fetchPathsByIdsHandler))
+	rtr.Put(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update", withWorkspaceAndMasValidation(a.updateGraphHandler))
 	// similarity search (eastbound APIs, consumed by Evidence Gathering engine)
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", withWorkspaceAndMasValidation(a.conceptSimilaritySearchHandler))
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/rag/similarity-search", withWorkspaceAndMasValidation(a.vectorSimilaritySearchHandler))
