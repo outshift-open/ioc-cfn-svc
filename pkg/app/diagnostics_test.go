@@ -72,16 +72,16 @@ func TestDiagnosticsHealthHandler(t *testing.T) {
 	assert.Contains(t, resp["message"], "MCP server not responding on port 9001")
 }
 
-// setCfnConfigForTest sets CfnConfig for the duration of a test and restores it on cleanup.
-func setCfnConfigForTest(t *testing.T, cfg map[string]any) {
+// setParsedConfigForTest sets ParsedConfig for the duration of a test and restores it on cleanup.
+func setParsedConfigForTest(t *testing.T, cfg *CfnConfigPayload) {
 	t.Helper()
 	cfnConfigMutex.Lock()
-	original := CfnConfig
-	CfnConfig = cfg
+	original := ParsedConfig
+	ParsedConfig = cfg
 	cfnConfigMutex.Unlock()
 	t.Cleanup(func() {
 		cfnConfigMutex.Lock()
-		CfnConfig = original
+		ParsedConfig = original
 		cfnConfigMutex.Unlock()
 	})
 }
@@ -100,16 +100,14 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 		defer cog.Close()
 
 		t.Setenv("MGMT_URL", mgmt.URL)
-		setCfnConfigForTest(t, map[string]any{
-			"memory_providers": []interface{}{
-				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+		setParsedConfigForTest(t, &CfnConfigPayload{
+			MemoryProviders: []MemProviderCfg{
+				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
-			"workspaces": []interface{}{
-				map[string]interface{}{
-					"cognition_engines": []interface{}{
-						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
-					},
-				},
+			Workspaces: []WorkspaceConfig{
+				{CognitionEngines: []EngineCfg{
+					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
+				}},
 			},
 		})
 
@@ -140,16 +138,14 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 		defer cog.Close()
 
 		t.Setenv("MGMT_URL", mgmt.URL)
-		setCfnConfigForTest(t, map[string]any{
-			"memory_providers": []interface{}{
-				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+		setParsedConfigForTest(t, &CfnConfigPayload{
+			MemoryProviders: []MemProviderCfg{
+				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
-			"workspaces": []interface{}{
-				map[string]interface{}{
-					"cognition_engines": []interface{}{
-						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
-					},
-				},
+			Workspaces: []WorkspaceConfig{
+				{CognitionEngines: []EngineCfg{
+					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
+				}},
 			},
 		})
 
@@ -179,16 +175,14 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 		cog.Close() // closed immediately — TCP dial will fail
 
 		t.Setenv("MGMT_URL", mgmt.URL)
-		setCfnConfigForTest(t, map[string]any{
-			"memory_providers": []interface{}{
-				map[string]interface{}{"name": "mem-svc", "config": map[string]interface{}{"url": mem.URL}},
+		setParsedConfigForTest(t, &CfnConfigPayload{
+			MemoryProviders: []MemProviderCfg{
+				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
-			"workspaces": []interface{}{
-				map[string]interface{}{
-					"cognition_engines": []interface{}{
-						map[string]interface{}{"name": "CE1", "config": map[string]interface{}{"url": cog.URL}},
-					},
-				},
+			Workspaces: []WorkspaceConfig{
+				{CognitionEngines: []EngineCfg{
+					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
+				}},
 			},
 		})
 
@@ -211,7 +205,7 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 
 	t.Run("unreachable management plane returns DOWN and 500", func(t *testing.T) {
 		t.Setenv("MGMT_URL", "http://127.0.0.1:1")
-		setCfnConfigForTest(t, map[string]any{})
+		setParsedConfigForTest(t, &CfnConfigPayload{})
 
 		app := newDiagnosticsTestApp()
 		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)
@@ -226,12 +220,12 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 		assert.Equal(t, "DOWN", resp["status"])
 	})
 
-	t.Run("empty CfnConfig returns only management_plane check", func(t *testing.T) {
+	t.Run("empty ParsedConfig returns only management_plane check", func(t *testing.T) {
 		mgmt := httptest.NewServer(healthyHandler)
 		defer mgmt.Close()
 
 		t.Setenv("MGMT_URL", mgmt.URL)
-		setCfnConfigForTest(t, map[string]any{})
+		setParsedConfigForTest(t, &CfnConfigPayload{})
 
 		app := newDiagnosticsTestApp()
 		req := httptest.NewRequest(http.MethodGet, "/api/internal/diagnostics/health?dependencies=true", nil)

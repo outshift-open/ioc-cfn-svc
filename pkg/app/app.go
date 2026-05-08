@@ -42,11 +42,11 @@ func getLogger() *zap.SugaredLogger {
 var (
 	// CfnID is the globally stored CFN identifier returned by the management plane on registration.
 	CfnID string
-	// CfnConfig is the config blob returned by the management plane on registration.
-	CfnConfig map[string]any
-	// CfnTimestamp tracks the config timestamp for detecting config changes during heartbeat.
-	CfnTimestamp string
-	// cfnConfigMutex protects concurrent access to CfnConfig and CfnTimestamp.
+	// ParsedConfig is the typed config parsed from the management plane config blob.
+	ParsedConfig *CfnConfigPayload
+	// ConfigVersion tracks the config version for detecting config changes during heartbeat.
+	ConfigVersion int64
+	// cfnConfigMutex protects concurrent access to ParsedConfig and ConfigVersion.
 	cfnConfigMutex sync.RWMutex
 )
 
@@ -268,25 +268,28 @@ func (a *App) registerOnStartup() {
 	}
 	CfnID = id
 
-	// Store config blob and timestamp from response globally
-	cfnConfigMutex.Lock()
+	// Parse config blob into typed struct
 	if cfgBlob, ok := result["config"].(map[string]any); ok {
-		CfnConfig = cfgBlob
-		// Extract and store config_timestamp
-		if timestamp, ok := cfgBlob["config_timestamp"].(string); ok {
-			CfnTimestamp = timestamp
+		cfgBytes, _ := json.Marshal(cfgBlob)
+		var parsed CfnConfigPayload
+		if err := json.Unmarshal(cfgBytes, &parsed); err != nil {
+			log.Errorf("failed to parse config into typed struct: %v", err)
 		}
+		cfnConfigMutex.Lock()
+		ParsedConfig = &parsed
+		ConfigVersion = parsed.ConfigVersion
+		cfnConfigMutex.Unlock()
 	}
-	cfnConfigMutex.Unlock()
 
-	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config=%v timestamp=%s", CfnID, cfnName, appIP, appPort, CfnConfig, CfnTimestamp)
+	cfgJSON, _ := json.Marshal(ParsedConfig)
+	log.Infof("CFN registered successfully: cfn_id=%s cfn_name=%s ip_address=%s port=%d config_version=%d payload=%s", CfnID, cfnName, appIP, appPort, ConfigVersion, cfgJSON)
 
 	// Start periodic heartbeat
 	go a.startHeartbeat(mgmtURL)
 }
 
 // RefreshConfig fetches the latest CFN configuration from the management plane
-// and updates the global CfnConfig.
+// and updates the global ParsedConfig.
 func (a *App) RefreshConfig(mgmtURL string) error {
 	log := getLogger()
 
@@ -314,16 +317,18 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 		return fmt.Errorf("RefreshConfig failed: status=%d", resp.StatusCode)
 	}
 
-	cfnConfigMutex.Lock()
-	defer cfnConfigMutex.Unlock()
-
 	if cfgBlob, ok := result["config"].(map[string]any); ok {
-		CfnConfig = cfgBlob
-		// Update timestamp
-		if timestamp, ok := cfgBlob["config_timestamp"].(string); ok {
-			CfnTimestamp = timestamp
+		cfgBytes, _ := json.Marshal(cfgBlob)
+		var parsed CfnConfigPayload
+		if err := json.Unmarshal(cfgBytes, &parsed); err != nil {
+			log.Errorf("failed to parse refreshed config into typed struct: %v", err)
+			return fmt.Errorf("failed to parse config: %v", err)
 		}
-		log.Infof("CFN Config refreshed, timestamp=%s", CfnTimestamp)
+		cfnConfigMutex.Lock()
+		ParsedConfig = &parsed
+		ConfigVersion = parsed.ConfigVersion
+		cfnConfigMutex.Unlock()
+		log.Infof("CFN Config refreshed, config_version=%d", parsed.ConfigVersion)
 	} else {
 		log.Warnf("RefreshConfig response missing config key")
 	}
@@ -382,35 +387,22 @@ func (a *App) startHeartbeat(mgmtURL string) {
 				}
 				resp.Body.Close()
 
-				// Check if config_timestamp has changed
-				if newTimestamp, ok := result["config_timestamp"].(string); ok {
+				// Check if config_version has changed
+				if newVersion, ok := result["config_version"].(float64); ok {
 					cfnConfigMutex.RLock()
-					currentTimestamp := CfnTimestamp
+					current := ConfigVersion
 					cfnConfigMutex.RUnlock()
 
-					// Parse timestamps as time.Time for proper comparison
-					newTime, err := time.Parse(time.RFC3339Nano, newTimestamp)
-					if err != nil {
-						log.Errorf("failed to parse mgmt timestamp %q: %v", newTimestamp, err)
-						continue
-					}
+					remoteVersion := int64(newVersion)
+					log.Debugf("heartbeat response received: remote_version=%d local_version=%d", remoteVersion, current)
 
-					currentTime, err := time.Parse(time.RFC3339Nano, currentTimestamp)
-					if err != nil {
-						log.Errorf("failed to parse local timestamp %q: %v", currentTimestamp, err)
-						continue
-					}
-
-					log.Debugf("heartbeat response received: mgmt config_timestamp=%s local config_timestamp=%s", newTimestamp, currentTimestamp)
-
-					// Refresh config if server has newer config
-					if newTime.After(currentTime) {
-						log.Infof("config update detected: mgmt=%s, local=%s - refreshing", newTimestamp, currentTimestamp)
+					if remoteVersion > current {
+						log.Infof("config update detected: remote_version=%d local_version=%d - refreshing", remoteVersion, current)
 						if err := a.RefreshConfig(mgmtURL); err != nil {
 							log.Errorf("failed to refresh config: %v", err)
 						}
 					} else {
-						log.Debugf("config up-to-date: mgmt=%s, local=%s", newTimestamp, currentTimestamp)
+						log.Debugf("config up-to-date: version=%d", current)
 					}
 				}
 

@@ -13,36 +13,21 @@ func validateWorkspaceAndMAS(workspaceID, masID string) error {
 	cfnConfigMutex.RLock()
 	defer cfnConfigMutex.RUnlock()
 
-	workspaces, ok := CfnConfig["workspaces"].([]interface{})
-	if !ok {
+	if ParsedConfig == nil {
 		return fmt.Errorf("workspace %s not found", workspaceID)
 	}
 
-	for _, ws := range workspaces {
-		wsMap, ok := ws.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if wsMap["workspace_id"] != workspaceID {
-			continue
-		}
-		masList, ok := wsMap["multi_agentic_systems"].([]interface{})
-		if !ok {
-			return fmt.Errorf("multi-agentic system %s not found", masID)
-		}
-		for _, m := range masList {
-			masMap, ok := m.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if masMap["id"] == masID {
-				return nil
-			}
-		}
+	ws := ParsedConfig.FindWorkspace(workspaceID)
+	if ws == nil {
+		return fmt.Errorf("workspace %s not found", workspaceID)
+	}
+
+	mas := ParsedConfig.FindMAS(workspaceID, masID)
+	if mas == nil {
 		return fmt.Errorf("multi-agentic system %s not found", masID)
 	}
 
-	return fmt.Errorf("workspace %s not found", workspaceID)
+	return nil
 }
 
 // fetchKnowledgeGraphHandler godoc

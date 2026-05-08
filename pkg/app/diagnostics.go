@@ -36,7 +36,7 @@ func (a *App) diagnosticsInfoHandler(w http.ResponseWriter, r *http.Request) (in
 
 // diagnosticsHealthHandler returns standard health response.
 // When ?dependencies=true is passed, it probes downstream services grouped by type,
-// populated from CfnConfig. The basic check (no query param) is used by Docker health checks.
+// populated from ParsedConfig. The basic check (no query param) is used by Docker health checks.
 func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	if r.URL.Query().Get("dependencies") != "true" {
 		// Basic health check - verify both HTTP and MCP servers are running
@@ -86,7 +86,7 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	cfnConfigMutex.RLock()
-	cfg := CfnConfig
+	cfg := ParsedConfig
 	cfnConfigMutex.RUnlock()
 
 	status := "UP"
@@ -97,20 +97,17 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	memoryProviders := map[string]bool{}
-	if providers, ok := cfg["memory_providers"].([]interface{}); ok {
-		for _, p := range providers {
-			provider, ok := p.(map[string]interface{})
-			if !ok {
+	if cfg != nil {
+		for _, p := range cfg.MemoryProviders {
+			if p.Name == "" {
 				continue
 			}
-			name, _ := provider["name"].(string)
-			if name == "" {
-				continue
+			var providerURL string
+			if p.Config != nil {
+				providerURL = p.Config.URL
 			}
-			providerCfg, _ := provider["config"].(map[string]interface{})
-			url, _ := providerCfg["url"].(string)
-			healthy := url != "" && probe(url)
-			memoryProviders[name] = healthy
+			healthy := providerURL != "" && probe(providerURL)
+			memoryProviders[p.Name] = healthy
 			if !healthy && status != "DOWN" {
 				status = "DOWN"
 			}
@@ -118,29 +115,18 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	cognitionEngines := map[string]bool{}
-	if workspaces, ok := cfg["workspaces"].([]interface{}); ok {
-		for _, w := range workspaces {
-			workspace, ok := w.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			engines, ok := workspace["cognition_engines"].([]interface{})
-			if !ok {
-				continue
-			}
-			for _, e := range engines {
-				engine, ok := e.(map[string]interface{})
-				if !ok {
+	if cfg != nil {
+		for _, ws := range cfg.Workspaces {
+			for _, engine := range ws.CognitionEngines {
+				if engine.Name == "" {
 					continue
 				}
-				name, _ := engine["name"].(string)
-				if name == "" {
-					continue
+				var engineURL string
+				if engine.Config != nil {
+					engineURL = engine.Config.URL
 				}
-				engineCfg, _ := engine["config"].(map[string]interface{})
-				url, _ := engineCfg["url"].(string)
-				healthy := url != "" && probe(url)
-				cognitionEngines[name] = healthy
+				healthy := engineURL != "" && probe(engineURL)
+				cognitionEngines[engine.Name] = healthy
 				if !healthy && status == "UP" {
 					status = "DEGRADED"
 				}

@@ -52,7 +52,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 	if r.Body != nil {
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("invalid JSON body"))
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("invalid JSON body"))
 
 			return eh.RespondWithJSON(
 				w,
@@ -64,7 +64,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 
 	// Validate required fields
 	if reqPayload.SessionID == "" {
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("session_id is required"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("session_id is required"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -73,7 +73,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 	if reqPayload.ContentText == "" {
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("content_text is required"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("content_text is required"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -82,7 +82,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 	if len(reqPayload.Agents) == 0 {
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("agents list cannot be empty"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("agents list cannot be empty"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -111,7 +111,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		log.Errorf("failed to start semantic negotiation, error: %s", err.Error())
 
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
 
 		return eh.RespondWithJSON(
 			w,
@@ -126,11 +126,11 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 	resp, err := mapInitiatePayloadToStartResponse(cogResp)
 	if err != nil {
 		log.Errorf("failed to map initiate response | workspace=%s mas=%s err=%v", workspaceID, masID, err)
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "unable to parse negotiation response"})
 	}
 
-	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationStart, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "SUCCESS", nil)
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
@@ -172,7 +172,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		defer r.Body.Close()
 
 		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("invalid JSON body"))
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("invalid JSON body"))
 
 			return eh.RespondWithJSON(
 				w,
@@ -185,7 +185,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	// Validate required fields
 	if reqPayload.SessionID == "" {
 		errMsg := "session_id is required"
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
 		return eh.RespondWithJSON(
 			w,
 			http.StatusBadRequest,
@@ -194,7 +194,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	}
 	if len(reqPayload.AgentReplies) == 0 {
 		errMsg := "agent_replies list cannot be empty"
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
 
 		return eh.RespondWithJSON(
 			w,
@@ -206,7 +206,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	agentReplies, err := buildAgentReplyEnvelopes(reqPayload.SessionID, reqPayload.AgentReplies)
 	if err != nil {
 		errMsg := "failed to build agent reply envelopes"
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": errMsg})
 	}
 
@@ -218,7 +218,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to advance semantic negotiation, error: %s", err.Error())
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(err.Error()))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(err.Error()))
 
 		if errors.Is(err, cognitionagentclient.ErrNotFound) {
 			return eh.RespondWithJSON(
@@ -255,7 +255,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		if err != nil {
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
 				workspaceID, masID, reqPayload.SessionID, err)
-			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to marshall final result for persistence"))
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to marshall final result for persistence"))
 			resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
 				Persisted: false,
 				Error:     "failed to marshal final result for persistence",
@@ -273,7 +273,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 			if _, err := a.createOrUpdateSharedMemoriesCore(context.Background(), workspaceID, masID, persistReq); err != nil {
 				log.Errorf("failed to persist negotiation agreement | workspace=%s mas=%s session=%s err=%v",
 					workspaceID, masID, reqPayload.SessionID, err)
-				a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to persist negotiation agreement"))
+				a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to persist negotiation agreement"))
 				resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
 					Persisted: false,
 					Error:     "failed to persist negotiation agreement to shared memory",
@@ -288,7 +288,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSemanticNegotiationDecide, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "SUCCESS", nil)
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 

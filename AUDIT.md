@@ -7,7 +7,7 @@ The audit system provides an immutable audit trail for tracking operations acros
 ```
 pkg/audit/audit.go              — Model, enums, validation, DB operations (GORM)
 pkg/audit/audit_test.go          — Unit tests (SQLite in-memory)
-pkg/app/audit_resource_ids.go    — Fetches shared_memory.id & agentic_memory.id from summary API
+pkg/app/cfn_config.go            — Typed config structs + helpers (getSharedMemoryID, getAgentMemoryID)
 pkg/app/handlers_audit.go        — HTTP handlers (get, list)
 pkg/app/handlers_audit_test.go   — Handler tests
 pkg/app/routes.go                — Route registration
@@ -274,7 +274,7 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 | Resource Type | Audit Type              | Resource Identifier | Audit Resource Identifier |
 |---------------|-------------------------|---------------------|---------------------------|
-| `MAS`         | `KNOWLEDGE_INGESTION`   | `masId`             | `shared_memory.id` from summary API (falls back to `masId` if not yet fetched) |
+| `MAS`         | `KNOWLEDGE_INGESTION`   | `masId`             | `shared_memory.id` from typed config (falls back to `masId` if unavailable) |
 
 | Outcome | Audit Information |
 |---------|-------------------|
@@ -288,7 +288,7 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 | Resource Type | Audit Type                 | Resource Identifier | Audit Resource Identifier |
 |---------------|----------------------------|---------------------|---------------------------|
-| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `shared_memory.id` from summary API (falls back to `masId` if not yet fetched) |
+| `MAS`         | `SHARED_MEMORY_OPERATION`  | `masId`             | `shared_memory.id` from typed config (falls back to `masId` if unavailable) |
 
 | Outcome | Audit Information |
 |---------|-------------------|
@@ -302,7 +302,7 @@ Emits a **single audit row** per operation (no STARTED entry). The row is create
 
 | Resource Type | Audit Type                | Resource Identifier | <br/>|
 |---------------|---------------------------|---------------------|---------------------------|
-| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentic_memory.id` from summary API (falls back to `agentId` if not yet fetched) |
+| `MAS-AGENT`   | `AGENT_MEMORY_OPERATION`  | `agentId`           | `agentic_memory.id` from typed config (falls back to `agentId` if unavailable) |
 
 #### `audit_information` structure
 
