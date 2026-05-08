@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -49,13 +50,71 @@ func main() {
 	ctx := context.Background()
 
 	// Test UpsertKnowledgeGraph method
+	printTestSeparator()
 	log.Info("Testing UpsertKnowledgeGraph...")
 	if err := testUpsertKnowledgeGraph(ctx, client); err != nil {
 		log.Errorf("Error in UpsertKnowledgeGraph: %v", err)
 		os.Exit(1)
 	}
 
+	// Test UpsertKnowledgeGraph with InternalAttributes
+	printTestSeparator()
+	log.Info("Testing UpsertKnowledgeGraph with InternalAttributes...")
+	if err := testUpsertKnowledgeGraphWithInternalAttributes(ctx, client); err != nil {
+		log.Errorf("Error in UpsertKnowledgeGraph with InternalAttributes: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Relations with InternalAttributes filter
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Relations for InternalAttributes...")
+	if err := testQueryKnowledgeGraphRelationsWithInternalAttributes(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Relations for InternalAttributes: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Concepts with InternalAttributes filter
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Concepts for InternalAttributes...")
+	if err := testQueryKnowledgeGraphConceptsWithInternalAttributes(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Concepts for InternalAttributes: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Concepts with regular filters
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Concepts with Filters...")
+	if err := testQueryKnowledgeGraphConceptsWithDynamicFilters(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Concepts with Filters: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Concepts with custom filters
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Concepts with Custom Filters...")
+	if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Relations with regular filters
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Relations with Filters...")
+	if err := testQueryKnowledgeGraphRelationsWithDynamicFilters(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Relations with Filters: %v", err)
+		os.Exit(1)
+	}
+
+	// Test QueryKnowledgeGraph Relations with custom filters
+	printTestSeparator()
+	log.Info("Testing QueryKnowledgeGraph Relations with Custom Filters...")
+	if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
+		log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
+		os.Exit(1)
+	}
+
 	// Test QueryKnowledgeGraphPath method
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeGraphPath...")
 	if err := testQueryKnowledgeGraphPath(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeGraphPath: %v", err)
@@ -63,6 +122,7 @@ func main() {
 	}
 
 	// Test QueryKnowledgeGraphNeighbor method
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeGraphNeighbor...")
 	if err := testQueryKnowledgeGraphNeighbor(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeGraphNeighbor: %v", err)
@@ -70,6 +130,7 @@ func main() {
 	}
 
 	// Test QueryKnowledgeGraphConcept method
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeGraphConcept...")
 	if err := testQueryKnowledgeGraphConcept(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeGraphConcept: %v", err)
@@ -77,6 +138,7 @@ func main() {
 	}
 
 	// Test DeleteKnowledgeGraph method
+	printTestSeparator()
 	log.Info("Testing DeleteKnowledgeGraph...")
 	if err := testDeleteKnowledgeGraph(ctx, client); err != nil {
 		log.Errorf("Error in DeleteKnowledgeGraph: %v", err)
@@ -84,9 +146,11 @@ func main() {
 	}
 
 	// Test vector operations
+	printTestSeparator()
 	log.Info("\n=== Testing Vector Operations ===")
 
 	// Test OnboardKnowledgeVectorStore method
+	printTestSeparator()
 	log.Info("Testing OnboardKnowledgeVectorStore...")
 	if err := testOnboardKnowledgeVectorStore(ctx, client); err != nil {
 		log.Errorf("Error in OnboardKnowledgeVectorStore: %v", err)
@@ -94,6 +158,7 @@ func main() {
 	}
 
 	// Test UpsertKnowledgeVectors method
+	printTestSeparator()
 	log.Info("Testing UpsertKnowledgeVectors...")
 	if err := testUpsertKnowledgeVectors(ctx, client); err != nil {
 		log.Errorf("Error in UpsertKnowledgeVectors: %v", err)
@@ -101,6 +166,7 @@ func main() {
 	}
 
 	// Test QueryKnowledgeVectors method (Cosine)
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeVectors (Cosine Distance)...")
 	if err := testQueryKnowledgeVectorsCosine(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeVectors (Cosine): %v", err)
@@ -108,6 +174,7 @@ func main() {
 	}
 
 	// Test QueryKnowledgeVectors method (L2)
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeVectors (L2 Distance)...")
 	if err := testQueryKnowledgeVectorsL2(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeVectors (L2): %v", err)
@@ -115,6 +182,7 @@ func main() {
 	}
 
 	// Test QueryKnowledgeVectors method (Get By ID)
+	printTestSeparator()
 	log.Info("Testing QueryKnowledgeVectors (Get By ID)...")
 	if err := testQueryKnowledgeVectorsGetByID(ctx, client); err != nil {
 		log.Errorf("Error in QueryKnowledgeVectors (Get By ID): %v", err)
@@ -122,6 +190,7 @@ func main() {
 	}
 
 	// Test DeleteKnowledgeVectors method
+	printTestSeparator()
 	log.Info("Testing DeleteKnowledgeVectors...")
 	if err := testDeleteKnowledgeVectors(ctx, client); err != nil {
 		log.Errorf("Error in DeleteKnowledgeVectors: %v", err)
@@ -129,6 +198,7 @@ func main() {
 	}
 
 	// Test DeleteKnowledgeVectorStore method
+	printTestSeparator()
 	log.Info("Testing DeleteKnowledgeVectorStore...")
 	if err := testDeleteKnowledgeVectorStore(ctx, client); err != nil {
 		log.Errorf("Error in DeleteKnowledgeVectorStore: %v", err)
@@ -252,6 +322,302 @@ func testUpsertKnowledgeGraph(ctx context.Context, client *iocmemoryprovider.Cli
 	if response.Message != nil {
 		log.Infof("Upsert response message: %s", *response.Message)
 	}
+
+	return nil
+}
+
+func testUpsertKnowledgeGraphWithInternalAttributes(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	request := iocmemoryprovider.NewKnowledgeGraphStoreRequest()
+
+	// Set workspace and MAS IDs (same as other graph tests)
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request.MasID = &masID
+	request.WkspID = &wkspID
+	request.ForceReplace = true
+	request.IncrementalUpdate = true
+
+	// Create concepts with internal attributes
+	concepts := []iocmemoryprovider.Concept{
+		{
+			ID:          "concept-with-internal-attrs-001",
+			Name:        "AI Concept with Internal Attributes",
+			Description: stringPtr("A concept demonstrating internal attributes functionality"),
+			Attributes: map[string]interface{}{
+				"category": "AI",
+				"type":     "concept",
+			},
+			InternalAttributes: []iocmemoryprovider.InternalAttributes{
+				{
+					Owner: "123e4567-e89b-12d3-a456-426614174001",
+					Attributes: map[string]interface{}{
+						"distill_status": "completed",
+					},
+				},
+			},
+		},
+	}
+
+	// Create relations with internal attributes
+	relations := []iocmemoryprovider.Relation{
+		{
+			ID:       "relation-with-internal-attrs-001",
+			Relation: "REFERENCES",
+			NodeIDs: []string{
+				"concept-with-internal-attrs-001",
+				"923e4567-e89b-12d3-a456-426614174002", // Reference existing concept
+			},
+			Attributes: map[string]interface{}{
+				"relationship": "references",
+				"strength":     0.8,
+			},
+			InternalAttributes: []iocmemoryprovider.InternalAttributes{
+				{
+					Owner: "123e4567-e89b-12d3-a456-426614174000",
+					Attributes: map[string]interface{}{
+						"session_time": 1672531207,
+					},
+				},
+			},
+		},
+	}
+
+	// Set records
+	request.Records = &iocmemoryprovider.Records{
+		Concepts:  concepts,
+		Relations: relations,
+	}
+
+	// Call the client method
+	response, err := client.UpsertKnowledgeGraph(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Upsert with InternalAttributes response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Upsert with InternalAttributes response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testQueryKnowledgeGraphRelationsWithInternalAttributes(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create filter for session_time range
+	owner := "123e4567-e89b-12d3-a456-426614174000"
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "internal",
+			Key:       "session_time",
+			Operation: "range",
+			Value:     []interface{}{1672531200, 1672531300}, // Actual array/slice
+			Owner:     &owner,
+		},
+	}
+
+	// Create query criteria for relations query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeRelations,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &wkspID
+
+	// Call the client method (using concept query method which should handle different query types)
+	response, err := client.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Relations query response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Relations query response message: %s", *response.Message)
+	}
+	log.Infof("Relations query response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeGraphConceptsWithInternalAttributes(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create filter for distill_status
+	owner := "123e4567-e89b-12d3-a456-426614174001"
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "internal",
+			Key:       "distill_status",
+			Operation: "eqstr",
+			Value:     []interface{}{"completed"}, // Single string value in slice
+			Owner:     &owner,
+		},
+	}
+
+	// Create query criteria for concepts query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeConcepts,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &wkspID
+
+	// Call the client method (using concept query method which should handle different query types)
+	response, err := client.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Concepts query response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Concepts query response message: %s", *response.Message)
+	}
+	log.Infof("Concepts query response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeGraphConceptsWithDynamicFilters(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create filter for category attribute
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "dynamic",
+			Key:       "category",
+			Operation: "eqstr",
+			Value:     []interface{}{"AI"}, // Single string value in slice
+		},
+	}
+
+	// Create query criteria for concepts query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeConcepts,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &wkspID
+
+	// Call the client method (using concept query method which should handle different query types)
+	response, err := client.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Concepts with Filters query response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Concepts with Filters query response message: %s", *response.Message)
+	}
+	log.Infof("Concepts with Filters query response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeGraphRelationsWithDynamicFilters(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create filter for relationship attribute
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "dynamic",
+			Key:       "relationship",
+			Operation: "eqstr",
+			Value:     []interface{}{"references"}, // Single string value in slice
+		},
+	}
+
+	// Create query criteria for relations query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeRelations,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &wkspID
+
+	// Call the client method (using concept query method which should handle different query types)
+	response, err := client.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Relations with Filters query response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Relations with Filters query response message: %s", *response.Message)
+	}
+	log.Infof("Relations with Filters query response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testQueryKnowledgeGraphConceptsWithCustomFilters(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create filter for relations_cnt custom attribute
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "custom",
+			Key:       "relations_cnt",
+			Operation: "lte",
+			Value:     []interface{}{3}, // Single number value in slice
+		},
+	}
+
+	// Create query criteria for relations query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeConcepts,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	masID := "523e4567-e89b-12d3-a456-426614174000"
+	wkspID := "11111111-e89b-12d3-a456-426614174000"
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &wkspID
+
+	// Call the client method (using concept query method which should handle different query types)
+	response, err := client.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Concepts with Custom Filters(relations_cnt) query response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Concepts with Custom Filters(relations_cnt) query response message: %s", *response.Message)
+	}
+	log.Infof("Concepts with Custom Filters(relations_cnt) query response records count: %d", len(response.Records))
 
 	return nil
 }
@@ -601,6 +967,13 @@ func testDeleteKnowledgeVectorStore(ctx context.Context, client *iocmemoryprovid
 	}
 
 	return nil
+}
+
+// printTestSeparator prints a separator line between tests
+func printTestSeparator() {
+	fmt.Println()
+	fmt.Println("================================================================================")
+	fmt.Println()
 }
 
 // stringPtr is a helper function to get a pointer to a string

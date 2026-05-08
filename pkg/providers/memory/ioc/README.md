@@ -112,3 +112,9 @@ The system supports three query types:
 3. **Concept Query** (`"concept"`):
    - Retrieves details for exactly 1 concept
    - Returns concept information and metadata
+
+4. **Concepts Filter Query** (`"concepts"`):
+   - Returns concepts information and metadata
+
+5. **Relations Filter Query** (`"relations"`):
+   - Returns relations information and metadata

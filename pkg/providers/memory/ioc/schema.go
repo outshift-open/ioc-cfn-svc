@@ -28,6 +28,8 @@ const (
 	QueryTypeNeighbour = "neighbour"
 	QueryTypePath      = "path"
 	QueryTypeConcept   = "concept"
+	QueryTypeConcepts  = "concepts"
+	QueryTypeRelations = "relations"
 )
 
 // Memory type constants
@@ -45,21 +47,23 @@ type EmbeddingConfig struct {
 
 // Concept represents a concept in the knowledge graph
 type Concept struct {
-	ID          string                 `json:"id" description:"Unique identifier for the concept"`
-	Name        string                 `json:"name" description:"Name of the concept"`
-	Description *string                `json:"description,omitempty" description:"Detailed description of the concept"`
-	Attributes  map[string]interface{} `json:"attributes,omitempty" description:"Additional attributes for the concept"`
-	Embeddings  *EmbeddingConfig       `json:"embeddings,omitempty" description:"Embedding configuration for the concept"`
-	Tags        []string               `json:"tags,omitempty" description:"Optional list of tags for categorization"`
+	ID                 string                 `json:"id" description:"Unique identifier for the concept"`
+	Name               string                 `json:"name" description:"Name of the concept"`
+	Description        *string                `json:"description,omitempty" description:"Detailed description of the concept"`
+	Attributes         map[string]interface{} `json:"attributes,omitempty" description:"Additional attributes for the concept"`
+	InternalAttributes []InternalAttributes   `json:"internal_attributes,omitempty" description:"Internal attributes for the concept"`
+	Embeddings         *EmbeddingConfig       `json:"embeddings,omitempty" description:"Embedding configuration for the concept"`
+	Tags               []string               `json:"tags,omitempty" description:"Optional list of tags for categorization"`
 }
 
 // Relation represents a relationship between concepts
 type Relation struct {
-	ID         string                 `json:"id" description:"Unique identifier for the relation"`
-	Relation   string                 `json:"relation" description:"Type of relationship between nodes"`
-	NodeIDs    []string               `json:"node_ids" description:"List of node IDs this relation connects (minimum 2)"`
-	Attributes map[string]interface{} `json:"attributes,omitempty" description:"Additional attributes for the relation"`
-	Embeddings *EmbeddingConfig       `json:"embeddings,omitempty" description:"Embedding configuration for the relation"`
+	ID                 string                 `json:"id" description:"Unique identifier for the relation"`
+	Relation           string                 `json:"relation" description:"Type of relationship between nodes"`
+	NodeIDs            []string               `json:"node_ids" description:"List of node IDs this relation connects (minimum 2)"`
+	Attributes         map[string]interface{} `json:"attributes,omitempty" description:"Additional attributes for the relation"`
+	InternalAttributes []InternalAttributes   `json:"internal_attributes,omitempty" description:"Internal attributes for the relation"`
+	Embeddings         *EmbeddingConfig       `json:"embeddings,omitempty" description:"Embedding configuration for the relation"`
 }
 
 // Validate validates that a relation connects at least 2 nodes
@@ -78,11 +82,11 @@ type Records struct {
 
 // KnowledgeGraphStoreRequest represents a request to the Store for storing and managing knowledge graph data
 type KnowledgeGraphStoreRequest struct {
-	RequestID        string   `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	Records          *Records `json:"records,omitempty" description:"Dictionary containing concepts and relations"`
-	MemoryType       *string  `json:"memory_type,omitempty" description:"Type of memory being stored"`
-	MasID            *string  `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (Not required for Global Knowledge)"`
-	WkspID           *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
+	RequestID         string   `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Records           *Records `json:"records,omitempty" description:"Dictionary containing concepts and relations"`
+	MemoryType        *string  `json:"memory_type,omitempty" description:"Type of memory being stored"`
+	MasID             *string  `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (Not required for Global Knowledge)"`
+	WkspID            *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
 	ForceReplace      bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
 	IncrementalUpdate bool     `json:"incremental_update" description:"Indicates an incremental update where relations may reference nodes already present in the graph"`
 }
@@ -216,9 +220,10 @@ func (k *KnowledgeGraphDeleteResponse) MarshalJSON() ([]byte, error) {
 
 // KnowledgeGraphQueryCriteria represents query criteria for knowledge graph queries
 type KnowledgeGraphQueryCriteria struct {
-	Depth        *int   `json:"depth,omitempty" description:"Depth of the query (number of hops) to be used for path queries"`
-	UseDirection *bool  `json:"use_direction,omitempty" description:"Whether to use directed relationships in path queries"`
-	QueryType    string `json:"query_type" description:"Type of query to execute"`
+	Depth        *int                                `json:"depth,omitempty" description:"Depth of the query (number of hops) to be used for path queries"`
+	UseDirection *bool                               `json:"use_direction,omitempty" description:"Whether to use directed relationships in path queries"`
+	QueryType    string                              `json:"query_type" description:"Type of query to execute"`
+	Filters      []KnowledgeGraphQueryCriteriaFilter `json:"filters,omitempty" description:"List of structured filters for filtering concepts and relations"`
 }
 
 // NewKnowledgeGraphQueryCriteria creates new query criteria with specified values
@@ -227,6 +232,51 @@ func NewKnowledgeGraphQueryCriteria(queryType string, depth *int, useDirection *
 		Depth:        depth,
 		UseDirection: useDirection,
 		QueryType:    queryType,
+		Filters:      nil,
+	}
+}
+
+// NewKnowledgeGraphQueryCriteriaWithFilters creates new query criteria with filters
+func NewKnowledgeGraphQueryCriteriaWithFilters(queryType string, depth *int, useDirection *bool, filters []KnowledgeGraphQueryCriteriaFilter) *KnowledgeGraphQueryCriteria {
+	return &KnowledgeGraphQueryCriteria{
+		Depth:        depth,
+		UseDirection: useDirection,
+		QueryType:    queryType,
+		Filters:      filters,
+	}
+}
+
+// KnowledgeGraphQueryCriteriaFilter represents filter criteria for knowledge graph queries
+type KnowledgeGraphQueryCriteriaFilter struct {
+	Category  string        `json:"category" description:"Filter category (mandatory)"`
+	Key       string        `json:"key" description:"Filter key (mandatory)"`
+	Operation string        `json:"operation" description:"Filter operation (mandatory)"`
+	Value     []interface{} `json:"value" description:"Filter value (mandatory) - list of strings, numbers (int/float)"`
+	Owner     *string       `json:"owner,omitempty" description:"Filter owner (optional)"`
+}
+
+// NewKnowledgeGraphQueryCriteriaFilter creates new query criteria filter with specified values
+func NewKnowledgeGraphQueryCriteriaFilter(category, key, operation string, value []interface{}, owner *string) *KnowledgeGraphQueryCriteriaFilter {
+	return &KnowledgeGraphQueryCriteriaFilter{
+		Category:  category,
+		Key:       key,
+		Operation: operation,
+		Value:     value,
+		Owner:     owner,
+	}
+}
+
+// InternalAttributes represents internal attributes in the knowledge graph
+type InternalAttributes struct {
+	Owner      string                 `json:"owner" description:"Identifier for the attribute owner (must be a valid UUID)"`
+	Attributes map[string]interface{} `json:"attributes" description:"Additional attributes for the concept (strings and numbers only)"`
+}
+
+// NewInternalAttributes creates new internal attributes with specified owner
+func NewInternalAttributes(owner string) *InternalAttributes {
+	return &InternalAttributes{
+		Owner:      owner,
+		Attributes: make(map[string]interface{}),
 	}
 }
 
@@ -260,7 +310,6 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 		return errors.New("either 'mas_id' or 'wksp_id' or both must be provided")
 	}
 
-	conceptsCount := len(k.Records.Concepts)
 	queryType := QueryTypeNeighbour
 	if k.QueryCriteria != nil {
 		queryType = k.QueryCriteria.QueryType
@@ -268,19 +317,27 @@ func (k *KnowledgeGraphQueryRequest) Validate() error {
 
 	switch queryType {
 	case QueryTypePath:
+		conceptsCount := len(k.Records.Concepts)
 		if conceptsCount != 2 {
 			return errors.New("path queries require exactly 2 concepts (source and destination)")
 		}
 	case QueryTypeNeighbour:
+		conceptsCount := len(k.Records.Concepts)
 		if conceptsCount != 1 {
 			return errors.New("neighbor queries require exactly 1 concept")
 		}
 	case QueryTypeConcept:
+		conceptsCount := len(k.Records.Concepts)
 		if conceptsCount != 1 {
 			return errors.New("concept queries require exactly 1 concept")
 		}
+	case QueryTypeConcepts:
+		return nil
+	case QueryTypeRelations:
+		return nil
 	default:
 		// Default to neighbor query validation
+		conceptsCount := len(k.Records.Concepts)
 		if conceptsCount != 1 {
 			return errors.New("neighbor queries require exactly 1 concept")
 		}
@@ -726,8 +783,8 @@ func (k *KnowledgeVectorQueryResponse) MarshalJSON() ([]byte, error) {
 
 // RagChunkMetadata contains metadata fields associated with a RAG chunk from cognition extraction.
 type RagChunkMetadata struct {
-	Domain     string `json:"domain"`      // maps to "data_source" in vector table
-	Timestamp  string `json:"timestamp"`   // maps to "recorded_at" in vector table
+	Domain     string `json:"domain"`    // maps to "data_source" in vector table
+	Timestamp  string `json:"timestamp"` // maps to "recorded_at" in vector table
 	DocIndex   int    `json:"doc_index"`
 	ChunkIndex int    `json:"chunk_index"`
 }
