@@ -144,13 +144,12 @@ func TransformExtractionResponseToRecords(resp *cognitionagentclient.KnowledgeCo
 }
 
 // logSharedMemoryAudit creates an audit event for shared-memory operations.
-// It resolves the AuditResourceIdentifier from the summary API (falling back to
+// It resolves the shared memory ID from the typed config (falling back to
 // masID) and logs any audit-creation errors without propagating them.
-func (a *App) logSharedMemoryAudit(operationID, masID, auditType, status string, errMsg *string) {
+func (a *App) logSharedMemoryAudit(operationID, workspaceID, masID, auditType, status string, errMsg *string) {
 	log := getLogger()
 
-	ensureAuditResourceIDs()
-	auditResID := SharedMemoryID
+	auditResID := getSharedMemoryID(workspaceID, masID)
 	if auditResID == "" {
 		auditResID = masID
 	}
@@ -234,7 +233,7 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 		log.Errorf("failed to send extraction call, error: %s", err.Error())
 
 		errMsg := err.Error()
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 
 		return nil, fmt.Errorf("unable to perform knowledge extraction: %w", err)
 	}
@@ -257,7 +256,7 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 		)
 
 		errMsg := err.Error()
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 
 		return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
 	}
@@ -275,13 +274,13 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 			)
 
 			errMsg := vectorErr.Error()
-			a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
 		} else if vectorResp != nil {
 			vectorStoreMessage = vectorResp.Message
 		}
 	}
 
-	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
 
 	resp := &sharedmemory.CreateOrUpdateResponse{
 		ResponseID:         knowledgeGraphResp.RequestID,
@@ -419,7 +418,7 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 		)
 
 		errMsg := err.Error()
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
 		return nil, fmt.Errorf("failed to process evidence: %w", err)
 	}
@@ -446,7 +445,7 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 		)
 
 		errMsg := "Insufficient evidence to answer provided user intent"
-		a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSharedMemoryOperation, "FAILED", &errMsg)
 
 		return nil, fmt.Errorf("insufficient evidence to answer provided user intent")
 	}
@@ -461,7 +460,7 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 		message = "evidence processed"
 	}
 
-	a.logSharedMemoryAudit(operationID, masID, audit.AuditTypeSharedMemoryOperation, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSharedMemoryOperation, "SUCCESS", nil)
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 

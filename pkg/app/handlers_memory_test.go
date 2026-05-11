@@ -14,11 +14,11 @@ import (
 )
 
 func TestMemoryOperationsHandler(t *testing.T) {
-	// Save original CfnConfig and restore after test
-	originalConfig := CfnConfig
+	// Save original ParsedConfig and restore after test
+	originalConfig := ParsedConfig
 	defer func() {
 		cfnConfigMutex.Lock()
-		CfnConfig = originalConfig
+		ParsedConfig = originalConfig
 		cfnConfigMutex.Unlock()
 	}()
 
@@ -62,30 +62,30 @@ func TestMemoryOperationsHandler(t *testing.T) {
 	}))
 	defer mockMemoryProvider.Close()
 
-	// Set up CfnConfig to return the mock provider URL with token auth
+	// Set up ParsedConfig to return the mock provider URL with token auth
 	cfnConfigMutex.Lock()
-	CfnConfig = map[string]any{
-		"workspaces": []interface{}{
-			map[string]interface{}{
-				"workspace_id": "ws-123",
-				"multi_agentic_systems": []interface{}{
-					map[string]interface{}{
-						"id": "mas-456",
-						"agents": []interface{}{
-							map[string]interface{}{
-								"agent_id": "agent-789",
-								"agentic_memory": map[string]interface{}{
-									"config": map[string]interface{}{
-										"url": mockMemoryProvider.URL,
-										"auth": map[string]interface{}{
-											"type": "token",
-											"credentials": map[string]interface{}{
-												"api_key": "test-api-key",
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "ws-123",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "mas-456",
+						Agents: []AgentCfg{
+							{
+								AgentID: "agent-789",
+								AgenticMemory: &MemoryCfg{
+									Name:    "mem0",
+									Enabled: true,
+									Config: &MemConnConfig{
+										URL: mockMemoryProvider.URL,
+										Auth: &AuthConfig{
+											Type: "token",
+											Credentials: &AuthCreds{
+												APIKey: "test-api-key",
 											},
 										},
 									},
-									"enabled":              true,
-									"name": "mem0",
 								},
 							},
 						},
@@ -179,11 +179,11 @@ func TestMemoryOperationsHandler(t *testing.T) {
 }
 
 func TestMemoryOperationsHandlerValidation(t *testing.T) {
-	// Save original CfnConfig and restore after test
-	originalConfig := CfnConfig
+	// Save original ParsedConfig and restore after test
+	originalConfig := ParsedConfig
 	defer func() {
 		cfnConfigMutex.Lock()
-		CfnConfig = originalConfig
+		ParsedConfig = originalConfig
 		cfnConfigMutex.Unlock()
 	}()
 
@@ -210,14 +210,12 @@ func TestMemoryOperationsHandlerValidation(t *testing.T) {
 			payload: memoryoperations.MemoryOperationRequest{
 				Payload: memoryoperations.MemoryOperationPayload{
 					HTTPRequestType: http.MethodGet,
-					// No HTTPURL - should try to auto-resolve
 				},
 			},
 			setupConfig: func() {
-				// Set up empty config - agent won't be found
 				cfnConfigMutex.Lock()
-				CfnConfig = map[string]any{
-					"workspaces": []interface{}{},
+				ParsedConfig = &CfnConfigPayload{
+					Workspaces: []WorkspaceConfig{},
 				}
 				cfnConfigMutex.Unlock()
 			},
@@ -256,15 +254,15 @@ func TestMemoryOperationsHandlerValidation(t *testing.T) {
 }
 
 func TestGetMemoryProviderConfig(t *testing.T) {
-	// Save original CfnConfig and restore after test
-	originalConfig := CfnConfig
+	// Save original ParsedConfig and restore after test
+	originalConfig := ParsedConfig
 	defer func() {
-		CfnConfig = originalConfig
+		ParsedConfig = originalConfig
 	}()
 
 	tests := []struct {
 		name             string
-		config           map[string]any
+		config           *CfnConfigPayload
 		workspaceID      string
 		masID            string
 		agentID          string
@@ -276,35 +274,20 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 	}{
 		{
 			name: "successful extraction with url and token auth",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "00000000-0000-0000-0000-000000000001",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "e1271823-90ca-4581-86a4-f66a16ee154e",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "default-agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "https://api.mem0.ai",
-												"auth": map[string]interface{}{
-													"type": "token",
-													"credentials": map[string]interface{}{
-														"api_key": "m0-xxx",
-													},
-												},
-											},
-											"enabled":              true,
-											"name": "mem0",
-										},
-									},
-								},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "00000000-0000-0000-0000-000000000001",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "e1271823-90ca-4581-86a4-f66a16ee154e",
+						Agents: []AgentCfg{{
+							AgentID: "default-agent-1",
+							AgenticMemory: &MemoryCfg{
+								Name: "mem0", Enabled: true,
+								Config: &MemConnConfig{URL: "https://api.mem0.ai", Auth: &AuthConfig{Type: "token", Credentials: &AuthCreds{APIKey: "m0-xxx"}}},
 							},
-						},
-					},
-				},
+						}},
+					}},
+				}},
 			},
 			workspaceID:      "00000000-0000-0000-0000-000000000001",
 			masID:            "e1271823-90ca-4581-86a4-f66a16ee154e",
@@ -316,32 +299,20 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "url with no auth (self-hosted)",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "http://ioc-mem0:8765",
-												"auth": map[string]interface{}{
-													"type": "none",
-												},
-											},
-											"enabled":              true,
-											"name": "mem0",
-										},
-									},
-								},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID: "agent-1",
+							AgenticMemory: &MemoryCfg{
+								Name: "mem0", Enabled: true,
+								Config: &MemConnConfig{URL: "http://ioc-mem0:8765", Auth: &AuthConfig{Type: "none"}},
 							},
-						},
-					},
-				},
+						}},
+					}},
+				}},
 			},
 			workspaceID:      "ws-1",
 			masID:            "mas-1",
@@ -353,28 +324,17 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "url with no auth block at all",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "http://localhost:8765",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID:       "agent-1",
+							AgenticMemory: &MemoryCfg{Enabled: true, Config: &MemConnConfig{URL: "http://localhost:8765"}},
+						}},
+					}},
+				}},
 			},
 			workspaceID:      "ws-1",
 			masID:            "mas-1",
@@ -385,46 +345,10 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "multiple workspaces - find correct one",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "http://wrong-host:9999",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-					map[string]interface{}{
-						"workspace_id": "ws-2",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-2",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-2",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "http://correct-host:7777",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{
+					{ID: "ws-1", MultiAgenticSystems: []MASCfg{{ID: "mas-1", Agents: []AgentCfg{{AgentID: "agent-1", AgenticMemory: &MemoryCfg{Enabled: true, Config: &MemConnConfig{URL: "http://wrong-host:9999"}}}}}}},
+					{ID: "ws-2", MultiAgenticSystems: []MASCfg{{ID: "mas-2", Agents: []AgentCfg{{AgentID: "agent-2", AgenticMemory: &MemoryCfg{Enabled: true, Config: &MemConnConfig{URL: "http://correct-host:7777"}}}}}}},
 				},
 			},
 			workspaceID: "ws-2",
@@ -435,28 +359,17 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "url with trailing slash stripped",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "https://api.mem0.ai/",
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID:       "agent-1",
+							AgenticMemory: &MemoryCfg{Enabled: true, Config: &MemConnConfig{URL: "https://api.mem0.ai/"}},
+						}},
+					}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "mas-1",
@@ -466,35 +379,20 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "bearer auth type",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "https://api.getzep.com",
-												"auth": map[string]interface{}{
-													"type": "bearer",
-													"credentials": map[string]interface{}{
-														"access_token": "zep-xxx",
-													},
-												},
-											},
-											"enabled":              true,
-											"name": "zep",
-										},
-									},
-								},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID: "agent-1",
+							AgenticMemory: &MemoryCfg{
+								Name: "zep", Enabled: true,
+								Config: &MemConnConfig{URL: "https://api.getzep.com", Auth: &AuthConfig{Type: "bearer", Credentials: &AuthCreds{AccessToken: "zep-xxx"}}},
 							},
-						},
-					},
-				},
+						}},
+					}},
+				}},
 			},
 			workspaceID:      "ws-1",
 			masID:            "mas-1",
@@ -506,12 +404,8 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "workspace not found",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{ID: "ws-1"}},
 			},
 			workspaceID: "non-existent-ws",
 			masID:       "mas-1",
@@ -521,17 +415,11 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "mas not found",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID:                  "ws-1",
+					MultiAgenticSystems: []MASCfg{{ID: "mas-1"}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "non-existent-mas",
@@ -541,22 +429,14 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "agent not found",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID:     "mas-1",
+						Agents: []AgentCfg{{AgentID: "agent-1"}},
+					}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "mas-1",
@@ -566,28 +446,17 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "memory disabled",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"url": "http://ioc-mem0:8765",
-											},
-											"enabled": false,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID:       "agent-1",
+							AgenticMemory: &MemoryCfg{Enabled: false, Config: &MemConnConfig{URL: "http://ioc-mem0:8765"}},
+						}},
+					}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "mas-1",
@@ -597,30 +466,17 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "missing url in config",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-										"agentic_memory": map[string]interface{}{
-											"config": map[string]interface{}{
-												"auth": map[string]interface{}{
-													"type": "none",
-												},
-											},
-											"enabled": true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID: "mas-1",
+						Agents: []AgentCfg{{
+							AgentID:       "agent-1",
+							AgenticMemory: &MemoryCfg{Enabled: true, Config: &MemConnConfig{Auth: &AuthConfig{Type: "none"}}},
+						}},
+					}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "mas-1",
@@ -630,22 +486,14 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		},
 		{
 			name: "missing agentic_memory",
-			config: map[string]any{
-				"workspaces": []interface{}{
-					map[string]interface{}{
-						"workspace_id": "ws-1",
-						"multi_agentic_systems": []interface{}{
-							map[string]interface{}{
-								"id": "mas-1",
-								"agents": []interface{}{
-									map[string]interface{}{
-										"agent_id": "agent-1",
-									},
-								},
-							},
-						},
-					},
-				},
+			config: &CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{{
+					ID: "ws-1",
+					MultiAgenticSystems: []MASCfg{{
+						ID:     "mas-1",
+						Agents: []AgentCfg{{AgentID: "agent-1"}},
+					}},
+				}},
 			},
 			workspaceID: "ws-1",
 			masID:       "mas-1",
@@ -654,10 +502,8 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 			errorMsg:    "agentic_memory not found for agent",
 		},
 		{
-			name: "no workspaces in config",
-			config: map[string]any{
-				"other_field": "value",
-			},
+			name:        "no workspaces in config",
+			config:      nil,
 			workspaceID: "ws-1",
 			masID:       "mas-1",
 			agentID:     "agent-1",
@@ -670,7 +516,7 @@ func TestGetMemoryProviderConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up test config
 			cfnConfigMutex.Lock()
-			CfnConfig = tt.config
+			ParsedConfig = tt.config
 			cfnConfigMutex.Unlock()
 
 			// Create app instance
@@ -846,14 +692,6 @@ func TestInjectAuthHeaders(t *testing.T) {
 }
 
 func TestMemoryOperationsHandlerNoAuth(t *testing.T) {
-	// Save original CfnConfig and restore after test
-	originalConfig := CfnConfig
-	defer func() {
-		cfnConfigMutex.Lock()
-		CfnConfig = originalConfig
-		cfnConfigMutex.Unlock()
-	}()
-
 	// Create a mock memory provider server that verifies NO Authorization header
 	mockMemoryProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); auth != "" {
@@ -868,26 +706,23 @@ func TestMemoryOperationsHandlerNoAuth(t *testing.T) {
 	}))
 	defer mockMemoryProvider.Close()
 
-	// Set up CfnConfig with auth type "none"
-	cfnConfigMutex.Lock()
-	CfnConfig = map[string]any{
-		"workspaces": []interface{}{
-			map[string]interface{}{
-				"workspace_id": "ws-123",
-				"multi_agentic_systems": []interface{}{
-					map[string]interface{}{
-						"id": "mas-456",
-						"agents": []interface{}{
-							map[string]interface{}{
-								"agent_id": "agent-789",
-								"agentic_memory": map[string]interface{}{
-									"config": map[string]interface{}{
-										"url": mockMemoryProvider.URL,
-										"auth": map[string]interface{}{
-											"type": "none",
-										},
+	// Set up ParsedConfig with auth type "none"
+	setParsedConfigForTest(t, &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "ws-123",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "mas-456",
+						Agents: []AgentCfg{
+							{
+								AgentID: "agent-789",
+								AgenticMemory: &MemoryCfg{
+									Enabled: true,
+									Config: &MemConnConfig{
+										URL: mockMemoryProvider.URL,
+										Auth: &AuthConfig{Type: "none"},
 									},
-									"enabled": true,
 								},
 							},
 						},
@@ -895,8 +730,7 @@ func TestMemoryOperationsHandlerNoAuth(t *testing.T) {
 				},
 			},
 		},
-	}
-	cfnConfigMutex.Unlock()
+	})
 
 	memoryCfg := httpclient.DefaultConfig()
 	memoryCfg.Timeout = 5 * time.Minute
@@ -944,27 +778,19 @@ func TestMemoryOperationsHandlerNoAuth(t *testing.T) {
 
 // TestGetMemoryProviderURL tests the convenience wrapper
 func TestGetMemoryProviderURL(t *testing.T) {
-	originalConfig := CfnConfig
-	defer func() {
-		CfnConfig = originalConfig
-	}()
-
-	cfnConfigMutex.Lock()
-	CfnConfig = map[string]any{
-		"workspaces": []interface{}{
-			map[string]interface{}{
-				"workspace_id": "ws-1",
-				"multi_agentic_systems": []interface{}{
-					map[string]interface{}{
-						"id": "mas-1",
-						"agents": []interface{}{
-							map[string]interface{}{
-								"agent_id": "agent-1",
-								"agentic_memory": map[string]interface{}{
-									"config": map[string]interface{}{
-										"url": "https://api.mem0.ai",
-									},
-									"enabled": true,
+	setParsedConfigForTest(t, &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "ws-1",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "mas-1",
+						Agents: []AgentCfg{
+							{
+								AgentID: "agent-1",
+								AgenticMemory: &MemoryCfg{
+									Enabled: true,
+									Config:  &MemConnConfig{URL: "https://api.mem0.ai"},
 								},
 							},
 						},
@@ -972,8 +798,7 @@ func TestGetMemoryProviderURL(t *testing.T) {
 				},
 			},
 		},
-	}
-	cfnConfigMutex.Unlock()
+	})
 
 	app := &App{}
 	url, err := app.getMemoryProviderURL("ws-1", "mas-1", "agent-1")

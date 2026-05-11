@@ -35,8 +35,7 @@ type memoryProviderAuth struct {
 	headerValue string // for "custom"
 }
 
-// getMemoryProviderConfig retrieves the full memory provider config (URL + auth) from CfnConfig for a specific agent.
-// It navigates: workspaces -> multi_agentic_systems -> agents -> agentic_memory -> config
+// getMemoryProviderConfig retrieves the full memory provider config (URL + auth) from ParsedConfig for a specific agent.
 func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memoryProviderConfig, error) {
 	log := getLogger()
 
@@ -45,120 +44,58 @@ func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memo
 
 	log.Debugf("resolving memory provider config for ws=%s mas=%s agent=%s", workspaceID, masID, agentID)
 
-	// Navigate to workspaces
-	workspaces, ok := CfnConfig["workspaces"].([]interface{})
-	if !ok {
+	if ParsedConfig == nil {
 		return nil, fmt.Errorf("workspaces not found in config")
 	}
 
-	// Find the workspace
-	var workspace map[string]interface{}
-	for _, ws := range workspaces {
-		wsMap, ok := ws.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if wsMap["workspace_id"] == workspaceID {
-			workspace = wsMap
-			break
-		}
-	}
-	if workspace == nil {
+	ws := ParsedConfig.FindWorkspace(workspaceID)
+	if ws == nil {
 		return nil, fmt.Errorf("workspace %s not found", workspaceID)
 	}
 
-	// Navigate to multi_agentic_systems
-	masList, ok := workspace["multi_agentic_systems"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("multi_agentic_systems not found in workspace")
-	}
-
-	// Find the MAS
-	var mas map[string]interface{}
-	for _, m := range masList {
-		masMap, ok := m.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if masMap["id"] == masID {
-			mas = masMap
-			break
-		}
-	}
+	mas := ParsedConfig.FindMAS(workspaceID, masID)
 	if mas == nil {
 		return nil, fmt.Errorf("multi-agentic system %s not found", masID)
 	}
 
-	// Navigate to agents
-	agentsList, ok := mas["agents"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("agents not found in multi-agentic system")
-	}
-
-	// Find the agent
-	var agent map[string]interface{}
-	for _, a := range agentsList {
-		agentMap, ok := a.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		if agentMap["agent_id"] == agentID {
-			agent = agentMap
-			break
-		}
-	}
+	agent := ParsedConfig.FindAgent(workspaceID, masID, agentID)
 	if agent == nil {
 		return nil, fmt.Errorf("agent %s not found", agentID)
 	}
 
-	// Get agentic_memory config
-	agenticMemory, ok := agent["agentic_memory"].(map[string]interface{})
-	if !ok {
+	if agent.AgenticMemory == nil {
 		return nil, fmt.Errorf("agentic_memory not found for agent")
 	}
 
-	// Check if memory is enabled
-	if enabled, ok := agenticMemory["enabled"].(bool); ok && !enabled {
+	mem := agent.AgenticMemory
+	if !mem.Enabled {
 		return nil, fmt.Errorf("agentic memory is disabled for this agent")
 	}
 
-	// Get config
-	memConfig, ok := agenticMemory["config"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("config not found in agentic_memory")
-	}
-
-	// Read URL (new format from management plane)
-	baseURL, urlOk := memConfig["url"].(string)
-	if !urlOk || baseURL == "" {
+	if mem.Config == nil || mem.Config.URL == "" {
 		return nil, fmt.Errorf("url not found in memory provider config")
 	}
-	baseURL = strings.TrimSuffix(baseURL, "/")
 
-	// Read memory provider name
-	providerName, _ := agenticMemory["name"].(string)
+	baseURL := strings.TrimSuffix(mem.Config.URL, "/")
 
-	// Parse auth from config
 	var auth *memoryProviderAuth
-	if authMap, ok := memConfig["auth"].(map[string]interface{}); ok {
-		authType, _ := authMap["type"].(string)
-		if authType != "" && authType != "none" {
-			auth = &memoryProviderAuth{authType: authType}
-			if creds, ok := authMap["credentials"].(map[string]interface{}); ok {
-				auth.apiKey, _ = creds["api_key"].(string)
-				auth.accessToken, _ = creds["access_token"].(string)
-				auth.username, _ = creds["username"].(string)
-				auth.password, _ = creds["password"].(string)
-				auth.headerName, _ = creds["header_name"].(string)
-				auth.headerValue, _ = creds["header_value"].(string)
-			} else {
-				log.Warnf("auth type is %q but credentials block is missing", authType)
-			}
+	if mem.Config.Auth != nil && mem.Config.Auth.Type != "" && mem.Config.Auth.Type != "none" {
+		auth = &memoryProviderAuth{authType: mem.Config.Auth.Type}
+		if mem.Config.Auth.Credentials != nil {
+			c := mem.Config.Auth.Credentials
+			auth.apiKey = c.APIKey
+			auth.accessToken = c.AccessToken
+			auth.username = c.Username
+			auth.password = c.Password
+			auth.headerName = c.HeaderName
+			auth.headerValue = c.HeaderValue
+		} else {
+			log.Warnf("auth type is %q but credentials block is missing", mem.Config.Auth.Type)
 		}
 	}
 
 	log.Debugf("resolved memory provider for agent %s: url=%s provider=%s authType=%s",
-		agentID, baseURL, providerName, func() string {
+		agentID, baseURL, mem.Name, func() string {
 			if auth != nil {
 				return auth.authType
 			}
@@ -167,7 +104,7 @@ func (a *App) getMemoryProviderConfig(workspaceID, masID, agentID string) (*memo
 
 	return &memoryProviderConfig{
 		baseURL:      baseURL,
-		providerName: providerName,
+		providerName: mem.Name,
 		auth:         auth,
 	}, nil
 }
@@ -379,10 +316,7 @@ func (a *App) memoryOperationsHandler(w http.ResponseWriter, r *http.Request) (i
 			info[k] = v
 		}
 		auditInfo, _ := json.Marshal(info)
-		// Hacky: fetch agentic_memory.id from summary API on first audit call.
-		// TODO: Remove once IDs are available directly in CfnConfig global map.
-		ensureAuditResourceIDs()
-		auditResID := AgentMemoryID
+		auditResID := getAgentMemoryID(workspaceID, masID, agentID)
 		if auditResID == "" {
 			auditResID = agentID
 		}
