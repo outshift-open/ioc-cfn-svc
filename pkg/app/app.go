@@ -274,11 +274,12 @@ func (a *App) registerOnStartup() {
 		var parsed CfnConfigPayload
 		if err := json.Unmarshal(cfgBytes, &parsed); err != nil {
 			log.Errorf("failed to parse config into typed struct: %v", err)
+		} else {
+			cfnConfigMutex.Lock()
+			ParsedConfig = &parsed
+			ConfigVersion = parsed.ConfigVersion
+			cfnConfigMutex.Unlock()
 		}
-		cfnConfigMutex.Lock()
-		ParsedConfig = &parsed
-		ConfigVersion = parsed.ConfigVersion
-		cfnConfigMutex.Unlock()
 	}
 
 	cfgJSON, _ := json.Marshal(ParsedConfig)
