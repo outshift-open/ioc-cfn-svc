@@ -62,16 +62,21 @@ func (a *App) agentVectorUpsertHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	records := make([]iocmemoryprovider.KnowledgeVectorStoreRequestRecord, 0, len(req.Records))
-	for _, rec := range req.Records {
+	for i, rec := range req.Records {
 		id := rec.ID
 		if id == "" {
 			id = uuid.New().String()
+		} else {
+			// Validate that provided ID is a valid UUID
+			if _, err := uuid.Parse(id); err != nil {
+				return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("records[%d].id must be a valid UUID, got %q", i, id)})
+			}
 		}
 		records = append(records, iocmemoryprovider.KnowledgeVectorStoreRequestRecord{
-			ID:       id,
-			Content:  rec.Content,
+			ID:        id,
+			Content:   rec.Content,
 			Embedding: &iocmemoryprovider.VectorEmbeddingConfig{Data: rec.Embedding.Data},
-			Metadata: rec.Metadata,
+			Metadata:  rec.Metadata,
 		})
 	}
 
