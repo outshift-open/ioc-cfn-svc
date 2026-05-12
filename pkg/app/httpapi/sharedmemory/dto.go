@@ -164,6 +164,33 @@ type VectorSimilaritySearchResponse struct {
 	Results   []VectorSimilaritySearchResult `json:"results,omitempty"`
 }
 
+// AgentVectorUpsertRecord is a single record in an agent vector upsert request.
+// ID is optional — if omitted the server generates a UUID, enabling idempotent re-ingestion when provided.
+type AgentVectorUpsertRecord struct {
+	ID        string                 `json:"id,omitempty"`
+	Content   string                 `json:"content"`
+	Embedding VectorEmbeddingPayload `json:"embedding"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// VectorEmbeddingPayload wraps the raw float64 embedding data.
+type VectorEmbeddingPayload struct {
+	Data []float64 `json:"data"`
+}
+
+// AgentVectorUpsertRequest is the request body for POST .../agents/{agentId}/rag/vectors
+type AgentVectorUpsertRequest struct {
+	RequestID *string                   `json:"request_id,omitempty"`
+	Records   []AgentVectorUpsertRecord `json:"records"`
+}
+
+// AgentVectorDeleteRequest is the request body for DELETE .../agents/{agentId}/rag/vectors
+type AgentVectorDeleteRequest struct {
+	RequestID  *string `json:"request_id,omitempty"`
+	ID         string  `json:"id"`
+	SoftDelete *bool   `json:"soft_delete,omitempty"`
+}
+
 // NeighborsResponse is the response for GET /graph/neighbors/{conceptId}
 type NeighborsResponse struct {
 	Records []QueryResponseRecord `json:"records,omitempty"`

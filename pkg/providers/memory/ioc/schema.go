@@ -517,6 +517,7 @@ type KnowledgeVectorStoreRequest struct {
 	RequestID string                              `json:"request_id" description:"Auto-generated UUID for request tracking"`
 	WkspID    string                              `json:"wksp_id" description:"ID for the Multi-Agent System Workspace"`
 	MasID     string                              `json:"mas_id" description:"ID for the Multi-Agent System"`
+	AgentID   *string                             `json:"agent_id,omitempty" description:"Optional agent ID for agent-scoped storage"`
 	Records   []KnowledgeVectorStoreRequestRecord `json:"records" description:"List of vector records"`
 }
 
@@ -573,11 +574,12 @@ func (k *KnowledgeVectorStoreResponse) MarshalJSON() ([]byte, error) {
 
 // KnowledgeVectorDeleteRequest represents a request to delete a vector
 type KnowledgeVectorDeleteRequest struct {
-	RequestID  string `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	WkspID     string `json:"wksp_id" description:"The workspace ID for the request"`
-	MasID      string `json:"mas_id" description:"ID for the Multi-Agent System"`
-	ID         string `json:"id" description:"ID of vector to delete"`
-	SoftDelete bool   `json:"soft_delete" description:"Soft delete the vector"`
+	RequestID  string  `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID     string  `json:"wksp_id" description:"The workspace ID for the request"`
+	MasID      string  `json:"mas_id" description:"ID for the Multi-Agent System"`
+	AgentID    *string `json:"agent_id,omitempty" description:"Optional agent ID for agent-scoped deletion"`
+	ID         string  `json:"id" description:"ID of vector to delete"`
+	SoftDelete bool    `json:"soft_delete" description:"Soft delete the vector"`
 }
 
 // NewKnowledgeVectorDeleteRequest creates a new vector delete request with auto-generated UUID
@@ -666,6 +668,7 @@ type KnowledgeVectorQueryRequest struct {
 	RequestID     string                        `json:"request_id" description:"Auto-generated UUID for request tracking"`
 	WkspID        string                        `json:"wksp_id" description:"ID for the Workspace"`
 	MasID         string                        `json:"mas_id" description:"ID for the Multi-Agent System"`
+	AgentID       *string                       `json:"agent_id,omitempty" description:"Optional agent ID for agent-scoped queries"`
 	QueryCriteria *KnowledgeVectorQueryCriteria `json:"query_criteria,omitempty" description:"Query criteria"`
 }
 
@@ -813,6 +816,7 @@ type KnowledgeVectorSimilaritySearchRequest struct {
 	RequestID      string                         `json:"request_id"`
 	WkspID         string                         `json:"wksp_id"`
 	MasID          string                         `json:"mas_id"`
+	AgentID        *string                        `json:"agent_id,omitempty"`
 	Embedding      []float64                      `json:"embedding"`
 	Limit          int                            `json:"limit,omitempty"`
 	Metric         string                         `json:"metric,omitempty"`

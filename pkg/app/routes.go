@@ -59,6 +59,11 @@ func (a *App) initializeRoutes() http.Handler {
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", withWorkspaceAndMasValidation(a.memoryOperationsHandler))
 
+	// agent-level vector store operations (northbound APIs, consumed by MAS clients)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/vectors", withWorkspaceAndMasValidation(a.agentVectorUpsertHandler))
+	rtr.Delete(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/vectors", withWorkspaceAndMasValidation(a.agentVectorDeleteHandler))
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/similarity-search", withWorkspaceAndMasValidation(a.agentVectorSimilaritySearchHandler))
+
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
