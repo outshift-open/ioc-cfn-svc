@@ -73,9 +73,11 @@ definitions:
         type: string
       id:
         type: string
+      internal_attributes:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.InternalAttributes'
+        type: array
       name:
-        type: string
-      type:
         type: string
     type: object
   app.updateGraphHeader:
@@ -90,6 +92,10 @@ definitions:
         type: object
       id:
         type: string
+      internal_attributes:
+        items:
+          $ref: '#/definitions/iocmemoryprovider.InternalAttributes'
+        type: array
       node_ids:
         items:
           type: string
@@ -222,6 +228,14 @@ definitions:
         type: string
       workspace_id:
         description: Mandatory
+        type: string
+    type: object
+  iocmemoryprovider.InternalAttributes:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      owner:
         type: string
     type: object
   iocmemoryprovider.KnowledgeVectorMetadataFilter:
