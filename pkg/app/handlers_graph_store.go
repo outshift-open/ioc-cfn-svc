@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -577,18 +578,19 @@ type updateGraphHeader struct {
 }
 
 type updateGraphConcept struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description,omitempty"`
-	Type        string                 `json:"type,omitempty"`
-	Attributes  map[string]interface{} `json:"attributes,omitempty"`
+	ID                 string                                 `json:"id"`
+	Name               string                                 `json:"name"`
+	Description        *string                                `json:"description,omitempty"`
+	Attributes         map[string]interface{}                 `json:"attributes,omitempty"`
+	InternalAttributes []iocmemoryprovider.InternalAttributes `json:"internal_attributes,omitempty"`
 }
 
 type updateGraphRelation struct {
-	ID           string                 `json:"id"`
-	NodeIDs      []string               `json:"node_ids"`
-	Relationship string                 `json:"relationship"`
-	Attributes   map[string]interface{} `json:"attributes,omitempty"`
+	ID                 string                                 `json:"id"`
+	NodeIDs            []string                               `json:"node_ids"`
+	Relationship       string                                 `json:"relationship"`
+	Attributes         map[string]interface{}                 `json:"attributes,omitempty"`
+	InternalAttributes []iocmemoryprovider.InternalAttributes `json:"internal_attributes,omitempty"`
 }
 
 type updateGraphRequest struct {
@@ -691,24 +693,25 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 	// Map to the provider request format
 	concepts := make([]iocmemoryprovider.Concept, 0, len(req.Concepts))
 	for _, c := range req.Concepts {
-		desc := c.Description
 		attrs, embeddings := extractEmbeddingFromAttributes(c.Attributes)
 		concepts = append(concepts, iocmemoryprovider.Concept{
-			ID:          c.ID,
-			Name:        c.Name,
-			Description: &desc,
-			Attributes:  attrs,
-			Embeddings:  embeddings,
+			ID:                 c.ID,
+			Name:               c.Name,
+			Description:        c.Description,
+			Attributes:         attrs,
+			InternalAttributes: c.InternalAttributes,
+			Embeddings:         embeddings,
 		})
 	}
 
 	relations := make([]iocmemoryprovider.Relation, 0, len(req.Relations))
 	for _, rel := range req.Relations {
 		relations = append(relations, iocmemoryprovider.Relation{
-			ID:         rel.ID,
-			Relation:   rel.Relationship,
-			NodeIDs:    rel.NodeIDs,
-			Attributes: rel.Attributes,
+			ID:                 rel.ID,
+			Relation:           rel.Relationship,
+			NodeIDs:            rel.NodeIDs,
+			Attributes:         rel.Attributes,
+			InternalAttributes: rel.InternalAttributes,
 		})
 	}
 
@@ -743,4 +746,280 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 		ConceptsUpdated:  len(req.Concepts),
 		RelationsUpdated: len(req.Relations),
 	})
+}
+
+// ── Distillation for graph ─────────────────────────────────────────────────────────────
+
+type distillationGraphRequest struct {
+	Header     distillationGraphHeader `json:"header,omitempty"`
+	RequestID  *string                 `json:"request_id,omitempty"`
+	Descriptor string                  `json:"descriptor,omitempty"`
+	Metadata   map[string]interface{}  `json:"metadata,omitempty"`
+	Filters    map[string]interface{}  `json:"filters,omitempty"`
+}
+
+type distillationGraphResponse struct {
+	Header     distillationGraphHeader                               `json:"header"`
+	ResponseID string                                                `json:"response_id"`
+	Error      *string                                               `json:"error"`
+	Descriptor string                                                `json:"descriptor,omitempty"`
+	Metadata   map[string]interface{}                                `json:"metadata,omitempty"`
+	Records    []iocmemoryprovider.KnowledgeGraphQueryResponseRecord `json:"records,omitempty"`
+}
+
+type distillationGraphHeader struct {
+	AgentID string `json:"agent_id,omitempty"`
+}
+
+func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	var req distillationGraphRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+	}
+
+	requestID := uuid.New().String()
+	if req.RequestID != nil && *req.RequestID != "" {
+		requestID = *req.RequestID
+	}
+
+	// Validate required filters
+	if req.Filters == nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "filters are required"})
+	}
+
+	// Validate relations_cnt filter
+	relationsCnt, hasRelationsCnt := req.Filters["relations_cnt_gte"]
+	if !hasRelationsCnt {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "relations_cnt_gte filter is required"})
+	}
+
+	// Validate relations_cnt is an integer
+	if _, ok := relationsCnt.(float64); !ok {
+		if _, ok := relationsCnt.(int); !ok {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "relations_cnt_gte must be an integer value"})
+		}
+	}
+	relationsCntInt := int(relationsCnt.(float64))
+
+	// Validate distill_status filter exists (value can be empty string)
+	distillStatus, hasDistillStatus := req.Filters["distill_status"]
+	if !hasDistillStatus {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "distill_status filter is required"})
+	}
+
+	// Validate owner field
+	owner, hasOwner := req.Filters["owner"]
+	if !hasOwner {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "owner filter is required"})
+	}
+	if owner == nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "owner filter cannot be null"})
+	}
+
+	log.Infof(
+		"Distillation graph | workspace=%s mas=%s request_id=%s relations_cnt=%v distill_status=%v owner=%v",
+		workspaceID, masID, requestID, relationsCnt, req.Filters["distill_status"], owner,
+	)
+
+	// Get all concepts and relations with relations_cnt_gte filter
+	concepts, preFilteredRelations, err := a.getEntitiesWithRelationsCountFilter(r.Context(), workspaceID, masID, relationsCnt)
+	if err != nil {
+		log.Errorf("Failed to get concepts with relations_cnt_gte filter | workspace=%s mas=%s err=%v", workspaceID, masID, err)
+		errMsg := fmt.Sprintf("failed to get concepts: %v", err)
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": errMsg})
+	}
+
+	log.Infof("Retrieved %d pre-filtered concepts and %d pre-filtered relations", len(concepts), len(preFilteredRelations))
+
+	// Build concept-relations map
+	conceptRelationsMap := a.buildConceptRelationsMap(concepts, preFilteredRelations)
+
+	totalConcepts := len(concepts)
+	var filteredConcepts []iocmemoryprovider.Concept
+	var allFilteredRelations []iocmemoryprovider.Relation
+
+	// Maps for deduplication
+	conceptMap := make(map[string]bool)
+	relationMap := make(map[string]bool)
+
+	for _, concept := range concepts {
+		log.Infof("Found concept: ID=%s Name=%s", concept.ID, concept.Name)
+		relations := conceptRelationsMap[concept.ID]
+		log.Infof("Concept %s has %d relations from map", concept.ID, len(relations))
+
+		// Filter relations by distill_status and owner, count matching relations
+		var matchingRelations []iocmemoryprovider.Relation
+		for _, relation := range relations {
+			// Check if relation has the required distill_status and owner
+			for _, internalAttr := range relation.InternalAttributes {
+				distillStatusMatch := false
+				ownerMatch := false
+
+				if attrValue, exists := internalAttr.Attributes["distill_status"]; exists {
+					if attrValue == distillStatus {
+						distillStatusMatch = true
+					}
+				}
+
+				if internalAttr.Owner == owner {
+					ownerMatch = true
+				}
+
+				// Only include relation if both distill_status and owner match
+				if distillStatusMatch && ownerMatch {
+					matchingRelations = append(matchingRelations, relation)
+					break // Found matching relation, no need to check other internal attributes
+				}
+			}
+		}
+
+		log.Infof("Concept %s has %d relations matching distill_status=%v and owner=%v", concept.ID, len(matchingRelations), distillStatus, owner)
+
+		// If number of matching relations >= relations_cnt, include this concept
+		if len(matchingRelations) >= relationsCntInt {
+			log.Infof("Concept %s meets threshold: %d >= %d", concept.ID, len(matchingRelations), relationsCntInt)
+			// Add concept if not already present
+			if !conceptMap[concept.ID] {
+				filteredConcepts = append(filteredConcepts, concept)
+				conceptMap[concept.ID] = true
+			}
+
+			// Add relations if not already present
+			for _, relation := range matchingRelations {
+				if !relationMap[relation.ID] {
+					allFilteredRelations = append(allFilteredRelations, relation)
+					relationMap[relation.ID] = true
+				}
+			}
+		}
+	}
+
+	// Create filtered records
+	var filteredRecords []iocmemoryprovider.KnowledgeGraphQueryResponseRecord
+	if len(filteredConcepts) > 0 {
+		filteredRecord := iocmemoryprovider.KnowledgeGraphQueryResponseRecord{
+			Concepts:      filteredConcepts,
+			Relationships: allFilteredRelations,
+		}
+		filteredRecords = append(filteredRecords, filteredRecord)
+	}
+
+	log.Infof("Distillation query processed %d total concepts, filtered to %d concepts, %d relations", totalConcepts, len(filteredConcepts), len(allFilteredRelations))
+
+	return eh.RespondWithJSON(w, http.StatusOK, distillationGraphResponse{
+		Header:     req.Header,
+		ResponseID: requestID,
+		Error:      nil,
+		Descriptor: req.Descriptor,
+		Metadata:   req.Metadata,
+		Records:    filteredRecords,
+	})
+}
+
+// getConceptNeighborRelations retrieves neighboring relations for a given concept using neighbor query
+func (a *App) getConceptNeighborRelations(ctx context.Context, conceptID, workspaceID, masID string) ([]iocmemoryprovider.Relation, error) {
+	// Create query criteria for neighbor query (based on testQueryKnowledgeGraphNeighbor)
+	useDirection := true
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteria(
+		iocmemoryprovider.QueryTypeNeighbour,
+		nil,
+		&useDirection,
+	)
+
+	// Create request using schema types
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs
+	request.MasID = &masID
+	request.WkspID = &workspaceID
+
+	// Set concepts for neighbor query (requires exactly 1)
+	request.Records = iocmemoryprovider.QueryRecords{
+		Concepts: []iocmemoryprovider.ConceptRecord{
+			{ID: conceptID},
+		},
+	}
+
+	// Call the client method
+	response, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphNeighbor(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("neighbor query failed for concept %s: %w", conceptID, err)
+	}
+
+	// Extract all relations from all records
+	var allRelations []iocmemoryprovider.Relation
+	for _, record := range response.Records {
+		allRelations = append(allRelations, record.Relationships...)
+	}
+
+	return allRelations, nil
+}
+
+// getEntitiesWithRelationsCountFilter retrieves concepts that have at least the specified number of relations along with the relations
+func (a *App) getEntitiesWithRelationsCountFilter(ctx context.Context, workspaceID, masID string, relationsCnt interface{}) ([]iocmemoryprovider.Concept, []iocmemoryprovider.Relation, error) {
+	filters := []iocmemoryprovider.KnowledgeGraphQueryCriteriaFilter{
+		{
+			Category:  "custom",
+			Key:       "relations_cnt",
+			Operation: "gte",
+			Value:     []interface{}{relationsCnt},
+		},
+	}
+
+	// Create query criteria for concepts query with filters
+	queryCriteria := iocmemoryprovider.NewKnowledgeGraphQueryCriteriaWithFilters(
+		iocmemoryprovider.QueryTypeConcepts,
+		nil,
+		nil,
+		filters,
+	)
+
+	// Create request using schema types
+	request := iocmemoryprovider.NewKnowledgeGraphQueryRequest(queryCriteria)
+
+	// Set workspace and MAS IDs from path parameters
+	request.MasID = &masID
+	request.WkspID = &workspaceID
+
+	// Call the knowledge memory service client
+	response, err := a.knowledgeMemSvcClient.QueryKnowledgeGraphConcept(ctx, request)
+	if err != nil {
+		return nil, nil, fmt.Errorf("concepts query failed: %w", err)
+	}
+
+	// Extract all concepts and relations from all records
+	var allConcepts []iocmemoryprovider.Concept
+	var allRelations []iocmemoryprovider.Relation
+	for _, record := range response.Records {
+		allConcepts = append(allConcepts, record.Concepts...)
+		allRelations = append(allRelations, record.Relationships...)
+	}
+
+	return allConcepts, allRelations, nil
+}
+
+// buildConceptRelationsMap creates a map of concept ID to relations where the concept is part of the relation's node IDs
+func (a *App) buildConceptRelationsMap(concepts []iocmemoryprovider.Concept, relations []iocmemoryprovider.Relation) map[string][]iocmemoryprovider.Relation {
+	conceptRelationsMap := make(map[string][]iocmemoryprovider.Relation)
+
+	// Initialize map with concept IDs
+	for _, concept := range concepts {
+		conceptRelationsMap[concept.ID] = []iocmemoryprovider.Relation{}
+	}
+
+	// Add relations to concepts that are part of the relation's node IDs
+	for _, relation := range relations {
+		for _, nodeID := range relation.NodeIDs {
+			if _, exists := conceptRelationsMap[nodeID]; exists {
+				conceptRelationsMap[nodeID] = append(conceptRelationsMap[nodeID], relation)
+			}
+		}
+	}
+
+	return conceptRelationsMap
 }
