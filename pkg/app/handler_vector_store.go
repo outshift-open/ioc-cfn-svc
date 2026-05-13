@@ -158,7 +158,7 @@ func (a *App) agentVectorDeleteHandler(w http.ResponseWriter, r *http.Request) (
 	if err != nil {
 		log.Errorf("Agent vector delete failed | workspace=%s mas=%s agent=%s err=%v", workspaceID, masID, agentID, err)
 		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
-			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": fmt.Sprintf("vector store not found for workspace=%s mas=%s", workspaceID, masID)})
+			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": fmt.Sprintf("vector %s not found", req.ID)})
 		}
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to delete vector: %v", err)})
 	}

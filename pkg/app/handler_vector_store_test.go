@@ -385,6 +385,32 @@ func TestAgentVectorDeleteHandler_Returns400WhenIDMissing(t *testing.T) {
 	}
 }
 
+func TestAgentVectorDeleteHandler_Returns404WhenVectorNotFound(t *testing.T) {
+	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "not found", "message": "Vector not found"})
+	})
+	defer svc.Close()
+
+	reqBody := sharedmemory.AgentVectorDeleteRequest{
+		ID: "11111111-1111-1111-1111-111111111111",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/workspaces/ws1/multi-agentic-systems/mas1/agents/agent-abc/rag/vectors", bytes.NewReader(body))
+	req.SetPathValue("workspaceId", "ws1")
+	req.SetPathValue("masId", "mas1")
+	req.SetPathValue("agentId", "agent-abc")
+
+	w := httptest.NewRecorder()
+	app.agentVectorDeleteHandler(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // ---------------------------------------------------------------------------
 // agentVectorSimilaritySearchHandler tests
 // ---------------------------------------------------------------------------
