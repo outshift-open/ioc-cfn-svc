@@ -56,20 +56,20 @@ type conceptSimilaritySearchResponse struct {
 	Error      *string                               `json:"error"`
 }
 
-// @Summary     Concept similarity search
-// @Description Finds concept nodes nearest to a query embedding vector using HNSW index.
-// @Tags        Graph Store
-// @Accept      json
-// @Produce     json
-// @Param       workspaceId        path     string                          true  "Workspace ID"
-// @Param       masId              path     string                          true  "Multi-Agentic System ID"
-// @Param       include_embeddings query    bool                            false "Include raw embedding vectors in results (debug only)"
-// @Param       body               body     conceptSimilaritySearchRequest  true  "Similarity search request"
-// @Success     200                {object} conceptSimilaritySearchResponse
-// @Failure     400                {object} map[string]string "Invalid request"
-// @Failure     404                {object} map[string]string "Graph not found"
-// @Failure     500                {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search [post]
+// @Summary		Concept similarity search
+// @Description	Finds concept nodes nearest to a query embedding vector using HNSW index.
+// @Tags			Graph Store
+// @Accept			json
+// @Produce		json
+// @Param			workspaceId			path		string							true	"Workspace ID"
+// @Param			masId				path		string							true	"Multi-Agentic System ID"
+// @Param			include_embeddings	query		bool							false	"Include raw embedding vectors in results (debug only)"
+// @Param			body				body		conceptSimilaritySearchRequest	true	"Similarity search request"
+// @Success		200					{object}	conceptSimilaritySearchResponse
+// @Failure		400					{object}	map[string]string	"Invalid request"
+// @Failure		404					{object}	map[string]string	"Graph not found"
+// @Failure		500					{object}	map[string]string	"Internal server error"
+// @Router			/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search [post]
 func (a *App) conceptSimilaritySearchHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
@@ -161,16 +161,16 @@ func (a *App) conceptSimilaritySearchHandler(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-// @Summary     Get neighbors by concept ID
-// @Description Returns the neighboring concepts of a given concept in the knowledge graph.
-// @Tags        Graph Store
-// @Produce     json
-// @Param       workspaceId path     string true "Workspace ID"
-// @Param       masId       path     string true "Multi-Agentic System ID"
-// @Param       conceptId   path     string true "Concept ID"
-// @Success     200         {object} sharedmemory.NeighborsResponse
-// @Failure     500         {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId} [get]
+// @Summary		Get neighbors by concept ID
+// @Description	Returns the neighboring concepts of a given concept in the knowledge graph.
+// @Tags			Graph Store
+// @Produce		json
+// @Param			workspaceId	path		string	true	"Workspace ID"
+// @Param			masId		path		string	true	"Multi-Agentic System ID"
+// @Param			conceptId	path		string	true	"Concept ID"
+// @Success		200			{object}	sharedmemory.NeighborsResponse
+// @Failure		500			{object}	map[string]string	"Internal server error"
+// @Router			/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/neighbors/{conceptId} [get]
 func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
@@ -219,18 +219,18 @@ func (a *App) getNeighborsByIdHandler(w http.ResponseWriter, r *http.Request) (i
 	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.NeighborsResponse{Records: records})
 }
 
-// @Summary     Fetch concepts by IDs
-// @Description Returns concept details for each of the provided concept IDs.
-// @Tags        Graph Store
-// @Accept      json
-// @Produce     json
-// @Param       workspaceId path     string                          true "Workspace ID"
-// @Param       masId       path     string                          true "Multi-Agentic System ID"
-// @Param       body        body sharedmemory.ConceptsByIdsRequest true "Concept IDs request"
-// @Success     200         {object} sharedmemory.ConceptsByIdsResponse
-// @Failure     400         {object} map[string]string "Invalid request"
-// @Failure     500         {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids [post]
+// @Summary		Fetch concepts by IDs
+// @Description	Returns concept details for each of the provided concept IDs.
+// @Tags			Graph Store
+// @Accept			json
+// @Produce		json
+// @Param			workspaceId	path		string								true	"Workspace ID"
+// @Param			masId		path		string								true	"Multi-Agentic System ID"
+// @Param			body		body		sharedmemory.ConceptsByIdsRequest	true	"Concept IDs request"
+// @Success		200			{object}	sharedmemory.ConceptsByIdsResponse
+// @Failure		400			{object}	map[string]string	"Invalid request"
+// @Failure		500			{object}	map[string]string	"Internal server error"
+// @Router			/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/concepts/by_ids [post]
 func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
@@ -323,18 +323,18 @@ func (a *App) fetchConceptsByIdsHandler(w http.ResponseWriter, r *http.Request) 
 	return eh.RespondWithJSON(w, http.StatusOK, sharedmemory.ConceptsByIdsResponse{Concepts: concepts})
 }
 
-// @Summary     Fetch paths between two concepts
-// @Description Returns ordered paths through the knowledge graph between a source and target concept.
-// @Tags        Graph Store
-// @Accept      json
-// @Produce     json
-// @Param       workspaceId path     string                       true "Workspace ID"
-// @Param       masId       path     string                       true "Multi-Agentic System ID"
-// @Param       body        body sharedmemory.GraphPathsRequest true "Graph paths request"
-// @Success     200         {object} sharedmemory.GraphPathsResponse
-// @Failure     400         {object} map[string]string "Invalid request"
-// @Failure     500         {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths [post]
+// @Summary		Fetch paths between two concepts
+// @Description	Returns ordered paths through the knowledge graph between a source and target concept.
+// @Tags			Graph Store
+// @Accept			json
+// @Produce		json
+// @Param			workspaceId	path		string							true	"Workspace ID"
+// @Param			masId		path		string							true	"Multi-Agentic System ID"
+// @Param			body		body		sharedmemory.GraphPathsRequest	true	"Graph paths request"
+// @Success		200			{object}	sharedmemory.GraphPathsResponse
+// @Failure		400			{object}	map[string]string	"Invalid request"
+// @Failure		500			{object}	map[string]string	"Internal server error"
+// @Router			/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/paths [post]
 func (a *App) fetchPathsByIdsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 	ctx := r.Context()
@@ -657,18 +657,18 @@ func extractEmbeddingFromAttributes(attrs map[string]interface{}) (map[string]in
 	}
 }
 
-// @Summary     Update knowledge graph
-// @Description Adds or updates concepts and relations in an existing knowledge graph for a given workspace and MAS.
-// @Tags        Graph Store
-// @Accept      json
-// @Produce     json
-// @Param       workspaceId path     string             true  "Workspace ID"
-// @Param       masId       path     string             true  "Multi-Agentic System ID"
-// @Param       body        body     updateGraphRequest true  "Update graph request"
-// @Success     200         {object} updateGraphResponse
-// @Failure     400         {object} map[string]string "Invalid request"
-// @Failure     500         {object} map[string]string "Internal server error"
-// @Router      /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update [put]
+// @Summary		Update knowledge graph
+// @Description	Adds or updates concepts and relations in an existing knowledge graph for a given workspace and MAS.
+// @Tags			Graph Store
+// @Accept			json
+// @Produce		json
+// @Param			workspaceId	path		string				true	"Workspace ID"
+// @Param			masId		path		string				true	"Multi-Agentic System ID"
+// @Param			body		body		updateGraphRequest	true	"Update graph request"
+// @Success		200			{object}	updateGraphResponse
+// @Failure		400			{object}	map[string]string	"Invalid request"
+// @Failure		500			{object}	map[string]string	"Internal server error"
+// @Router			/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/graph/update [put]
 func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
@@ -812,6 +812,15 @@ func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "distill_status filter is required"})
 	}
 
+	// Validate return_missing_distill_status
+	returnMissingDistillStatus, hasReturnMissing := req.Filters["return_missing_distill_status"]
+	if !hasReturnMissing {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "return_missing_distill_status filter is required"})
+	}
+	if _, ok := returnMissingDistillStatus.(bool); !ok {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "return_missing_distill_status must be a boolean value (true or false)"})
+	}
+
 	// Validate owner field
 	owner, hasOwner := req.Filters["owner"]
 	if !hasOwner {
@@ -874,6 +883,20 @@ func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (
 				if distillStatusMatch && ownerMatch {
 					matchingRelations = append(matchingRelations, relation)
 					break // Found matching relation, no need to check other internal attributes
+				}
+			}
+			// If return_missing_distill_status is true and distill_status doesn't exist in InternalAttributes,
+			// include it
+			if returnMissingDistillStatus.(bool) {
+				found := false
+				for _, mr := range matchingRelations {
+					if mr.ID == relation.ID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					matchingRelations = append(matchingRelations, relation)
 				}
 			}
 		}
