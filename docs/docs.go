@@ -1347,10 +1347,13 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "name": {
-                    "type": "string"
+                "internal_attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.InternalAttributes"
+                    }
                 },
-                "type": {
+                "name": {
                     "type": "string"
                 }
             }
@@ -1372,6 +1375,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "internal_attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iocmemoryprovider.InternalAttributes"
+                    }
                 },
                 "node_ids": {
                     "type": "array",
@@ -1540,6 +1549,18 @@ const docTemplate = `{
                 },
                 "workspace_id": {
                     "description": "Mandatory",
+                    "type": "string"
+                }
+            }
+        },
+        "iocmemoryprovider.InternalAttributes": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "owner": {
                     "type": "string"
                 }
             }
