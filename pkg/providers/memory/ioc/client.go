@@ -578,6 +578,9 @@ func (c *Client) DeleteKnowledgeVectors(ctx context.Context, request *KnowledgeV
 	}
 
 	// Check response status
+	if response.Status == ResponseStatusNotFound {
+		return &response, ErrNotFound
+	}
 	if response.Status != ResponseStatusSuccess {
 		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
 	}

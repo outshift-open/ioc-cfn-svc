@@ -1299,6 +1299,52 @@
                 }
             }
         },
+        "sharedmemory.AgentVectorDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "soft_delete": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "sharedmemory.AgentVectorUpsertRecord": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "embedding": {
+                    "$ref": "#/definitions/sharedmemory.VectorEmbeddingPayload"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "sharedmemory.AgentVectorUpsertRequest": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sharedmemory.AgentVectorUpsertRecord"
+                    }
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.ConceptsByIdsRequest": {
             "type": "object",
             "properties": {
@@ -1588,6 +1634,17 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryRelation"
+                    }
+                }
+            }
+        },
+        "sharedmemory.VectorEmbeddingPayload": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
                     }
                 }
             }

@@ -508,6 +508,36 @@ definitions:
         description: Trace is the complete pre-computed SAO trace (SSTP envelope path
           only).
     type: object
+  sharedmemory.AgentVectorDeleteRequest:
+    properties:
+      id:
+        type: string
+      request_id:
+        type: string
+      soft_delete:
+        type: boolean
+    type: object
+  sharedmemory.AgentVectorUpsertRecord:
+    properties:
+      content:
+        type: string
+      embedding:
+        $ref: '#/definitions/sharedmemory.VectorEmbeddingPayload'
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+    type: object
+  sharedmemory.AgentVectorUpsertRequest:
+    properties:
+      records:
+        items:
+          $ref: '#/definitions/sharedmemory.AgentVectorUpsertRecord'
+        type: array
+      request_id:
+        type: string
+    type: object
   sharedmemory.ConceptsByIdsRequest:
     properties:
       ids:
@@ -708,6 +738,13 @@ definitions:
       relationships:
         items:
           $ref: '#/definitions/sharedmemory.QueryRelation'
+        type: array
+    type: object
+  sharedmemory.VectorEmbeddingPayload:
+    properties:
+      data:
+        items:
+          type: number
         type: array
     type: object
   sharedmemory.VectorSimilaritySearchPayload:
@@ -1272,6 +1309,181 @@ paths:
       summary: Proxy API requests to a remote memory provider
       tags:
       - memory-operations
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/similarity-search:
+    post:
+      consumes:
+      - application/json
+      description: Performs vector similarity search over embeddings owned by a specific
+        agent within a MAS store.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: Include raw embedding vectors in results (debug only)
+        in: query
+        name: include_embeddings
+        type: boolean
+      - description: Similarity search request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.VectorSimilaritySearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            $ref: '#/definitions/sharedmemory.VectorSimilaritySearchResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Vector store not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Similarity search scoped to an agent
+      tags:
+      - Vector Store
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/vectors:
+    delete:
+      consumes:
+      - application/json
+      description: Soft- or hard-deletes a single vector record owned by a specific
+        agent.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: Delete request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.AgentVectorDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Vector store or record not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a vector for an agent
+      tags:
+      - Vector Store
+    post:
+      consumes:
+      - application/json
+      description: Upserts one or more vector records into the MAS store, tagged to
+        a specific agent.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: Upsert request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sharedmemory.AgentVectorUpsertRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Upserted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Vector store not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upsert vectors for an agent
+      tags:
+      - Vector Store
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide:
     post:
       consumes:
