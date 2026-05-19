@@ -75,6 +75,12 @@ func (a *App) initializeRoutes() http.Handler {
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
+	// metrics API - Cognition Engine integration
+	// POST: internal (only for CE service-to-service)
+	// GET: public (for dashboards and monitoring tools)
+	rtr.Post(internalPrefix+"/cognition-engine/metrics", a.ingestMetricsHandler)
+	rtr.Get(apiPrefix+"/cognition-engine/metrics", a.getMetricsHandler)
+
 	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
 	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))
 	rtr.HandleHTTP("/docs/", httpSwagger.Handler(

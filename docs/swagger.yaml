@@ -1,5 +1,91 @@
 basePath: /
 definitions:
+  app.Filters:
+    properties:
+      agent_id:
+        type: string
+      mas_id:
+        type: string
+      metric_name:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  app.IngestMetricsRequest:
+    properties:
+      agent_id:
+        type: string
+      attributes:
+        additionalProperties: true
+        type: object
+      mas_id:
+        type: string
+      metrics:
+        items:
+          $ref: '#/definitions/app.MetricDataPoint'
+        type: array
+      workspace_id:
+        type: string
+    type: object
+  app.MetricDataPoint:
+    properties:
+      attributes:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      timestamp:
+        type: string
+      value:
+        type: number
+    type: object
+  app.MetricRecord:
+    properties:
+      agent_id:
+        type: string
+      attributes:
+        additionalProperties: true
+        type: object
+      mas_id:
+        type: string
+      metric_name:
+        type: string
+      timestamp:
+        type: string
+      value:
+        type: number
+      workspace_id:
+        type: string
+    type: object
+  app.MetricsQueryResponse:
+    properties:
+      filters:
+        $ref: '#/definitions/app.Filters'
+      metrics:
+        items:
+          $ref: '#/definitions/app.MetricRecord'
+        type: array
+      pagination:
+        $ref: '#/definitions/app.Pagination'
+      period:
+        $ref: '#/definitions/app.Period'
+    type: object
+  app.Pagination:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  app.Period:
+    properties:
+      end:
+        type: string
+      start:
+        type: string
+    type: object
   app.conceptSimilaritySearchHeader:
     properties:
       agent_id:
@@ -827,6 +913,89 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/cognition-engine/metrics:
+    get:
+      description: Returns raw metric data points filtered by time and optional dimensions
+      parameters:
+      - description: Start time (ISO 8601)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: End time (ISO 8601)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      - description: Filter by workspace UUID
+        in: query
+        name: workspace_id
+        type: string
+      - description: Filter by MAS UUID
+        in: query
+        name: mas_id
+        type: string
+      - description: Filter by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter by metric name (supports * wildcard)
+        in: query
+        name: metric_name
+        type: string
+      - description: Max results (default 1000, max 10000)
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.MetricsQueryResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query metrics within time range
+      tags:
+      - cognition-engine
+  /api/internal/cognition-engine/metrics:
+    post:
+      consumes:
+      - application/json
+      description: Accepts batch of metrics from CE and stores in TimescaleDB asynchronously
+      parameters:
+      - description: Metrics batch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.IngestMetricsRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Metrics accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Ingest metrics batch from Cognition Engine
+      tags:
+      - internal
   /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph:
     get:
       description: Returns all nodes and edges in the knowledge graph for the given

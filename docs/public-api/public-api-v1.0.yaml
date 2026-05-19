@@ -24,6 +24,8 @@ tags:
     description: Multi-agent semantic negotiation sessions
   - name: memory-operations
     description: Proxy for remote memory provider operations
+  - name: metrics
+    description: Token usage and operational metrics for MAS agents
 
 paths:
   /api/workspaces/{workspaceId}/shared-memories/vector-store:
@@ -366,6 +368,97 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cognition-engine/metrics:
+    get:
+      summary: Query metrics within time range
+      description: |-
+        Returns raw metric data points filtered by time and optional dimensions.
+        Supports filtering by workspace, MAS, agent, and metric name with wildcard support.
+        Use pagination for large result sets.
+      operationId: getMetrics
+      tags:
+        - metrics
+      parameters:
+        - name: start_time
+          in: query
+          required: true
+          description: Start time in ISO 8601 format (inclusive)
+          schema:
+            type: string
+            format: date-time
+            example: "2026-05-19T00:00:00Z"
+        - name: end_time
+          in: query
+          required: true
+          description: End time in ISO 8601 format (exclusive)
+          schema:
+            type: string
+            format: date-time
+            example: "2026-05-20T00:00:00Z"
+        - name: workspace_id
+          in: query
+          required: false
+          description: Filter by workspace UUID
+          schema:
+            type: string
+            format: uuid
+        - name: mas_id
+          in: query
+          required: false
+          description: Filter by MAS UUID
+          schema:
+            type: string
+            format: uuid
+        - name: agent_id
+          in: query
+          required: false
+          description: Filter by agent ID
+          schema:
+            type: string
+        - name: metric_name
+          in: query
+          required: false
+          description: Filter by metric name (supports * wildcard, e.g., llm.token.*)
+          schema:
+            type: string
+            example: "llm.token.*"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum results per page (default 1000, max 10000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 1000
+        - name: offset
+          in: query
+          required: false
+          description: Pagination offset (default 0)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsQueryResponse'
+        '400':
+          description: Invalid query parameters
           content:
             application/json:
               schema:
@@ -721,3 +814,126 @@ components:
           description: |-
             Result contains the pipeline execution result.
             The structure depends on the semantic negotiation library implementation.
+
+    # Metrics schemas (query responses only - ingestion is internal)
+    MetricsQueryResponse:
+      type: object
+      properties:
+        period:
+          $ref: '#/components/schemas/MetricsPeriod'
+        filters:
+          $ref: '#/components/schemas/MetricsFilters'
+        pagination:
+          $ref: '#/components/schemas/MetricsPagination'
+        metrics:
+          type: array
+          description: Array of metric data points
+          items:
+            $ref: '#/components/schemas/MetricRecord'
+      required:
+        - period
+        - pagination
+        - metrics
+
+    MetricsPeriod:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: Start of time range
+          example: "2026-05-19T00:00:00Z"
+        end:
+          type: string
+          format: date-time
+          description: End of time range
+          example: "2026-05-20T00:00:00Z"
+      required:
+        - start
+        - end
+
+    MetricsFilters:
+      type: object
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+          description: Workspace filter (if applied)
+        mas_id:
+          type: string
+          format: uuid
+          description: MAS filter (if applied)
+        agent_id:
+          type: string
+          description: Agent filter (if applied)
+        metric_name:
+          type: string
+          description: Metric name filter (if applied, may include wildcards)
+
+    MetricsPagination:
+      type: object
+      properties:
+        limit:
+          type: integer
+          description: Maximum results returned
+          example: 1000
+        offset:
+          type: integer
+          description: Pagination offset
+          example: 0
+        total:
+          type: integer
+          description: Total matching records
+          example: 3
+      required:
+        - limit
+        - offset
+        - total
+
+    MetricRecord:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the metric was recorded
+          example: "2026-05-19T10:30:00.123Z"
+        workspace_id:
+          type: string
+          format: uuid
+          description: Workspace identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        mas_id:
+          type: string
+          format: uuid
+          description: MAS instance identifier
+          example: "660e8400-e29b-41d4-a716-446655440000"
+        agent_id:
+          type: string
+          description: Agent identifier
+          example: "semantic-agent-1"
+        metric_name:
+          type: string
+          description: Metric name (dot-notation)
+          example: "llm.token.input"
+        value:
+          type: number
+          format: double
+          description: Numeric metric value
+          example: 1500.0
+        attributes:
+          type: object
+          additionalProperties: true
+          description: Flexible metadata stored as JSON
+          example:
+            model: "gpt-4o"
+            session_id: "770e8400-e29b-41d4-a716-446655440000"
+            operation_type: "semantic_negotiation"
+      required:
+        - timestamp
+        - workspace_id
+        - mas_id
+        - agent_id
+        - metric_name
+        - value
+        - attributes

@@ -79,7 +79,7 @@ func ServerConfigFromEnv() ServerConfig {
 		Name:    getEnv("MCP_SERVER_NAME", "mcp-server"),
 		Version: getEnv("MCP_SERVER_VERSION", "1.0.0"),
 		Host:    getEnv("MCP_HOST", ""),
-		Port:    getEnvInt("MCP_PORT", 9001),
+		Port:    getEnvInt("MCP_PORT", 9005),
 	}
 }
 
