@@ -20,9 +20,17 @@ type MASCfg struct {
 	Agents       []AgentCfg `json:"agents"`
 }
 
+type AgentIdentityCfg struct {
+	Type        string            `json:"type"`
+	Identifiers map[string]string `json:"identifiers"`
+}
+
 type AgentCfg struct {
-	AgentID       string     `json:"agent_id"`
-	AgenticMemory *MemoryCfg `json:"agentic_memory"`
+	AgentID       string            `json:"agent_id"`
+	Name          string            `json:"name,omitempty"`
+	URL           string            `json:"url,omitempty"`
+	Identity      *AgentIdentityCfg `json:"identity,omitempty"`
+	AgenticMemory *MemoryCfg        `json:"agentic_memory"`
 }
 
 type MemoryCfg struct {
