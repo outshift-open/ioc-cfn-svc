@@ -97,6 +97,16 @@ func (a *App) ingestMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 		})
 	}
 
+	// Validate metric values are finite (JSON cannot encode NaN/Infinity)
+	for i, m := range req.Metrics {
+		if math.IsNaN(m.Value) || math.IsInf(m.Value, 0) {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "validation_failed",
+				"details": fmt.Sprintf("metric %d (%s): value must be finite (NaN and Infinity not allowed)", i, m.Name),
+			})
+		}
+	}
+
 	// Store metrics asynchronously
 	go a.storeMetricsBatch(req, workspaceID, masID)
 
