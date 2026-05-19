@@ -104,8 +104,8 @@ func TestAgentVectorDeleteRequest_DecodesFields(t *testing.T) {
 	if req.RequestID == nil || *req.RequestID != "req-del" {
 		t.Errorf("expected request_id 'req-del', got %v", req.RequestID)
 	}
-	if req.ID != "vec-42" {
-		t.Errorf("expected id 'vec-42', got %q", req.ID)
+	if req.ID == nil || *req.ID != "vec-42" {
+		t.Errorf("expected id 'vec-42', got %v", req.ID)
 	}
 	if req.SoftDelete == nil || *req.SoftDelete != softDel {
 		t.Errorf("expected soft_delete=false, got %v", req.SoftDelete)
@@ -265,8 +265,8 @@ func TestKnowledgeVectorDeleteRequest_AgentIDPropagatesToRequest(t *testing.T) {
 	if req.AgentID == nil || *req.AgentID != agentID {
 		t.Errorf("expected AgentID %q, got %v", agentID, req.AgentID)
 	}
-	if req.ID != "vec-1" {
-		t.Errorf("expected ID 'vec-1', got %q", req.ID)
+	if req.ID == nil || *req.ID != "vec-1" {
+		t.Errorf("expected ID 'vec-1', got %v", req.ID)
 	}
 	if !req.SoftDelete {
 		t.Error("expected SoftDelete=true")

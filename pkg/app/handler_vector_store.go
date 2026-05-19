@@ -101,8 +101,8 @@ func (a *App) agentVectorUpsertHandler(w http.ResponseWriter, r *http.Request) (
 
 // agentVectorDeleteHandler godoc
 //
-// @Summary     Delete a vector for an agent
-// @Description Soft- or hard-deletes a single vector record owned by a specific agent.
+// @Summary     Delete vector(s) for an agent
+// @Description Deletes vector(s) owned by a specific agent. Supports two modes: delete by ID (single) or delete by filters (bulk).
 //
 // @Tags        Vector Store
 // @Accept      json
@@ -111,9 +111,9 @@ func (a *App) agentVectorUpsertHandler(w http.ResponseWriter, r *http.Request) (
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
 // @Param       agentId     path string true "Agent ID"
-// @Param       body        body sharedmemory.AgentVectorDeleteRequest true "Delete request"
+// @Param       body        body sharedmemory.AgentVectorDeleteRequest true "Delete request (provide either 'id' or 'filters')"
 //
-// @Success     200 {object} map[string]string "Deleted successfully"
+// @Success     200 {object} map[string]interface{} "Deleted successfully with deleted_count"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     404 {object} map[string]string "Vector store or record not found"
 // @Failure     500 {object} map[string]string "Internal server error"
@@ -137,8 +137,24 @@ func (a *App) agentVectorDeleteHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	if req.ID == "" {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "id is required"})
+	// Validate: must provide either id XOR filters
+	hasID := req.ID != nil && *req.ID != ""
+	hasFilters := req.Filters != nil
+
+	if hasID && hasFilters {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "provide either 'id' or 'filters', not both"})
+	}
+	if !hasID && !hasFilters {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "must provide either 'id' or 'filters'"})
+	}
+
+	// If filters provided, ensure at least one filter is set
+	if hasFilters {
+		f := req.Filters
+		if f.DocIndex == nil && f.ChunkIndex == nil && f.DataSource == nil &&
+			f.RecordedAtFrom == nil && f.RecordedAtTo == nil && len(f.ExtraFilters) == 0 {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "at least one filter must be set in 'filters'"})
+		}
 	}
 
 	requestID := req.RequestID
@@ -151,23 +167,46 @@ func (a *App) agentVectorDeleteHandler(w http.ResponseWriter, r *http.Request) (
 		softDelete = *req.SoftDelete
 	}
 
-	providerReq := iocmemoryprovider.NewKnowledgeVectorDeleteRequest(workspaceID, masID, req.ID, softDelete)
+	// Build provider request based on delete mode
+	var providerReq *iocmemoryprovider.KnowledgeVectorDeleteRequest
+	if hasID {
+		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteRequest(workspaceID, masID, *req.ID, softDelete)
+	} else {
+		// Convert DTO filters to provider filters
+		providerFilters := &iocmemoryprovider.DeleteMetadataFilter{
+			DocIndex:       req.Filters.DocIndex,
+			ChunkIndex:     req.Filters.ChunkIndex,
+			DataSource:     req.Filters.DataSource,
+			RecordedAtFrom: req.Filters.RecordedAtFrom,
+			RecordedAtTo:   req.Filters.RecordedAtTo,
+			ExtraFilters:   req.Filters.ExtraFilters,
+		}
+		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteByFilterRequest(workspaceID, masID, providerFilters, softDelete)
+	}
 	providerReq.AgentID = &agentID
 
 	resp, err := a.knowledgeMemSvcClient.DeleteKnowledgeVectors(ctx, providerReq)
 	if err != nil {
 		log.Errorf("Agent vector delete failed | workspace=%s mas=%s agent=%s err=%v", workspaceID, masID, agentID, err)
 		if errors.Is(err, iocmemoryprovider.ErrNotFound) {
-			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": fmt.Sprintf("vector %s not found", req.ID)})
+			if hasID {
+				return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": fmt.Sprintf("vector %s not found", *req.ID)})
+			}
+			return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{"error": "vector store not found"})
 		}
-		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to delete vector: %v", err)})
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to delete vector(s): %v", err)})
 	}
 
-	return eh.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+	response := map[string]interface{}{
 		"request_id": requestID,
 		"status":     resp.Status,
 		"message":    resp.Message,
-	})
+	}
+	if resp.DeletedCount != nil {
+		response["deleted_count"] = *resp.DeletedCount
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // agentVectorSimilaritySearchHandler godoc

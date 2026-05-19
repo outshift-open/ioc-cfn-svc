@@ -184,11 +184,23 @@ type AgentVectorUpsertRequest struct {
 	Records   []AgentVectorUpsertRecord `json:"records"`
 }
 
+// VectorDeleteMetadataFilter represents metadata filters for bulk delete operations
+type VectorDeleteMetadataFilter struct {
+	DocIndex       *int              `json:"doc_index,omitempty"`
+	ChunkIndex     *int              `json:"chunk_index,omitempty"`
+	DataSource     *string           `json:"data_source,omitempty"`
+	RecordedAtFrom *string           `json:"recorded_at_from,omitempty"`
+	RecordedAtTo   *string           `json:"recorded_at_to,omitempty"`
+	ExtraFilters   map[string]string `json:"extra_filters,omitempty"`
+}
+
 // AgentVectorDeleteRequest is the request body for DELETE .../agents/{agentId}/rag/vectors
+// Supports two modes: delete by ID (single) or delete by filters (bulk)
 type AgentVectorDeleteRequest struct {
-	RequestID  *string `json:"request_id,omitempty"`
-	ID         string  `json:"id"`
-	SoftDelete *bool   `json:"soft_delete,omitempty"`
+	RequestID  *string                     `json:"request_id,omitempty"`
+	ID         *string                     `json:"id,omitempty"`
+	Filters    *VectorDeleteMetadataFilter `json:"filters,omitempty"`
+	SoftDelete *bool                       `json:"soft_delete,omitempty"`
 }
 
 // NeighborsResponse is the response for GET /graph/neighbors/{conceptId}
