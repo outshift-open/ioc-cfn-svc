@@ -364,6 +364,7 @@ Environment variables (uppercase):
 | `MCP_HOST` | (empty) | MCP server host |
 | `DEFAULT_PAGE_SIZE` | 20 | Default number of records per page (audit list) |
 | `MAX_PAGE_SIZE` | 100 | Maximum allowed records per page (audit list) |
+| `ENABLE_TIMESCALEDB` | false | Enable TimescaleDB hypertable features (compression, retention). Requires TimescaleDB extension. Set to `true` in production. |
 
 ## Commands
 
