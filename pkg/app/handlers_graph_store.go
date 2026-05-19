@@ -863,45 +863,51 @@ func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (
 
 		// Filter relations by distill_status and owner, count matching relations
 		var matchingRelations []iocmemoryprovider.Relation
+
 		for _, relation := range relations {
 			// Check if relation has the required distill_status and owner
-			for _, internalAttr := range relation.InternalAttributes {
-				distillStatusMatch := false
-				ownerMatch := false
-
-				if attrValue, exists := internalAttr.Attributes["distill_status"]; exists {
-					if attrValue == distillStatus {
-						distillStatusMatch = true
-					}
-				}
-
-				if internalAttr.Owner == owner {
-					ownerMatch = true
-				}
-
-				// Only include relation if both distill_status and owner match
-				if distillStatusMatch && ownerMatch {
+			if len(relation.InternalAttributes) == 0 {
+				// Handle relations with no internal attributes
+				if returnMissingDistillStatus.(bool) {
 					matchingRelations = append(matchingRelations, relation)
-					break // Found matching relation, no need to check other internal attributes
 				}
-			}
-			// If return_missing_distill_status is true and distill_status doesn't exist in InternalAttributes,
-			// include it
-			if returnMissingDistillStatus.(bool) {
-				found := false
-				for _, mr := range matchingRelations {
-					if mr.ID == relation.ID {
-						found = true
-						break
+			} else {
+				// Handle relations with internal attributes
+				for _, internalAttr := range relation.InternalAttributes {
+					distillStatusMatch := false
+					ownerMatch := false
+					hasDistillStatus := false
+
+					if attrValue, exists := internalAttr.Attributes["distill_status"]; exists {
+						hasDistillStatus = true
+						if attrValue == distillStatus {
+							distillStatusMatch = true
+						}
 					}
-				}
-				if !found {
-					matchingRelations = append(matchingRelations, relation)
+
+					if internalAttr.Owner == owner {
+						ownerMatch = true
+					}
+
+					// Include relation if both distill_status and owner match
+					if distillStatusMatch && ownerMatch {
+						matchingRelations = append(matchingRelations, relation)
+						break // Found matching relation, no need to check other internal attributes
+					}
+
+					// If return_missing_distill_status is true and distill_status doesn't exist, include it
+					if !hasDistillStatus && returnMissingDistillStatus.(bool) && ownerMatch {
+						matchingRelations = append(matchingRelations, relation)
+						break // Found matching relation based on missing distill_status
+					}
 				}
 			}
 		}
 
 		log.Infof("Concept %s has %d relations matching distill_status=%v and owner=%v", concept.ID, len(matchingRelations), distillStatus, owner)
+		for i, rel := range matchingRelations {
+			log.Infof("matchingRelations[%d]: ID=%s NodeIDs=%v", i, rel.ID, rel.NodeIDs)
+		}
 
 		// If number of matching relations >= relations_cnt, include this concept
 		if len(matchingRelations) >= relationsCntInt {
