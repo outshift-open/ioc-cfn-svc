@@ -1302,6 +1302,9 @@
         "sharedmemory.AgentVectorDeleteRequest": {
             "type": "object",
             "properties": {
+                "filters": {
+                    "$ref": "#/definitions/sharedmemory.VectorDeleteMetadataFilter"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -1635,6 +1638,32 @@
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryRelation"
                     }
+                }
+            }
+        },
+        "sharedmemory.VectorDeleteMetadataFilter": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "doc_index": {
+                    "type": "integer"
+                },
+                "extra_filters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "recorded_at_from": {
+                    "type": "string"
+                },
+                "recorded_at_to": {
+                    "type": "string"
                 }
             }
         },

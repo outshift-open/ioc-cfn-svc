@@ -878,7 +878,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Soft- or hard-deletes a single vector record owned by a specific agent.",
+                "description": "Deletes vector(s) owned by a specific agent. Supports two modes: delete by ID (single) or delete by filters (bulk).",
                 "consumes": [
                     "application/json"
                 ],
@@ -888,7 +888,7 @@ const docTemplate = `{
                 "tags": [
                     "Vector Store"
                 ],
-                "summary": "Delete a vector for an agent",
+                "summary": "Delete vector(s) for an agent",
                 "parameters": [
                     {
                         "type": "string",
@@ -912,7 +912,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Delete request",
+                        "description": "Delete request (provide either 'id' or 'filters')",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -923,12 +923,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Deleted successfully",
+                        "description": "Deleted successfully with deleted_count",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -1928,6 +1926,9 @@ const docTemplate = `{
         "sharedmemory.AgentVectorDeleteRequest": {
             "type": "object",
             "properties": {
+                "filters": {
+                    "$ref": "#/definitions/sharedmemory.VectorDeleteMetadataFilter"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -2261,6 +2262,32 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryRelation"
                     }
+                }
+            }
+        },
+        "sharedmemory.VectorDeleteMetadataFilter": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "doc_index": {
+                    "type": "integer"
+                },
+                "extra_filters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "recorded_at_from": {
+                    "type": "string"
+                },
+                "recorded_at_to": {
+                    "type": "string"
                 }
             }
         },
