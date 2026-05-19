@@ -510,6 +510,8 @@ definitions:
     type: object
   sharedmemory.AgentVectorDeleteRequest:
     properties:
+      filters:
+        $ref: '#/definitions/sharedmemory.VectorDeleteMetadataFilter'
       id:
         type: string
       request_id:
@@ -739,6 +741,23 @@ definitions:
         items:
           $ref: '#/definitions/sharedmemory.QueryRelation'
         type: array
+    type: object
+  sharedmemory.VectorDeleteMetadataFilter:
+    properties:
+      chunk_index:
+        type: integer
+      data_source:
+        type: string
+      doc_index:
+        type: integer
+      extra_filters:
+        additionalProperties:
+          type: string
+        type: object
+      recorded_at_from:
+        type: string
+      recorded_at_to:
+        type: string
     type: object
   sharedmemory.VectorEmbeddingPayload:
     properties:
@@ -1373,8 +1392,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Soft- or hard-deletes a single vector record owned by a specific
-        agent.
+      description: 'Deletes vector(s) owned by a specific agent. Supports two modes:
+        delete by ID (single) or delete by filters (bulk).'
       parameters:
       - description: Workspace ID
         in: path
@@ -1391,7 +1410,7 @@ paths:
         name: agentId
         required: true
         type: string
-      - description: Delete request
+      - description: Delete request (provide either 'id' or 'filters')
         in: body
         name: body
         required: true
@@ -1401,10 +1420,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Deleted successfully
+          description: Deleted successfully with deleted_count
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
           description: Invalid request
@@ -1424,7 +1442,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Delete a vector for an agent
+      summary: Delete vector(s) for an agent
       tags:
       - Vector Store
     post:

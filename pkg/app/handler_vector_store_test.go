@@ -251,6 +251,8 @@ func TestAgentVectorUpsertHandler_AcceptsValidUUID(t *testing.T) {
 // agentVectorDeleteHandler tests
 // ---------------------------------------------------------------------------
 
+func strPtr(s string) *string { return &s }
+
 func TestAgentVectorDeleteHandler_SetsAgentIDOnProviderRequest(t *testing.T) {
 	var capturedBody map[string]interface{}
 
@@ -261,12 +263,12 @@ func TestAgentVectorDeleteHandler_SetsAgentIDOnProviderRequest(t *testing.T) {
 		json.NewDecoder(r.Body).Decode(&capturedBody)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "message": "deleted"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "message": "deleted", "deleted_count": 1})
 	})
 	defer svc.Close()
 
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		ID: "vec-42",
+		ID: strPtr("vec-42"),
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -297,12 +299,12 @@ func TestAgentVectorDeleteHandler_DefaultsToSoftDelete(t *testing.T) {
 	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
 		json.NewDecoder(r.Body).Decode(&capturedBody)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "deleted_count": 1})
 	})
 	defer svc.Close()
 
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		ID: "vec-1",
+		ID: strPtr("vec-1"),
 		// SoftDelete not specified
 	}
 	body, _ := json.Marshal(reqBody)
@@ -331,13 +333,13 @@ func TestAgentVectorDeleteHandler_RespectsHardDeleteFlag(t *testing.T) {
 	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
 		json.NewDecoder(r.Body).Decode(&capturedBody)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "deleted_count": 1})
 	})
 	defer svc.Close()
 
 	softDel := false
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		ID:         "vec-1",
+		ID:         strPtr("vec-1"),
 		SoftDelete: &softDel,
 	}
 	body, _ := json.Marshal(reqBody)
@@ -360,15 +362,159 @@ func TestAgentVectorDeleteHandler_RespectsHardDeleteFlag(t *testing.T) {
 	}
 }
 
-func TestAgentVectorDeleteHandler_Returns400WhenIDMissing(t *testing.T) {
+func TestAgentVectorDeleteHandler_Returns400WhenNeitherIDNorFilters(t *testing.T) {
 	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Error("downstream should not be called when ID is missing")
+		t.Error("downstream should not be called when neither ID nor filters provided")
 		w.WriteHeader(http.StatusOK)
 	})
 	defer svc.Close()
 
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		// ID not specified
+		// Neither ID nor Filters specified
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/workspaces/ws1/multi-agentic-systems/mas1/agents/agent-abc/rag/vectors", bytes.NewReader(body))
+	req.SetPathValue("workspaceId", "ws1")
+	req.SetPathValue("masId", "mas1")
+	req.SetPathValue("agentId", "agent-abc")
+
+	w := httptest.NewRecorder()
+	app.agentVectorDeleteHandler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestAgentVectorDeleteHandler_Returns400WhenBothIDAndFilters(t *testing.T) {
+	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("downstream should not be called when both ID and filters provided")
+		w.WriteHeader(http.StatusOK)
+	})
+	defer svc.Close()
+
+	reqBody := sharedmemory.AgentVectorDeleteRequest{
+		ID:      strPtr("vec-1"),
+		Filters: &sharedmemory.VectorDeleteMetadataFilter{DataSource: strPtr("memory-123")},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/workspaces/ws1/multi-agentic-systems/mas1/agents/agent-abc/rag/vectors", bytes.NewReader(body))
+	req.SetPathValue("workspaceId", "ws1")
+	req.SetPathValue("masId", "mas1")
+	req.SetPathValue("agentId", "agent-abc")
+
+	w := httptest.NewRecorder()
+	app.agentVectorDeleteHandler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestAgentVectorDeleteHandler_DeleteByFilters(t *testing.T) {
+	var capturedBody map[string]interface{}
+
+	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "message": "deleted 5 vectors", "deleted_count": 5})
+	})
+	defer svc.Close()
+
+	reqBody := sharedmemory.AgentVectorDeleteRequest{
+		Filters: &sharedmemory.VectorDeleteMetadataFilter{
+			DataSource: strPtr("memory-123"),
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/workspaces/ws1/multi-agentic-systems/mas1/agents/agent-abc/rag/vectors", bytes.NewReader(body))
+	req.SetPathValue("workspaceId", "ws1")
+	req.SetPathValue("masId", "mas1")
+	req.SetPathValue("agentId", "agent-abc")
+
+	w := httptest.NewRecorder()
+	app.agentVectorDeleteHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify filters were passed through
+	filters, ok := capturedBody["filters"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected filters in captured body, got %v", capturedBody)
+	}
+	if filters["data_source"] != "memory-123" {
+		t.Errorf("expected data_source 'memory-123', got %v", filters["data_source"])
+	}
+
+	// Verify response includes deleted_count
+	var resp map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&resp)
+}
+
+func TestAgentVectorDeleteHandler_DeleteByFiltersWithExtraFilters(t *testing.T) {
+	var capturedBody map[string]interface{}
+
+	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "deleted_count": 3})
+	})
+	defer svc.Close()
+
+	reqBody := sharedmemory.AgentVectorDeleteRequest{
+		Filters: &sharedmemory.VectorDeleteMetadataFilter{
+			ExtraFilters: map[string]string{
+				"session_id":            "abc123",
+				"mycelium_knowledge_key": "user-prefs",
+			},
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/workspaces/ws1/multi-agentic-systems/mas1/agents/agent-abc/rag/vectors", bytes.NewReader(body))
+	req.SetPathValue("workspaceId", "ws1")
+	req.SetPathValue("masId", "mas1")
+	req.SetPathValue("agentId", "agent-abc")
+
+	w := httptest.NewRecorder()
+	app.agentVectorDeleteHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify extra_filters were passed through
+	filters, ok := capturedBody["filters"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected filters in captured body, got %v", capturedBody)
+	}
+	extraFilters, ok := filters["extra_filters"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected extra_filters in filters, got %v", filters)
+	}
+	if extraFilters["session_id"] != "abc123" {
+		t.Errorf("expected session_id 'abc123', got %v", extraFilters["session_id"])
+	}
+}
+
+func TestAgentVectorDeleteHandler_Returns400WhenFiltersEmpty(t *testing.T) {
+	app, svc := newAgentVectorApp(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("downstream should not be called when filters are empty")
+		w.WriteHeader(http.StatusOK)
+	})
+	defer svc.Close()
+
+	reqBody := sharedmemory.AgentVectorDeleteRequest{
+		Filters: &sharedmemory.VectorDeleteMetadataFilter{
+			// No actual filters set
+		},
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -394,7 +540,7 @@ func TestAgentVectorDeleteHandler_Returns404WhenVectorNotFound(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		ID: "11111111-1111-1111-1111-111111111111",
+		ID: strPtr("11111111-1111-1111-1111-111111111111"),
 	}
 	body, _ := json.Marshal(reqBody)
 

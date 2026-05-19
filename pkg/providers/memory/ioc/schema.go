@@ -572,23 +572,63 @@ func (k *KnowledgeVectorStoreResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// KnowledgeVectorDeleteRequest represents a request to delete a vector
-type KnowledgeVectorDeleteRequest struct {
-	RequestID  string  `json:"request_id" description:"Auto-generated UUID for request tracking"`
-	WkspID     string  `json:"wksp_id" description:"The workspace ID for the request"`
-	MasID      string  `json:"mas_id" description:"ID for the Multi-Agent System"`
-	AgentID    *string `json:"agent_id,omitempty" description:"Optional agent ID for agent-scoped deletion"`
-	ID         string  `json:"id" description:"ID of vector to delete"`
-	SoftDelete bool    `json:"soft_delete" description:"Soft delete the vector"`
+// DeleteMetadataFilter represents metadata filters for bulk delete operations
+type DeleteMetadataFilter struct {
+	DocIndex       *int              `json:"doc_index,omitempty" description:"Filter by doc_index (integer equality)"`
+	ChunkIndex     *int              `json:"chunk_index,omitempty" description:"Filter by chunk_index (integer equality)"`
+	DataSource     *string           `json:"data_source,omitempty" description:"Filter by data_source (string equality)"`
+	RecordedAtFrom *string           `json:"recorded_at_from,omitempty" description:"Filter recorded_at >= this value (ISO 8601)"`
+	RecordedAtTo   *string           `json:"recorded_at_to,omitempty" description:"Filter recorded_at < this value (ISO 8601)"`
+	ExtraFilters   map[string]string `json:"extra_filters,omitempty" description:"Arbitrary key-value filters on metadata (string equality)"`
 }
 
-// NewKnowledgeVectorDeleteRequest creates a new vector delete request with auto-generated UUID
+// HasAnyFilter checks if at least one filter is set
+func (f *DeleteMetadataFilter) HasAnyFilter() bool {
+	if f == nil {
+		return false
+	}
+	if f.DocIndex != nil || f.ChunkIndex != nil || f.DataSource != nil {
+		return true
+	}
+	if f.RecordedAtFrom != nil || f.RecordedAtTo != nil {
+		return true
+	}
+	if len(f.ExtraFilters) > 0 {
+		return true
+	}
+	return false
+}
+
+// KnowledgeVectorDeleteRequest represents a request to delete vector(s)
+// Supports two modes: delete by ID (single) or delete by filters (bulk)
+type KnowledgeVectorDeleteRequest struct {
+	RequestID  string                `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	WkspID     string                `json:"wksp_id" description:"The workspace ID for the request"`
+	MasID      string                `json:"mas_id" description:"ID for the Multi-Agent System"`
+	AgentID    *string               `json:"agent_id,omitempty" description:"Optional agent ID for agent-scoped deletion"`
+	ID         *string               `json:"id,omitempty" description:"ID of vector to delete (for single deletion)"`
+	Filters    *DeleteMetadataFilter `json:"filters,omitempty" description:"Metadata filters for bulk deletion"`
+	SoftDelete bool                  `json:"soft_delete" description:"Soft delete the vector(s)"`
+}
+
+// NewKnowledgeVectorDeleteRequest creates a new vector delete request with auto-generated UUID for single ID deletion
 func NewKnowledgeVectorDeleteRequest(wkspID, masID, id string, softDelete bool) *KnowledgeVectorDeleteRequest {
 	return &KnowledgeVectorDeleteRequest{
 		RequestID:  uuid.New().String(),
 		WkspID:     wkspID,
 		MasID:      masID,
-		ID:         id,
+		ID:         &id,
+		SoftDelete: softDelete,
+	}
+}
+
+// NewKnowledgeVectorDeleteByFilterRequest creates a new vector delete request for bulk filter-based deletion
+func NewKnowledgeVectorDeleteByFilterRequest(wkspID, masID string, filters *DeleteMetadataFilter, softDelete bool) *KnowledgeVectorDeleteRequest {
+	return &KnowledgeVectorDeleteRequest{
+		RequestID:  uuid.New().String(),
+		WkspID:     wkspID,
+		MasID:      masID,
+		Filters:    filters,
 		SoftDelete: softDelete,
 	}
 }
@@ -601,17 +641,28 @@ func (k *KnowledgeVectorDeleteRequest) Validate() error {
 	if k.WkspID == "" {
 		return fmt.Errorf("wksp_id is required")
 	}
-	if k.ID == "" {
-		return fmt.Errorf("id is required")
+
+	hasID := k.ID != nil && *k.ID != ""
+	hasFilters := k.Filters != nil
+
+	if hasID && hasFilters {
+		return fmt.Errorf("provide either 'id' or 'filters', not both")
+	}
+	if !hasID && !hasFilters {
+		return fmt.Errorf("must provide either 'id' or 'filters'")
+	}
+	if hasFilters && !k.Filters.HasAnyFilter() {
+		return fmt.Errorf("at least one filter must be set in 'filters'")
 	}
 	return nil
 }
 
 // KnowledgeVectorDeleteResponse represents a response from the Store after deleting knowledge vector data
 type KnowledgeVectorDeleteResponse struct {
-	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
-	Status    ResponseStatus `json:"status" description:"Status of the request"`
-	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+	RequestID    *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status       ResponseStatus `json:"status" description:"Status of the request"`
+	Message      *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+	DeletedCount *int           `json:"deleted_count,omitempty" description:"Number of vectors deleted"`
 }
 
 // MarshalJSON custom marshaling
