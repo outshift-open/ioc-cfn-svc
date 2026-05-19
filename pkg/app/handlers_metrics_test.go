@@ -336,15 +336,15 @@ func TestGetMetricsHandler_InvalidTimeFormats(t *testing.T) {
 	}{
 		{
 			name:        "invalid start_time",
-			startTime:   "2026-05-19",
+			startTime:   "not-a-date",
 			endTime:     "2026-05-20T00:00:00Z",
-			expectedErr: "start_time must be valid ISO 8601 format",
+			expectedErr: "start_time: invalid format",
 		},
 		{
 			name:        "invalid end_time",
 			startTime:   "2026-05-19T00:00:00Z",
 			endTime:     "not-a-date",
-			expectedErr: "end_time must be valid ISO 8601 format",
+			expectedErr: "end_time: invalid format",
 		},
 	}
 
@@ -363,6 +363,63 @@ func TestGetMetricsHandler_InvalidTimeFormats(t *testing.T) {
 			var resp map[string]string
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
+func TestGetMetricsHandler_FlexibleTimeFormats(t *testing.T) {
+	t.Skip("Skipping - requires real database for GORM operations")
+
+	app := newTestApp()
+
+	tests := []struct {
+		name      string
+		startTime string
+		endTime   string
+	}{
+		{
+			name:      "date-only format",
+			startTime: "2026-05-19",
+			endTime:   "2026-05-20",
+		},
+		{
+			name:      "RFC3339 format",
+			startTime: "2026-05-19T00:00:00Z",
+			endTime:   "2026-05-20T00:00:00Z",
+		},
+		{
+			name:      "Unix timestamp seconds",
+			startTime: "1716076800",
+			endTime:   "1716163200",
+		},
+		{
+			name:      "Unix timestamp milliseconds",
+			startTime: "1716076800000",
+			endTime:   "1716163200000",
+		},
+		{
+			name:      "mixed formats",
+			startTime: "2026-05-19",
+			endTime:   "1716163200",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=%s&end_time=%s",
+				tt.startTime, tt.endTime)
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			rr := httptest.NewRecorder()
+
+			code, err := app.getMetricsHandler(rr, req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusOK, code)
+
+			var resp MetricsQueryResponse
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.NotEmpty(t, resp.Period.Start)
+			assert.NotEmpty(t, resp.Period.End)
 		})
 	}
 }

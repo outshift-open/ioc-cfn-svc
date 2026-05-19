@@ -243,6 +243,34 @@ type Pagination struct {
 	Total  int `json:"total"`
 }
 
+// parseFlexibleTime parses time from multiple formats:
+// - Unix timestamp (seconds): "1716076800"
+// - Unix timestamp (milliseconds): "1716076800000"
+// - RFC3339: "2026-05-19T00:00:00Z"
+// - Date-only (assumes UTC midnight): "2026-05-19"
+func parseFlexibleTime(s string) (time.Time, error) {
+	// Try Unix timestamp (seconds or milliseconds)
+	if unix, err := strconv.ParseInt(s, 10, 64); err == nil {
+		// Milliseconds have 13 digits, seconds have 10 digits
+		if unix > 9999999999 { // > 10 digits, assume milliseconds
+			return time.Unix(0, unix*int64(time.Millisecond)).UTC(), nil
+		}
+		return time.Unix(unix, 0).UTC(), nil
+	}
+
+	// Try RFC3339 (explicit timezone)
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t.UTC(), nil
+	}
+
+	// Fall back to date-only (assume UTC midnight)
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t.UTC(), nil
+	}
+
+	return time.Time{}, fmt.Errorf("invalid format (use Unix timestamp, RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')")
+}
+
 // getMetricsHandler godoc
 //
 // @Summary     Query metrics within time range
@@ -251,8 +279,8 @@ type Pagination struct {
 // @Tags        cognition-engine
 // @Produce     json
 //
-// @Param       start_time query string true "Start time (ISO 8601)"
-// @Param       end_time query string true "End time (ISO 8601)"
+// @Param       start_time query string true "Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')"
+// @Param       end_time query string true "End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z', or date '2026-05-20')"
 // @Param       workspace_id query string false "Filter by workspace UUID"
 // @Param       mas_id query string false "Filter by MAS UUID"
 // @Param       agent_id query string false "Filter by agent ID"
@@ -277,17 +305,17 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		})
 	}
 
-	startTime, err := time.Parse(time.RFC3339, startTimeStr)
+	startTime, err := parseFlexibleTime(startTimeStr)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "start_time must be valid ISO 8601 format",
+			"error": fmt.Sprintf("start_time: %v", err),
 		})
 	}
 
-	endTime, err := time.Parse(time.RFC3339, endTimeStr)
+	endTime, err := parseFlexibleTime(endTimeStr)
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "end_time must be valid ISO 8601 format",
+			"error": fmt.Sprintf("end_time: %v", err),
 		})
 	}
 

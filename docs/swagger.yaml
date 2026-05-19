@@ -917,12 +917,14 @@ paths:
     get:
       description: Returns raw metric data points filtered by time and optional dimensions
       parameters:
-      - description: Start time (ISO 8601)
+      - description: Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z',
+          or date '2026-05-19')
         in: query
         name: start_time
         required: true
         type: string
-      - description: End time (ISO 8601)
+      - description: End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z',
+          or date '2026-05-20')
         in: query
         name: end_time
         required: true

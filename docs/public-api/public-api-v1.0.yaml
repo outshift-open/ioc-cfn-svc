@@ -393,19 +393,27 @@ paths:
         - name: start_time
           in: query
           required: true
-          description: Start time in ISO 8601 format (inclusive)
+          description: |
+            Start time (inclusive). Supports multiple formats:
+            - Unix timestamp (seconds): `1716076800`
+            - Unix timestamp (milliseconds): `1716076800000`
+            - RFC3339: `2026-05-19T00:00:00Z`
+            - Date-only: `2026-05-19` (assumes UTC midnight)
           schema:
             type: string
-            format: date-time
-            example: "2026-05-19T00:00:00Z"
+            example: "2026-05-19"
         - name: end_time
           in: query
           required: true
-          description: End time in ISO 8601 format (exclusive)
+          description: |
+            End time (exclusive). Supports multiple formats:
+            - Unix timestamp (seconds): `1716163200`
+            - Unix timestamp (milliseconds): `1716163200000`
+            - RFC3339: `2026-05-20T00:00:00Z`
+            - Date-only: `2026-05-20` (assumes UTC midnight)
           schema:
             type: string
-            format: date-time
-            example: "2026-05-20T00:00:00Z"
+            example: "2026-05-20"
         - name: workspace_id
           in: query
           required: false

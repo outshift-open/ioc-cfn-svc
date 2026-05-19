@@ -21,14 +21,14 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Start time (ISO 8601)",
+                        "description": "Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')",
                         "name": "start_time",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "End time (ISO 8601)",
+                        "description": "End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z', or date '2026-05-20')",
                         "name": "end_time",
                         "in": "query",
                         "required": true
