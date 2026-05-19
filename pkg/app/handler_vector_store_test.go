@@ -337,10 +337,8 @@ func TestAgentVectorDeleteHandler_RespectsHardDeleteFlag(t *testing.T) {
 	})
 	defer svc.Close()
 
-	softDel := false
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
-		ID:         strPtr("vec-1"),
-		SoftDelete: &softDel,
+		ID: strPtr("vec-1"),
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -471,7 +469,7 @@ func TestAgentVectorDeleteHandler_DeleteByFiltersWithExtraFilters(t *testing.T) 
 	reqBody := sharedmemory.AgentVectorDeleteRequest{
 		Filters: &sharedmemory.VectorDeleteMetadataFilter{
 			ExtraFilters: map[string]string{
-				"session_id":            "abc123",
+				"session_id":             "abc123",
 				"mycelium_knowledge_key": "user-prefs",
 			},
 		},

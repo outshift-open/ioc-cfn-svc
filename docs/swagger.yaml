@@ -516,8 +516,6 @@ definitions:
         type: string
       request_id:
         type: string
-      soft_delete:
-        type: boolean
     type: object
   sharedmemory.AgentVectorUpsertRecord:
     properties:
