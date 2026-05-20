@@ -130,6 +130,34 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "unable to parse negotiation response"})
 	}
 
+	// Store token metrics to TimescaleDB (fire-and-forget)
+	if cogResp.Meta != nil {
+		workspaceUUID, _ := uuid.Parse(workspaceID)
+		masUUID, _ := uuid.Parse(masID)
+		agentID := "unknown"
+		if len(reqPayload.Agents) > 0 {
+			agentID = reqPayload.Agents[0].ID
+		}
+		a.storeTokenMetricsAsync(
+			workspaceUUID,
+			masUUID,
+			agentID,
+			"semantic_negotiation",
+			reqPayload.SessionID,
+			&TokenUsageMeta{
+				Tokens: TokenUsage{
+					Prompt:     cogResp.Meta.Tokens.Prompt,
+					Completion: cogResp.Meta.Tokens.Completion,
+					Total:      cogResp.Meta.Tokens.Total,
+					Model:      cogResp.Meta.Tokens.Model,
+				},
+				LatencyMs: cogResp.Meta.LatencyMs,
+				CostUsd:   cogResp.Meta.CostUsd,
+				Timestamp: cogResp.Meta.Timestamp,
+			},
+		)
+	}
+
 	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "SUCCESS", nil)
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
@@ -245,6 +273,21 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		Round:       round,
 		Messages:    cogResp.Messages,
 		FinalResult: cogResp.FinalResult,
+	}
+
+	// Pass through token metadata from cognition agent if available
+	if cogResp.Meta != nil {
+		resp.Meta = &semanticnegotiation.TokenUsageMeta{
+			Tokens: semanticnegotiation.TokenUsage{
+				Prompt:     cogResp.Meta.Tokens.Prompt,
+				Completion: cogResp.Meta.Tokens.Completion,
+				Total:      cogResp.Meta.Tokens.Total,
+				Model:      cogResp.Meta.Tokens.Model,
+			},
+			LatencyMs: cogResp.Meta.LatencyMs,
+			CostUsd:   cogResp.Meta.CostUsd,
+			Timestamp: cogResp.Meta.Timestamp,
+		}
 	}
 
 	// If agreement is reached, persist the final result to shared memory.
@@ -379,6 +422,21 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 		NSteps:          raw.NSteps,
 		Round:           raw.Round,
 		Messages:        raw.Messages,
+	}
+
+	// Pass through token metadata from cognition agent if available
+	if cogResp.Meta != nil {
+		resp.Meta = &semanticnegotiation.TokenUsageMeta{
+			Tokens: semanticnegotiation.TokenUsage{
+				Prompt:     cogResp.Meta.Tokens.Prompt,
+				Completion: cogResp.Meta.Tokens.Completion,
+				Total:      cogResp.Meta.Tokens.Total,
+				Model:      cogResp.Meta.Tokens.Model,
+			},
+			LatencyMs: cogResp.Meta.LatencyMs,
+			CostUsd:   cogResp.Meta.CostUsd,
+			Timestamp: cogResp.Meta.Timestamp,
+		}
 	}
 
 	if raw.CurrentRound != nil {

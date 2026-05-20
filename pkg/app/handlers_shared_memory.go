@@ -282,11 +282,54 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 
 	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
 
+	// Pass through token metadata from cognition engine if available
+	var responseMeta *sharedmemory.TokenUsageMeta
+	if extractionResp.Meta != nil {
+		responseMeta = &sharedmemory.TokenUsageMeta{
+			Tokens: sharedmemory.TokenUsage{
+				Prompt:     extractionResp.Meta.Tokens.Prompt,
+				Completion: extractionResp.Meta.Tokens.Completion,
+				Total:      extractionResp.Meta.Tokens.Total,
+				Model:      extractionResp.Meta.Tokens.Model,
+			},
+			LatencyMs: extractionResp.Meta.LatencyMs,
+			CostUsd:   extractionResp.Meta.CostUsd,
+			Timestamp: extractionResp.Meta.Timestamp,
+		}
+
+		// Store token metrics to TimescaleDB (fire-and-forget)
+		workspaceUUID, _ := uuid.Parse(workspaceID)
+		masUUID, _ := uuid.Parse(masID)
+		agentID := ""
+		if req.Header != nil && req.Header.AgentID != nil {
+			agentID = *req.Header.AgentID
+		}
+		a.storeTokenMetricsAsync(
+			workspaceUUID,
+			masUUID,
+			agentID,
+			"ingestion",
+			*requestId,
+			&TokenUsageMeta{
+				Tokens: TokenUsage{
+					Prompt:     extractionResp.Meta.Tokens.Prompt,
+					Completion: extractionResp.Meta.Tokens.Completion,
+					Total:      extractionResp.Meta.Tokens.Total,
+					Model:      extractionResp.Meta.Tokens.Model,
+				},
+				LatencyMs: extractionResp.Meta.LatencyMs,
+				CostUsd:   extractionResp.Meta.CostUsd,
+				Timestamp: extractionResp.Meta.Timestamp,
+			},
+		)
+	}
+
 	resp := &sharedmemory.CreateOrUpdateResponse{
 		ResponseID:         knowledgeGraphResp.RequestID,
 		Status:             string(knowledgeGraphResp.Status),
 		GraphStoreMessage:  knowledgeGraphResp.Message,
 		VectorStoreMessage: vectorStoreMessage,
+		Meta:               responseMeta,
 	}
 
 	return resp, nil
@@ -464,9 +507,48 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
+	// Pass through token metadata from cognition engine if available
+	var responseMeta *sharedmemory.TokenUsageMeta
+	if reasonerResp.Meta != nil {
+		responseMeta = &sharedmemory.TokenUsageMeta{
+			Tokens: sharedmemory.TokenUsage{
+				Prompt:     reasonerResp.Meta.Tokens.Prompt,
+				Completion: reasonerResp.Meta.Tokens.Completion,
+				Total:      reasonerResp.Meta.Tokens.Total,
+				Model:      reasonerResp.Meta.Tokens.Model,
+			},
+			LatencyMs: reasonerResp.Meta.LatencyMs,
+			CostUsd:   reasonerResp.Meta.CostUsd,
+			Timestamp: reasonerResp.Meta.Timestamp,
+		}
+
+		// Store token metrics to TimescaleDB (fire-and-forget)
+		workspaceUUID, _ := uuid.Parse(workspaceID)
+		masUUID, _ := uuid.Parse(masID)
+		a.storeTokenMetricsAsync(
+			workspaceUUID,
+			masUUID,
+			agentID,
+			"evidence",
+			*requestId,
+			&TokenUsageMeta{
+				Tokens: TokenUsage{
+					Prompt:     reasonerResp.Meta.Tokens.Prompt,
+					Completion: reasonerResp.Meta.Tokens.Completion,
+					Total:      reasonerResp.Meta.Tokens.Total,
+					Model:      reasonerResp.Meta.Tokens.Model,
+				},
+				LatencyMs: reasonerResp.Meta.LatencyMs,
+				CostUsd:   reasonerResp.Meta.CostUsd,
+				Timestamp: reasonerResp.Meta.Timestamp,
+			},
+		)
+	}
+
 	return &sharedmemory.QueryResponse{
 		ResponseID: requestId,
 		Message:    common.StrToPtr(message),
+		Meta:       responseMeta,
 	}, nil
 }
 

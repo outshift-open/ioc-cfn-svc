@@ -436,3 +436,93 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 
 	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
+
+// storeTokenMetricsAsync extracts token metadata from CE response and stores to TimescaleDB
+// This is fire-and-forget - runs in background goroutine
+func (a *App) storeTokenMetricsAsync(
+	workspaceID, masID uuid.UUID,
+	agentID, service, requestID string,
+	tokenMeta *TokenUsageMeta,
+) {
+	if tokenMeta == nil || tokenMeta.Tokens.Total == 0 {
+		return // No tokens to record
+	}
+
+	// Build metrics batch
+	timestamp := time.Now()
+	if tokenMeta.Timestamp != "" {
+		if t, err := time.Parse(time.RFC3339, tokenMeta.Timestamp); err == nil {
+			timestamp = t
+		}
+	}
+
+	// Prepare attributes
+	attributes := map[string]interface{}{
+		"service":    service, // "semantic_negotiation", "ingestion", "evidence"
+		"model":      tokenMeta.Tokens.Model,
+		"request_id": requestID,
+	}
+
+	metricsReq := IngestMetricsRequest{
+		WorkspaceID: workspaceID.String(),
+		MASID:       masID.String(),
+		AgentID:     agentID,
+		Attributes:  attributes,
+		Metrics: []MetricDataPoint{
+			{
+				Timestamp:  &timestamp,
+				Name:       "llm.tokens.prompt",
+				Value:      float64(tokenMeta.Tokens.Prompt),
+				Attributes: nil, // Use batch-level attributes
+			},
+			{
+				Timestamp:  &timestamp,
+				Name:       "llm.tokens.completion",
+				Value:      float64(tokenMeta.Tokens.Completion),
+				Attributes: nil,
+			},
+			{
+				Timestamp:  &timestamp,
+				Name:       "llm.tokens.total",
+				Value:      float64(tokenMeta.Tokens.Total),
+				Attributes: nil,
+			},
+			{
+				Timestamp:  &timestamp,
+				Name:       "llm.latency_ms",
+				Value:      tokenMeta.LatencyMs,
+				Attributes: nil,
+			},
+		},
+	}
+
+	// Add cost metric if available
+	if tokenMeta.CostUsd != nil && *tokenMeta.CostUsd > 0 {
+		metricsReq.Metrics = append(metricsReq.Metrics, MetricDataPoint{
+			Timestamp:  &timestamp,
+			Name:       "llm.cost_usd",
+			Value:      *tokenMeta.CostUsd,
+			Attributes: nil,
+		})
+	}
+
+	// Store asynchronously (fire-and-forget)
+	go a.storeMetricsBatch(metricsReq, workspaceID, masID)
+}
+
+// TokenUsageMeta represents token usage metadata from cognition engine
+type TokenUsageMeta struct {
+	Tokens    TokenUsage `json:"tokens"`
+	LatencyMs float64    `json:"latency_ms"`
+	CostUsd   *float64   `json:"cost_usd,omitempty"`
+	Timestamp string     `json:"timestamp"`
+}
+
+// TokenUsage represents token counts
+type TokenUsage struct {
+	Prompt     int    `json:"prompt"`
+	Completion int    `json:"completion"`
+	Total      int    `json:"total"`
+	Model      string `json:"model"`
+}
+

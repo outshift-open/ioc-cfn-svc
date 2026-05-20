@@ -61,6 +61,8 @@ type CreateOrUpdateResponse struct {
 	GraphStoreMessage *string `json:"graph_store_message,omitempty"`
 	// Optional message from the vector store upsert operation
 	VectorStoreMessage *string `json:"vector_store_message,omitempty"`
+	// Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)
+	Meta *TokenUsageMeta `json:"meta,omitempty"`
 }
 
 type QueryRequest struct {
@@ -103,11 +105,29 @@ func (r *QueryRequest) ValidateAndApplyDefault() error {
 	return nil
 }
 
+// TokenUsage represents LLM token usage information
+type TokenUsage struct {
+	Prompt     int    `json:"prompt"`
+	Completion int    `json:"completion"`
+	Total      int    `json:"total"`
+	Model      string `json:"model"`
+}
+
+// TokenUsageMeta represents LLM performance and cost metadata
+type TokenUsageMeta struct {
+	Tokens    TokenUsage `json:"tokens"`
+	LatencyMs float64    `json:"latency_ms"`
+	CostUsd   *float64   `json:"cost_usd,omitempty"`
+	Timestamp string     `json:"timestamp"`
+}
+
 type QueryResponse struct {
 	// ID of the response, this gets populated from request_id
 	ResponseID *string `json:"response_id,omitempty"`
 	// Message provides detailed information from the query result
 	Message *string `json:"message"`
+	// Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)
+	Meta *TokenUsageMeta `json:"meta,omitempty"`
 }
 
 type QueryResponseRecord struct {

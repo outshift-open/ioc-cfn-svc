@@ -81,6 +81,22 @@ type NegotiationTrace struct {
 	Broken bool `json:"broken"`
 }
 
+// TokenUsage contains LLM token consumption metrics.
+type TokenUsage struct {
+	Prompt     int    `json:"prompt"`
+	Completion int    `json:"completion"`
+	Total      int    `json:"total"`
+	Model      string `json:"model"`
+}
+
+// TokenUsageMeta contains LLM call metadata including token usage.
+type TokenUsageMeta struct {
+	Tokens    TokenUsage `json:"tokens"`
+	LatencyMs float64    `json:"latency_ms"`
+	CostUsd   *float64   `json:"cost_usd,omitempty"`
+	Timestamp string     `json:"timestamp"`
+}
+
 // StartResponse is the response from the /start endpoint.
 type StartResponse struct {
 	// Status is "initiated", "ongoing", "agreed", "broken", or "timeout".
@@ -114,6 +130,9 @@ type StartResponse struct {
 
 	// Trace is the complete pre-computed SAO trace (SSTP envelope path only).
 	Trace *NegotiationTrace `json:"trace,omitempty"`
+
+	// Meta contains LLM token usage metadata
+	Meta *TokenUsageMeta `json:"meta,omitempty"`
 }
 
 // AgentReply is one agent's reply to a negotiation round message.
@@ -171,4 +190,7 @@ type DecideResponse struct {
 	// SharedMemory reports the outcome of persisting the agreement to shared
 	// memory. Only present when Status is "agreed".
 	SharedMemory *SharedMemoryResult `json:"shared_memory,omitempty"`
+
+	// Meta contains LLM token usage metadata
+	Meta *TokenUsageMeta `json:"meta,omitempty"`
 }
