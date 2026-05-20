@@ -75,7 +75,7 @@ func TestUpdateGraphHandler_Success(t *testing.T) {
 
 	reqBody := map[string]interface{}{
 		"header": map[string]string{
-			"agent_id": "agent-42",
+			"cfn_id": "cfn-42",
 		},
 		"request_id": "req-abc",
 		// Only the new distilled concept is in this batch.
@@ -141,8 +141,8 @@ func TestUpdateGraphHandler_Success(t *testing.T) {
 	if resp.UpdatedAt == 0 {
 		t.Error("expected non-zero updated_at")
 	}
-	if resp.Header.AgentID != "agent-42" {
-		t.Errorf("expected agent_id 'agent-42', got %q", resp.Header.AgentID)
+	if resp.Header.CfnID != "cfn-42" {
+		t.Errorf("expected cfn_id 'cfn-42', got %q", resp.Header.CfnID)
 	}
 }
 
@@ -158,6 +158,9 @@ func TestUpdateGraphHandler_AutoGeneratesRequestID(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := map[string]interface{}{
+		"header": map[string]string{
+			"cfn_id": "cfn-test",
+		},
 		"concepts":  []interface{}{},
 		"relations": []interface{}{},
 	}
@@ -189,6 +192,9 @@ func TestUpdateGraphHandler_RelationshipFieldMappedToRelation(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := map[string]interface{}{
+		"header": map[string]string{
+			"cfn_id": "cfn-test",
+		},
 		"concepts": []map[string]interface{}{
 			{"id": "c1", "name": "ConceptA"},
 			{"id": "c2", "name": "ConceptB"},
@@ -237,6 +243,9 @@ func TestUpdateGraphHandler_404FromDownstream(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := map[string]interface{}{
+		"header": map[string]string{
+			"cfn_id": "cfn-test",
+		},
 		"concepts":  []interface{}{},
 		"relations": []interface{}{},
 	}
@@ -265,6 +274,9 @@ func TestUpdateGraphHandler_500FromDownstream(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := map[string]interface{}{
+		"header": map[string]string{
+			"cfn_id": "cfn-test",
+		},
 		"concepts":  []interface{}{},
 		"relations": []interface{}{},
 	}
@@ -319,6 +331,7 @@ func TestUpdateGraphHandler_PathParamsTakePrecedence(t *testing.T) {
 			// These values differ from the path params — path params win.
 			"workspace_id": "wrong-ws",
 			"mas_id":       "wrong-mas",
+			"cfn_id":       "cfn-test",
 		},
 		"concepts":  []interface{}{},
 		"relations": []interface{}{},
@@ -349,6 +362,9 @@ func TestUpdateGraphHandler_MetadataEchoed(t *testing.T) {
 	defer svc.Close()
 
 	reqBody := map[string]interface{}{
+		"header": map[string]string{
+			"cfn_id": "cfn-test",
+		},
 		"concepts":   []interface{}{},
 		"relations":  []interface{}{},
 		"descriptor": "batch-42",
