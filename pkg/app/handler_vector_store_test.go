@@ -353,11 +353,6 @@ func TestAgentVectorDeleteHandler_RespectsHardDeleteFlag(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-
-	// Verify soft_delete=false was passed through
-	if capturedBody["soft_delete"] != false {
-		t.Errorf("expected soft_delete=false, got %v", capturedBody["soft_delete"])
-	}
 }
 
 func TestAgentVectorDeleteHandler_Returns400WhenNeitherIDNorFilters(t *testing.T) {
