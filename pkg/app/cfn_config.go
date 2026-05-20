@@ -108,6 +108,25 @@ func (c *CfnConfigPayload) FindWorkspace(workspaceID string) *WorkspaceConfig {
 	return nil
 }
 
+// FindAgentByURL returns the workspace, MAS, and agent IDs for the agent whose
+// Identity.Identifiers["url"] matches the given session key (e.g. "main::agents::planner").
+// Returns empty strings if not found.
+func (c *CfnConfigPayload) FindAgentByURL(sessionKey string) (workspaceID, masID, agentID string) {
+	for _, ws := range c.Workspaces {
+		for _, mas := range ws.MultiAgenticSystems {
+			for _, agent := range mas.Agents {
+				if agent.Identity == nil {
+					continue
+				}
+				if url, ok := agent.Identity.Identifiers["url"]; ok && url == sessionKey {
+					return ws.ID, mas.ID, agent.AgentID
+				}
+			}
+		}
+	}
+	return "", "", ""
+}
+
 // getSharedMemoryID returns the shared memory ID for a given workspace/MAS from ParsedConfig.
 func getSharedMemoryID(workspaceID, masID string) string {
 	cfnConfigMutex.RLock()
