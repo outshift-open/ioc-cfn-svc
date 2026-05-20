@@ -93,8 +93,7 @@ func TestAgentVectorUpsertRequest_OmittedRequestIDIsNil(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAgentVectorDeleteRequest_DecodesFields(t *testing.T) {
-	softDel := false
-	raw := `{"request_id": "req-del", "id": "vec-42", "soft_delete": false}`
+	raw := `{"request_id": "req-del", "id": "vec-42"}`
 
 	var req sharedmemory.AgentVectorDeleteRequest
 	if err := json.Unmarshal([]byte(raw), &req); err != nil {
@@ -106,21 +105,6 @@ func TestAgentVectorDeleteRequest_DecodesFields(t *testing.T) {
 	}
 	if req.ID == nil || *req.ID != "vec-42" {
 		t.Errorf("expected id 'vec-42', got %v", req.ID)
-	}
-	if req.SoftDelete == nil || *req.SoftDelete != softDel {
-		t.Errorf("expected soft_delete=false, got %v", req.SoftDelete)
-	}
-}
-
-func TestAgentVectorDeleteRequest_OmittedSoftDeleteIsNil(t *testing.T) {
-	raw := `{"id": "vec-1"}`
-
-	var req sharedmemory.AgentVectorDeleteRequest
-	if err := json.Unmarshal([]byte(raw), &req); err != nil {
-		t.Fatalf("unmarshal failed: %v", err)
-	}
-	if req.SoftDelete != nil {
-		t.Errorf("expected nil SoftDelete when omitted, got %v", req.SoftDelete)
 	}
 }
 

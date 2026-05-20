@@ -162,15 +162,10 @@ func (a *App) agentVectorDeleteHandler(w http.ResponseWriter, r *http.Request) (
 		requestID = common.StrToPtr(uuid.New().String())
 	}
 
-	softDelete := true
-	if req.SoftDelete != nil {
-		softDelete = *req.SoftDelete
-	}
-
-	// Build provider request based on delete mode
+	// Build provider request - intentionally always enable soft delete and avoid hard delete
 	var providerReq *iocmemoryprovider.KnowledgeVectorDeleteRequest
 	if hasID {
-		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteRequest(workspaceID, masID, *req.ID, softDelete)
+		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteRequest(workspaceID, masID, *req.ID, true)
 	} else {
 		// Convert DTO filters to provider filters
 		providerFilters := &iocmemoryprovider.DeleteMetadataFilter{
@@ -181,7 +176,7 @@ func (a *App) agentVectorDeleteHandler(w http.ResponseWriter, r *http.Request) (
 			RecordedAtTo:   req.Filters.RecordedAtTo,
 			ExtraFilters:   req.Filters.ExtraFilters,
 		}
-		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteByFilterRequest(workspaceID, masID, providerFilters, softDelete)
+		providerReq = iocmemoryprovider.NewKnowledgeVectorDeleteByFilterRequest(workspaceID, masID, providerFilters, true)
 	}
 	providerReq.AgentID = &agentID
 

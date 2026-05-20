@@ -2190,9 +2190,6 @@ const docTemplate = `{
                 },
                 "request_id": {
                     "type": "string"
-                },
-                "soft_delete": {
-                    "type": "boolean"
                 }
             }
         },
