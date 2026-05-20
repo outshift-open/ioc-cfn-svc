@@ -9,6 +9,7 @@ import (
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
 )
 
@@ -57,11 +58,16 @@ func (db *Database) Ping() error {
 	return sqlDB.Ping()
 }
 
-// MigrateUp runs all auto-migrations (audit tables, etc.).
+// MigrateUp runs all auto-migrations (audit tables, metrics tables, etc.).
 func (db *Database) MigrateUp() error {
 	if err := audit.MigrateUp(db.DB); err != nil {
 		return err
 	}
+
+	if err := metric.MigrateUp(db.DB); err != nil {
+		return err
+	}
+
 	return nil
 }
 

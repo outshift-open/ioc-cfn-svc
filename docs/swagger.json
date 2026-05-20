@@ -8,6 +8,87 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/cognition-engine/metrics": {
+            "get": {
+                "description": "Returns raw metric data points filtered by time and optional dimensions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Query metrics within time range",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')",
+                        "name": "start_time",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z', or date '2026-05-20')",
+                        "name": "end_time",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by workspace UUID",
+                        "name": "workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by MAS UUID",
+                        "name": "mas_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent ID",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by metric name (supports * wildcard)",
+                        "name": "metric_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max results (default 1000, max 10000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.MetricsQueryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
             "post": {
                 "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe `http-url` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n```json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n```\n\n**POST example** — add memories:\n```json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n```",
@@ -627,6 +708,137 @@
         }
     },
     "definitions": {
+        "app.Filters": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "metric_name": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.IngestMetricsRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricDataPoint"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.MetricDataPoint": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "app.MetricRecord": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "metric_name": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.MetricsQueryResponse": {
+            "type": "object",
+            "properties": {
+                "filters": {
+                    "$ref": "#/definitions/app.Filters"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricRecord"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/app.Pagination"
+                },
+                "period": {
+                    "$ref": "#/definitions/app.Period"
+                }
+            }
+        },
+        "app.Pagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "app.Period": {
+            "type": "object",
+            "properties": {
+                "end": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "string"
+                }
+            }
+        },
         "app.conceptSimilaritySearchHeader": {
             "type": "object",
             "properties": {
