@@ -144,8 +144,8 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 			agentID,
 			"semantic_negotiation",
 			reqPayload.SessionID,
-			&TokenUsageMeta{
-				Tokens: TokenUsage{
+			&common.TokenUsageMeta{
+				Tokens: common.TokenUsage{
 					Prompt:     cogResp.Meta.Tokens.Prompt,
 					Completion: cogResp.Meta.Tokens.Completion,
 					Total:      cogResp.Meta.Tokens.Total,
@@ -277,8 +277,8 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 
 	// Pass through token metadata from cognition agent if available
 	if cogResp.Meta != nil {
-		resp.Meta = &semanticnegotiation.TokenUsageMeta{
-			Tokens: semanticnegotiation.TokenUsage{
+		resp.Meta = &common.TokenUsageMeta{
+			Tokens: common.TokenUsage{
 				Prompt:     cogResp.Meta.Tokens.Prompt,
 				Completion: cogResp.Meta.Tokens.Completion,
 				Total:      cogResp.Meta.Tokens.Total,
@@ -426,8 +426,8 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 
 	// Pass through token metadata from cognition agent if available
 	if cogResp.Meta != nil {
-		resp.Meta = &semanticnegotiation.TokenUsageMeta{
-			Tokens: semanticnegotiation.TokenUsage{
+		resp.Meta = &common.TokenUsageMeta{
+			Tokens: common.TokenUsage{
 				Prompt:     cogResp.Meta.Tokens.Prompt,
 				Completion: cogResp.Meta.Tokens.Completion,
 				Total:      cogResp.Meta.Tokens.Total,

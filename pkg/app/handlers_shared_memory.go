@@ -283,10 +283,10 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "SUCCESS", nil)
 
 	// Pass through token metadata from cognition engine if available
-	var responseMeta *sharedmemory.TokenUsageMeta
+	var responseMeta *common.TokenUsageMeta
 	if extractionResp.Meta != nil {
-		responseMeta = &sharedmemory.TokenUsageMeta{
-			Tokens: sharedmemory.TokenUsage{
+		responseMeta = &common.TokenUsageMeta{
+			Tokens: common.TokenUsage{
 				Prompt:     extractionResp.Meta.Tokens.Prompt,
 				Completion: extractionResp.Meta.Tokens.Completion,
 				Total:      extractionResp.Meta.Tokens.Total,
@@ -310,8 +310,8 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 			agentID,
 			"ingestion",
 			*requestId,
-			&TokenUsageMeta{
-				Tokens: TokenUsage{
+			&common.TokenUsageMeta{
+				Tokens: common.TokenUsage{
 					Prompt:     extractionResp.Meta.Tokens.Prompt,
 					Completion: extractionResp.Meta.Tokens.Completion,
 					Total:      extractionResp.Meta.Tokens.Total,
@@ -508,10 +508,10 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 	log.Infof("Fetch shared memories succeeded | workspace=%s mas=%s", workspaceID, masID)
 
 	// Pass through token metadata from cognition engine if available
-	var responseMeta *sharedmemory.TokenUsageMeta
+	var responseMeta *common.TokenUsageMeta
 	if reasonerResp.Meta != nil {
-		responseMeta = &sharedmemory.TokenUsageMeta{
-			Tokens: sharedmemory.TokenUsage{
+		responseMeta = &common.TokenUsageMeta{
+			Tokens: common.TokenUsage{
 				Prompt:     reasonerResp.Meta.Tokens.Prompt,
 				Completion: reasonerResp.Meta.Tokens.Completion,
 				Total:      reasonerResp.Meta.Tokens.Total,
@@ -531,8 +531,8 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 			agentID,
 			"evidence",
 			*requestId,
-			&TokenUsageMeta{
-				Tokens: TokenUsage{
+			&common.TokenUsageMeta{
+				Tokens: common.TokenUsage{
 					Prompt:     reasonerResp.Meta.Tokens.Prompt,
 					Completion: reasonerResp.Meta.Tokens.Completion,
 					Total:      reasonerResp.Meta.Tokens.Total,

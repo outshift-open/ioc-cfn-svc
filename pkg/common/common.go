@@ -28,3 +28,19 @@ func StrToPtr(s string) *string {
 func BoolToPtr(b bool) *bool {
 	return &b
 }
+
+// TokenUsage represents LLM token consumption metrics.
+type TokenUsage struct {
+	Prompt     int    `json:"prompt"`
+	Completion int    `json:"completion"`
+	Total      int    `json:"total"`
+	Model      string `json:"model"`
+}
+
+// TokenUsageMeta contains LLM call metadata including token usage.
+type TokenUsageMeta struct {
+	Tokens    TokenUsage `json:"tokens"`
+	LatencyMs float64    `json:"latency_ms"`
+	CostUsd   *float64   `json:"cost_usd,omitempty"`
+	Timestamp string     `json:"timestamp"`
+}

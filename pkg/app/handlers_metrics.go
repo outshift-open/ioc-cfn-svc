@@ -13,6 +13,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
@@ -442,7 +443,7 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 func (a *App) storeTokenMetricsAsync(
 	workspaceID, masID uuid.UUID,
 	agentID, service, requestID string,
-	tokenMeta *TokenUsageMeta,
+	tokenMeta *common.TokenUsageMeta,
 ) {
 	if tokenMeta == nil || tokenMeta.Tokens.Total == 0 {
 		return // No tokens to record
@@ -508,21 +509,5 @@ func (a *App) storeTokenMetricsAsync(
 
 	// Store asynchronously (fire-and-forget)
 	go a.storeMetricsBatch(metricsReq, workspaceID, masID)
-}
-
-// TokenUsageMeta represents token usage metadata from cognition engine
-type TokenUsageMeta struct {
-	Tokens    TokenUsage `json:"tokens"`
-	LatencyMs float64    `json:"latency_ms"`
-	CostUsd   *float64   `json:"cost_usd,omitempty"`
-	Timestamp string     `json:"timestamp"`
-}
-
-// TokenUsage represents token counts
-type TokenUsage struct {
-	Prompt     int    `json:"prompt"`
-	Completion int    `json:"completion"`
-	Total      int    `json:"total"`
-	Model      string `json:"model"`
 }
 
