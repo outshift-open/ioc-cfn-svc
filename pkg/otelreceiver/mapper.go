@@ -52,11 +52,10 @@ func MapSpans(td ptrace.Traces, resolver AgentResolver) []SpanRecord {
 		return nil
 	}
 
-	workspaceID, masID := extractWorkspaceMAS(td)
-
 	var out []SpanRecord
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
+		workspaceID, masID := extractWorkspaceMASFromRS(rs)
 		resourceAttrs := rs.Resource().Attributes().AsRaw()
 		serviceName := ""
 		if v, ok := rs.Resource().Attributes().Get("service.name"); ok {
@@ -74,45 +73,39 @@ func MapSpans(td ptrace.Traces, resolver AgentResolver) []SpanRecord {
 	return out
 }
 
-// extractWorkspaceMAS returns the workspace and MAS IDs by checking resource attributes
-// first (resourceAttributes path, dot notation), then span attributes (customAttributes
-// path, hyphen notation on the root span only).
-func extractWorkspaceMAS(td ptrace.Traces) (workspaceID, masID string) {
-	rss := td.ResourceSpans()
-	for i := 0; i < rss.Len(); i++ {
-		rs := rss.At(i)
+// extractWorkspaceMASFromRS returns workspace and MAS IDs for a single ResourceSpans block.
+// It checks resource attributes first (resourceAttributes path, dot notation), then span
+// attributes within the same block (customAttributes path, hyphen notation on root span).
+func extractWorkspaceMASFromRS(rs ptrace.ResourceSpans) (workspaceID, masID string) {
+	attrs := rs.Resource().Attributes()
+	if v, ok := attrs.Get("workspace.id"); ok {
+		workspaceID = v.Str()
+	}
+	if v, ok := attrs.Get("mas.id"); ok {
+		masID = v.Str()
+	}
+	if workspaceID != "" && masID != "" {
+		return
+	}
 
-		// resourceAttributes path: set on every ResourceSpans block.
-		attrs := rs.Resource().Attributes()
-		if v, ok := attrs.Get("workspace.id"); ok && workspaceID == "" {
-			workspaceID = v.Str()
-		}
-		if v, ok := attrs.Get("mas.id"); ok && masID == "" {
-			masID = v.Str()
-		}
-		if workspaceID != "" && masID != "" {
-			return
-		}
-
-		// customAttributes path: only the root span has these (hyphen notation).
-		sss := rs.ScopeSpans()
-		for j := 0; j < sss.Len(); j++ {
-			spans := sss.At(j).Spans()
-			for k := 0; k < spans.Len(); k++ {
-				a := spans.At(k).Attributes()
-				if workspaceID == "" {
-					if v, ok := a.Get("workspace-id"); ok {
-						workspaceID = v.Str()
-					}
+	// customAttributes path: only the root span has these (hyphen notation).
+	sss := rs.ScopeSpans()
+	for j := 0; j < sss.Len(); j++ {
+		spans := sss.At(j).Spans()
+		for k := 0; k < spans.Len(); k++ {
+			a := spans.At(k).Attributes()
+			if workspaceID == "" {
+				if v, ok := a.Get("workspace-id"); ok {
+					workspaceID = v.Str()
 				}
-				if masID == "" {
-					if v, ok := a.Get("mas-id"); ok {
-						masID = v.Str()
-					}
+			}
+			if masID == "" {
+				if v, ok := a.Get("mas-id"); ok {
+					masID = v.Str()
 				}
-				if workspaceID != "" && masID != "" {
-					return
-				}
+			}
+			if workspaceID != "" && masID != "" {
+				return
 			}
 		}
 	}

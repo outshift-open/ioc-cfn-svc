@@ -75,6 +75,9 @@ func (a *App) initializeRoutes() http.Handler {
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
+	// OTLP trace ingestion (openclaw observability plugin)
+	rtr.Post("/v1/traces", a.otelReceiver.HandleTraces)
+
 	// metrics API - Cognition Engine integration
 	// POST: internal (only for CE service-to-service)
 	// GET: public (for dashboards and monitoring tools)

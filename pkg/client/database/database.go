@@ -11,6 +11,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
 )
 
 // Database wraps a GORM DB connection to PostgreSQL.
@@ -58,7 +59,7 @@ func (db *Database) Ping() error {
 	return sqlDB.Ping()
 }
 
-// MigrateUp runs all auto-migrations (audit tables, metrics tables, etc.).
+// MigrateUp runs all auto-migrations (audit tables, metrics tables, otel_spans, etc.).
 func (db *Database) MigrateUp() error {
 	if err := audit.MigrateUp(db.DB); err != nil {
 		return err
@@ -68,7 +69,16 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
+	if err := otelreceiver.MigrateUp(db.DB); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// BulkInsertOtelSpans inserts a batch of OtelSpans in a single DB call.
+func (db *Database) BulkInsertOtelSpans(spans []otelreceiver.OtelSpan) error {
+	return db.Create(&spans).Error
 }
 
 // Find_User_By_IDPUserID_And_Issuer looks up a user by IDP user ID and issuer.

@@ -195,8 +195,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
 	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
-	// Build OTel receiver — batch and flush spans to the configured storage endpoint.
-	otelPort := getEnvOrDefault("OTEL_RECEIVER_PORT", "4318")
+	// Build OTel receiver — batch and flush spans to cfn_cp otel_spans table.
 	otelBatchSize := 100
 	otelFlushInterval := 5 * time.Second
 
@@ -210,7 +209,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		return agentID
 	}
 
-	exp := otelreceiver.NewSpanExporter(knowledgeMemURL, resolver)
+	exp := otelreceiver.NewSpanExporter(db, resolver)
 
 	batchFactory := batchprocessor.NewFactory()
 	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)
@@ -235,9 +234,9 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		return nil, fmt.Errorf("failed to create batch processor: %w", err)
 	}
 
-	otelRcvr := otelreceiver.New(otelPort, batchProc)
-	log.Infof("OTLP receiver configured on port %s, batch_size=%d, flush_interval=%s",
-		otelPort, otelBatchSize, otelFlushInterval)
+	otelRcvr := otelreceiver.New(batchProc)
+	log.Infof("OTLP receiver configured on /v1/traces, batch_size=%d, flush_interval=%s",
+		otelBatchSize, otelFlushInterval)
 
 	a := &App{
 		buildVersion:          buildVersion,
