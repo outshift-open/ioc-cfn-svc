@@ -28,49 +28,55 @@ type SpanBatchRequest struct {
 	Spans []SpanRecord `json:"spans"`
 }
 
-// MemorySvcExporter implements consumer.Traces and component.Component.
+// SpanExporter implements consumer.Traces and component.Component.
 // It maps ptrace.Traces to SpanRecords and POSTs them to the configured endpoint via
 // httpclient (retry + exponential backoff handled by the client). Batching is handled
 // upstream by the batchprocessor.
-type MemorySvcExporter struct {
-	memorySvcURL string
-	resolver     AgentResolver
-	httpClient   *httpclient.Client
+type SpanExporter struct {
+	spanIngestURL string
+	resolver      AgentResolver
+	httpClient    *httpclient.Client
 }
 
-// NewMemorySvcExporter creates a MemorySvcExporter that posts to memorySvcURL.
-func NewMemorySvcExporter(memorySvcURL string, resolver AgentResolver) *MemorySvcExporter {
+// NewSpanExporter creates a SpanExporter that posts to spanIngestURL.
+func NewSpanExporter(spanIngestURL string, resolver AgentResolver) *SpanExporter {
 	cfg := httpclient.DefaultConfig()
 	cfg.Timeout = 30 * time.Second
 	cfg.MaxRetries = 2
 	cfg.RetryWaitMin = 500 * time.Millisecond
 	cfg.RetryWaitMax = 2 * time.Second
-	return &MemorySvcExporter{
-		memorySvcURL: memorySvcURL,
-		resolver:     resolver,
-		httpClient:   httpclient.NewWithConfig(cfg),
+	return &SpanExporter{
+		spanIngestURL: spanIngestURL,
+		resolver:      resolver,
+		httpClient:    httpclient.NewWithConfig(cfg),
 	}
 }
 
 // Capabilities returns consumer capabilities (read-only, does not mutate spans).
-func (e *MemorySvcExporter) Capabilities() consumer.Capabilities {
+func (e *SpanExporter) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
 // Start is a no-op required by component.Component.
-func (e *MemorySvcExporter) Start(_ context.Context, _ component.Host) error { return nil }
+func (e *SpanExporter) Start(_ context.Context, _ component.Host) error { return nil }
 
 // Shutdown is a no-op required by component.Component.
-func (e *MemorySvcExporter) Shutdown(_ context.Context) error { return nil }
+func (e *SpanExporter) Shutdown(_ context.Context) error { return nil }
 
 // ConsumeTraces maps spans, drops those missing required fields, and posts the rest to the configured endpoint.
-func (e *MemorySvcExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
+func (e *SpanExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	spans := MapSpans(td, e.resolver)
 
 	valid := spans[:0]
 	for _, s := range spans {
 		if s.WorkspaceID == "" || s.MasID == "" {
-			exporterLog.Warnf("otelwriter: dropping span %s — missing workspace_id or mas_id", s.SpanID)
+			exporterLog.Warnf("otelwriter: dropping span %s (%s) — missing workspace_id or mas_id", s.SpanID, s.OperationName)
+			continue
+		}
+		if s.OperationName == "openclaw.session.stuck" {
+			continue
+		}
+		if ch, ok := s.Attributes["openclaw.message.channel"].(string); ok && ch == "heartbeat" {
 			continue
 		}
 		valid = append(valid, s)
@@ -82,13 +88,13 @@ func (e *MemorySvcExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces)
 	return e.post(ctx, valid)
 }
 
-func (e *MemorySvcExporter) post(ctx context.Context, spans []SpanRecord) error {
+func (e *SpanExporter) post(ctx context.Context, spans []SpanRecord) error {
 	body, err := json.Marshal(SpanBatchRequest{Spans: spans})
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	url := e.memorySvcURL + otelSpansBatchPath
+	url := e.spanIngestURL + otelSpansBatchPath
 	headers := map[string]string{"Content-Type": "application/json"}
 
 	resp, err := e.httpClient.Post(ctx, url, body, headers)

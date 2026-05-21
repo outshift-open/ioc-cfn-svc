@@ -22,14 +22,14 @@ const maxBodyBytes = 4 << 20 // 4 MB
 var receiverLog = logger.SubPkg("otelreceiver")
 
 // OTLPReceiver listens for OTLP/HTTP trace exports and forwards parsed spans
-// to the consumer pipeline (batchprocessor → MemorySvcExporter).
+// to the consumer pipeline (batchprocessor → SpanExporter).
 type OTLPReceiver struct {
 	server   *http.Server
 	consumer consumer.Traces
 }
 
 // New returns an OTLPReceiver bound to the given port.
-// consumer is normally the batchprocessor wrapping the MemorySvcExporter.
+// consumer is normally the batchprocessor wrapping the SpanExporter.
 func New(port string, consumer consumer.Traces) *OTLPReceiver {
 	r := &OTLPReceiver{consumer: consumer}
 	mux := http.NewServeMux()
@@ -110,3 +110,4 @@ func (r *OTLPReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
 type minimalHost struct{}
 
 func (h *minimalHost) GetExtensions() map[component.ID]component.Component { return nil }
+

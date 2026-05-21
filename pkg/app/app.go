@@ -210,7 +210,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		return agentID
 	}
 
-	exp := otelreceiver.NewMemorySvcExporter(knowledgeMemURL, resolver)
+	exp := otelreceiver.NewSpanExporter(knowledgeMemURL, resolver)
 
 	batchFactory := batchprocessor.NewFactory()
 	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)
