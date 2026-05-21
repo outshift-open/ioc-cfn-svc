@@ -69,6 +69,12 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 ```
 
+### OTLP Span Ingestion
+
+**POST /v1/traces** — Accepts OpenTelemetry spans from (protobuf or JSON).
+
+See [docs/otel-span-ingestion.md](./docs/otel-span-ingestion.md) for the full pipeline, drop conditions, and E2E testing steps.
+
 ### Shared Memory APIs
 
 See [shared-memory-operations](./docs/shared-memory-operations.md)
@@ -392,11 +398,13 @@ pkg/
       sharedmemory/     # DTOs for shared memory API
   audit/            # Audit logging
   client/
+    database/       # GORM database client and migrations
     cognitionagentclient/  # Client for external cognition agents API
     http/           # Robust HTTP client with retries
     mcp/            # MCP client/server implementation
   config/           # Configuration
   mapper/           # Data mappers
+  otelreceiver/     # OTLP/HTTP receiver, span mapper, and TimescaleDB exporter
   metric/           # Prometheus metrics
   model/            # Data models
   task/             # Task management
