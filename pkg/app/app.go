@@ -25,6 +25,11 @@ import (
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/collector/processor/batchprocessor"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/zap"
 )
 
@@ -204,8 +209,33 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		_, _, agentID := ParsedConfig.FindAgentByURL(sessionKey)
 		return agentID
 	}
-	spanWriter := otelreceiver.NewSpanWriter(knowledgeMemURL, otelBatchSize, otelFlushInterval)
-	otelRcvr := otelreceiver.New(otelPort, spanWriter, resolver)
+
+	exp := otelreceiver.NewMemorySvcExporter(knowledgeMemURL, resolver)
+
+	batchFactory := batchprocessor.NewFactory()
+	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)
+	batchCfg.SendBatchSize = uint32(otelBatchSize)
+	batchCfg.Timeout = otelFlushInterval
+
+	telSet := component.TelemetrySettings{
+		Logger:         log.Desugar(),
+		TracerProvider: tracenoop.NewTracerProvider(),
+		MeterProvider:  metricnoop.NewMeterProvider(),
+	}
+	batchProc, err := batchFactory.CreateTraces(
+		context.Background(),
+		processor.Settings{
+			ID:                component.NewID(component.MustNewType("batch")),
+			TelemetrySettings: telSet,
+		},
+		batchCfg,
+		exp,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create batch processor: %w", err)
+	}
+
+	otelRcvr := otelreceiver.New(otelPort, batchProc)
 	log.Infof("OTLP receiver configured on port %s, batch_size=%d, flush_interval=%s",
 		otelPort, otelBatchSize, otelFlushInterval)
 
