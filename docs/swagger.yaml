@@ -446,6 +446,10 @@ definitions:
             type: integer
           type: array
         type: array
+      meta:
+        allOf:
+        - $ref: '#/definitions/semanticnegotiation.TokenUsageMeta'
+        description: Meta contains LLM token usage metadata
       round:
         description: Round is the round number that was just evaluated.
         type: integer
@@ -565,6 +569,10 @@ definitions:
             type: integer
           type: array
         type: array
+      meta:
+        allOf:
+        - $ref: '#/definitions/semanticnegotiation.TokenUsageMeta'
+        description: Meta contains LLM token usage metadata
       n_steps:
         description: NSteps is the SAO round budget for this session.
         type: integer
@@ -593,6 +601,28 @@ definitions:
         - $ref: '#/definitions/semanticnegotiation.NegotiationTrace'
         description: Trace is the complete pre-computed SAO trace (SSTP envelope path
           only).
+    type: object
+  semanticnegotiation.TokenUsage:
+    properties:
+      completion:
+        type: integer
+      model:
+        type: string
+      prompt:
+        type: integer
+      total:
+        type: integer
+    type: object
+  semanticnegotiation.TokenUsageMeta:
+    properties:
+      cost_usd:
+        type: number
+      latency_ms:
+        type: number
+      timestamp:
+        type: string
+      tokens:
+        $ref: '#/definitions/semanticnegotiation.TokenUsage'
     type: object
   sharedmemory.AgentVectorDeleteRequest:
     properties:
@@ -659,6 +689,11 @@ definitions:
       graph_store_message:
         description: Optional message from the graph store upsert operation
         type: string
+      meta:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.TokenUsageMeta'
+        description: Meta provides LLM token usage and performance metrics (optional,
+          present when LLM calls are made)
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
@@ -811,6 +846,11 @@ definitions:
       message:
         description: Message provides detailed information from the query result
         type: string
+      meta:
+        allOf:
+        - $ref: '#/definitions/sharedmemory.TokenUsageMeta'
+        description: Meta provides LLM token usage and performance metrics (optional,
+          present when LLM calls are made)
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
@@ -825,6 +865,28 @@ definitions:
         items:
           $ref: '#/definitions/sharedmemory.QueryRelation'
         type: array
+    type: object
+  sharedmemory.TokenUsage:
+    properties:
+      completion:
+        type: integer
+      model:
+        type: string
+      prompt:
+        type: integer
+      total:
+        type: integer
+    type: object
+  sharedmemory.TokenUsageMeta:
+    properties:
+      cost_usd:
+        type: number
+      latency_ms:
+        type: number
+      timestamp:
+        type: string
+      tokens:
+        $ref: '#/definitions/sharedmemory.TokenUsage'
     type: object
   sharedmemory.VectorDeleteMetadataFilter:
     properties:

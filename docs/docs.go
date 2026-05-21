@@ -1983,6 +1983,14 @@ const docTemplate = `{
                         }
                     }
                 },
+                "meta": {
+                    "description": "Meta contains LLM token usage metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.TokenUsageMeta"
+                        }
+                    ]
+                },
                 "round": {
                     "description": "Round is the round number that was just evaluated.",
                     "type": "integer"
@@ -2139,6 +2147,14 @@ const docTemplate = `{
                         }
                     }
                 },
+                "meta": {
+                    "description": "Meta contains LLM token usage metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/semanticnegotiation.TokenUsageMeta"
+                        }
+                    ]
+                },
                 "n_steps": {
                     "description": "NSteps is the SAO round budget for this session.",
                     "type": "integer"
@@ -2176,6 +2192,40 @@ const docTemplate = `{
                             "$ref": "#/definitions/semanticnegotiation.NegotiationTrace"
                         }
                     ]
+                }
+            }
+        },
+        "semanticnegotiation.TokenUsage": {
+            "type": "object",
+            "properties": {
+                "completion": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "prompt": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "semanticnegotiation.TokenUsageMeta": {
+            "type": "object",
+            "properties": {
+                "cost_usd": {
+                    "type": "number"
+                },
+                "latency_ms": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "$ref": "#/definitions/semanticnegotiation.TokenUsage"
                 }
             }
         },
@@ -2278,6 +2328,14 @@ const docTemplate = `{
                 "graph_store_message": {
                     "description": "Optional message from the graph store upsert operation",
                     "type": "string"
+                },
+                "meta": {
+                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.TokenUsageMeta"
+                        }
+                    ]
                 },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
@@ -2495,6 +2553,14 @@ const docTemplate = `{
                     "description": "Message provides detailed information from the query result",
                     "type": "string"
                 },
+                "meta": {
+                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sharedmemory.TokenUsageMeta"
+                        }
+                    ]
+                },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
                     "type": "string"
@@ -2515,6 +2581,40 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryRelation"
                     }
+                }
+            }
+        },
+        "sharedmemory.TokenUsage": {
+            "type": "object",
+            "properties": {
+                "completion": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "prompt": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "sharedmemory.TokenUsageMeta": {
+            "type": "object",
+            "properties": {
+                "cost_usd": {
+                    "type": "number"
+                },
+                "latency_ms": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "$ref": "#/definitions/sharedmemory.TokenUsage"
                 }
             }
         },
