@@ -1807,6 +1807,40 @@ const docTemplate = `{
                 }
             }
         },
+        "common.TokenUsage": {
+            "type": "object",
+            "properties": {
+                "completion": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "prompt": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "common.TokenUsageMeta": {
+            "type": "object",
+            "properties": {
+                "cost_usd": {
+                    "type": "number"
+                },
+                "latency_ms": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "$ref": "#/definitions/common.TokenUsage"
+                }
+            }
+        },
         "iocmemoryprovider.InternalAttributes": {
             "type": "object",
             "properties": {
@@ -1987,7 +2021,7 @@ const docTemplate = `{
                     "description": "Meta contains LLM token usage metadata",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/semanticnegotiation.TokenUsageMeta"
+                            "$ref": "#/definitions/common.TokenUsageMeta"
                         }
                     ]
                 },
@@ -2151,7 +2185,7 @@ const docTemplate = `{
                     "description": "Meta contains LLM token usage metadata",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/semanticnegotiation.TokenUsageMeta"
+                            "$ref": "#/definitions/common.TokenUsageMeta"
                         }
                     ]
                 },
@@ -2192,40 +2226,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/semanticnegotiation.NegotiationTrace"
                         }
                     ]
-                }
-            }
-        },
-        "semanticnegotiation.TokenUsage": {
-            "type": "object",
-            "properties": {
-                "completion": {
-                    "type": "integer"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "prompt": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "semanticnegotiation.TokenUsageMeta": {
-            "type": "object",
-            "properties": {
-                "cost_usd": {
-                    "type": "number"
-                },
-                "latency_ms": {
-                    "type": "number"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "tokens": {
-                    "$ref": "#/definitions/semanticnegotiation.TokenUsage"
                 }
             }
         },
@@ -2333,7 +2333,7 @@ const docTemplate = `{
                     "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/sharedmemory.TokenUsageMeta"
+                            "$ref": "#/definitions/common.TokenUsageMeta"
                         }
                     ]
                 },
@@ -2557,7 +2557,7 @@ const docTemplate = `{
                     "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/sharedmemory.TokenUsageMeta"
+                            "$ref": "#/definitions/common.TokenUsageMeta"
                         }
                     ]
                 },
@@ -2581,40 +2581,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/sharedmemory.QueryRelation"
                     }
-                }
-            }
-        },
-        "sharedmemory.TokenUsage": {
-            "type": "object",
-            "properties": {
-                "completion": {
-                    "type": "integer"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "prompt": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "sharedmemory.TokenUsageMeta": {
-            "type": "object",
-            "properties": {
-                "cost_usd": {
-                    "type": "number"
-                },
-                "latency_ms": {
-                    "type": "number"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "tokens": {
-                    "$ref": "#/definitions/sharedmemory.TokenUsage"
                 }
             }
         },
