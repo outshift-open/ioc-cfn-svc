@@ -11,6 +11,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
@@ -39,6 +40,8 @@ type Database interface {
 	GetAuditEventByID(uuid.UUID) (*audit.Audit, error)
 	ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error)
 	DeleteAuditEventByID(uuid.UUID) error
+
+	BulkInsertOtelSpans([]otelreceiver.OtelSpan) error
 }
 
 // ensure at build time that this mock type fulfills the interface
@@ -196,5 +199,9 @@ func (m *MockDatabase) DeleteAuditEventByID(id uuid.UUID) error {
 		return errors.Errorf("audit event [%s] not found", id)
 	}
 	delete(m.mockAuditStore, id)
+	return nil
+}
+
+func (m *MockDatabase) BulkInsertOtelSpans(_ []otelreceiver.OtelSpan) error {
 	return nil
 }
