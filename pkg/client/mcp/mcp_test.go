@@ -12,7 +12,6 @@ import (
 )
 
 func TestClientServerCommunication(t *testing.T) {
-	// Reserve port by keeping listener open
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatalf("failed to find available port: %v", err)
@@ -21,53 +20,35 @@ func TestClientServerCommunication(t *testing.T) {
 	addr := fmt.Sprintf("localhost:%d", port)
 	url := fmt.Sprintf("http://%s", addr)
 
-	// Ensure listener is always closed, even on test failure
-	t.Cleanup(func() {
-		if listener != nil {
-			listener.Close()
-		}
-	})
-
-	// Start server with shutdown capability
 	server := NewServer("test-server", "1.0.0")
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 
 	httpServer, shutdown := ServeHTTPWithShutdown(server, addr)
 
-	// Ensure server is stopped after test completes (success or failure)
 	t.Cleanup(func() {
 		if err := shutdown(); err != nil {
 			t.Logf("Error shutting down server: %v", err)
 		}
 	})
 
-	// Channel to capture server startup errors
 	serverErr := make(chan error, 1)
-
-	// Start server in goroutine
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		} else {
 			serverErr <- nil
 		}
 	}()
 
-	// Close reservation listener now that server is starting
-	listener.Close()
-	listener = nil // Prevent double-close in cleanup
-
 	// Wait for server to start and check for errors
 	time.Sleep(100 * time.Millisecond)
 
-	// Check if server started successfully
 	select {
 	case err := <-serverErr:
 		if err != nil {
 			t.Fatalf("Server failed to start: %v", err)
 		}
 	default:
-		// Server is still starting, which is fine
 	}
 
 	// Create client and connect
@@ -120,7 +101,6 @@ func TestClientServerCommunication(t *testing.T) {
 }
 
 func TestRetainTool_Found(t *testing.T) {
-	// Reserve port by keeping listener open
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatalf("failed to find available port: %v", err)
@@ -128,61 +108,40 @@ func TestRetainTool_Found(t *testing.T) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	addr := fmt.Sprintf("localhost:%d", port)
 
-	// Ensure listener is always closed, even on test failure
-	t.Cleanup(func() {
-		if listener != nil {
-			listener.Close()
-		}
-	})
-
 	ctx := context.Background()
 
-	// Reset global state to ensure test isolation
 	sharedMemoryService = nil
 
-	// Create and start server with shutdown capability
 	server := NewServer("test-server", "1.0.0")
-	sharedMemoryService = nil // Set the global service to nil
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	AddTool(server, TOOL_NAME_RETAIN, "Retain shared memories", createOrUpdateSharedMemoriesToolHandler)
 	AddTool(server, TOOL_NAME_RECALL, "Recall shared memories", recallToolHandler)
 
 	httpServer, shutdown := ServeHTTPWithShutdown(server, addr)
 
-	// Ensure server is stopped after test completes (success or failure)
 	t.Cleanup(func() {
 		if err := shutdown(); err != nil {
 			t.Logf("Error shutting down server: %v", err)
 		}
 	})
 
-	// Channel to capture server startup errors
 	serverErr := make(chan error, 1)
-
-	// Start server in goroutine
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		} else {
 			serverErr <- nil
 		}
 	}()
 
-	// Close reservation listener now that server is starting
-	listener.Close()
-	listener = nil // Prevent double-close in cleanup
-
-	// Wait for server to start and check for errors
 	time.Sleep(100 * time.Millisecond)
 
-	// Check if server started successfully
 	select {
 	case err := <-serverErr:
 		if err != nil {
 			t.Fatalf("Server failed to start: %v", err)
 		}
 	default:
-		// Server is still starting, which is fine
 	}
 
 	// Create client and connect
@@ -219,7 +178,6 @@ func TestRetainTool_Found(t *testing.T) {
 }
 
 func TestRetainTool_ExecutionError(t *testing.T) {
-	// Reserve port by keeping listener open
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatalf("failed to find available port: %v", err)
@@ -227,61 +185,40 @@ func TestRetainTool_ExecutionError(t *testing.T) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	addr := fmt.Sprintf("localhost:%d", port)
 
-	// Ensure listener is always closed, even on test failure
-	t.Cleanup(func() {
-		if listener != nil {
-			listener.Close()
-		}
-	})
-
 	ctx := context.Background()
 
-	// Reset global state to ensure test isolation
 	sharedMemoryService = nil
 
-	// Create and start server with shutdown capability
 	server := NewServer("test-server", "1.0.0")
-	sharedMemoryService = nil // Set the global service to nil (will cause execution error)
 	AddTool(server, "echo", "Echo back the message", echoHandler)
 	AddTool(server, TOOL_NAME_RETAIN, "Retain shared memories", createOrUpdateSharedMemoriesToolHandler)
 	AddTool(server, TOOL_NAME_RECALL, "Recall shared memories", recallToolHandler)
 
 	httpServer, shutdown := ServeHTTPWithShutdown(server, addr)
 
-	// Ensure server is stopped after test completes (success or failure)
 	t.Cleanup(func() {
 		if err := shutdown(); err != nil {
 			t.Logf("Error shutting down server: %v", err)
 		}
 	})
 
-	// Channel to capture server startup errors
 	serverErr := make(chan error, 1)
-
-	// Start server in goroutine
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		} else {
 			serverErr <- nil
 		}
 	}()
 
-	// Close reservation listener now that server is starting
-	listener.Close()
-	listener = nil // Prevent double-close in cleanup
-
-	// Wait for server to start and check for errors
 	time.Sleep(100 * time.Millisecond)
 
-	// Check if server started successfully
 	select {
 	case err := <-serverErr:
 		if err != nil {
 			t.Fatalf("Server failed to start: %v", err)
 		}
 	default:
-		// Server is still starting, which is fine
 	}
 
 	// Create client and connect
