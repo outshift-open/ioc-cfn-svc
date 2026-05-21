@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-// SpanRecord mirrors the JSON schema expected by POST /api/otel-spans/batch.
 type SpanRecord struct {
 	TraceID       string            `json:"trace_id"`
 	SpanID        string            `json:"span_id"`
