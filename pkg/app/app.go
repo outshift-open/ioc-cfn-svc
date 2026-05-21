@@ -195,7 +195,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
 	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
-	// Build OTel receiver — flush spans to memory-svc.
+	// Build OTel receiver — batch and flush spans to the configured storage endpoint.
 	otelPort := getEnvOrDefault("OTEL_RECEIVER_PORT", "4318")
 	otelBatchSize := 100
 	otelFlushInterval := 5 * time.Second

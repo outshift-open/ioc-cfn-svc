@@ -6,35 +6,33 @@ package otelreceiver
 
 import (
 	"encoding/hex"
-	"strings"
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-// SpanRecord mirrors the Pydantic SpanRecord expected by memory-svc POST /api/otel-spans/batch.
+// SpanRecord mirrors the JSON schema expected by POST /api/otel-spans/batch.
 type SpanRecord struct {
-	TraceID       string         `json:"trace_id"`
-	SpanID        string         `json:"span_id"`
-	ParentSpanID  string         `json:"parent_span_id,omitempty"`
-	WorkspaceID   string         `json:"workspace_id"`
-	MasID         string         `json:"mas_id"`
-	AgentID       string         `json:"agent_id,omitempty"`
-	OperationName string         `json:"operation_name"`
-	ServiceName   string         `json:"service_name"`
-	SpanKind      string         `json:"span_kind,omitempty"`
-	DurationUs    int64          `json:"duration_us"`
-	StatusCode    string         `json:"status_code,omitempty"`
-	StartTime     string         `json:"start_time"` // RFC3339Nano
-	Attributes    map[string]any `json:"attributes"`
-	Events        any            `json:"events,omitempty"`
-	Links         any            `json:"links,omitempty"`
-	Resource      map[string]any `json:"resource,omitempty"`
+	TraceID       string            `json:"trace_id"`
+	SpanID        string            `json:"span_id"`
+	ParentSpanID  string            `json:"parent_span_id,omitempty"`
+	WorkspaceID   string            `json:"workspace_id"`
+	MasID         string            `json:"mas_id"`
+	AgentID       string            `json:"agent_id,omitempty"`
+	OperationName string            `json:"operation_name"`
+	ServiceName   string            `json:"service_name"`
+	SpanKind      string            `json:"span_kind,omitempty"`
+	DurationUs    int64             `json:"duration_us"`
+	StatusCode    string            `json:"status_code,omitempty"`
+	StartTime     string            `json:"start_time"` // RFC3339Nano
+	Attributes    map[string]any    `json:"attributes"`
+	Events        []map[string]any  `json:"events,omitempty"`
+	Links         []map[string]any  `json:"links,omitempty"`
+	Resource      map[string]any    `json:"resource,omitempty"`
 }
 
-// AgentResolver resolves an agent_id UUID from an agent session key
-// (e.g. "main::agents::planner") by matching Identity.Identifiers["url"] in CFN config.
+// AgentResolver resolves an agent_id UUID from an agent session key by matching
+// against Identity.Identifiers values in CFN config.
 type AgentResolver func(sessionKey string) string
 
 // MapSpans converts a ptrace.Traces into a flat slice of SpanRecords.
@@ -47,8 +45,8 @@ type AgentResolver func(sessionKey string) string
 //
 // agent_id lookup order per span (first non-empty wins):
 //  1. Span attribute "agent.id" — direct UUID, set by any sender that already knows it.
-//  2. openclaw.session.key resolver — looks up "main::agents::<name>" against
-//     AgentCfg.Identity.Identifiers["url"] in ParsedConfig and returns its UUID.
+//  2. openclaw.session.key resolver — prefix-matched against all Identity.Identifiers
+//     values in ParsedConfig and returns the matching agent's UUID.
 func MapSpans(td ptrace.Traces, resolver AgentResolver) []SpanRecord {
 	rss := td.ResourceSpans()
 	if rss.Len() == 0 {
@@ -165,7 +163,7 @@ func mapSpan(
 		Attributes:    attrs.AsRaw(),
 	}
 
-	if parentID := span.ParentSpanID(); !isZeroSpanID(parentID) {
+	if parentID := span.ParentSpanID(); !parentID.IsEmpty() {
 		record.ParentSpanID = hex.EncodeToString(parentID[:])
 	}
 
@@ -186,10 +184,6 @@ func mapSpan(
 	}
 
 	return record
-}
-
-func isZeroSpanID(id pcommon.SpanID) bool {
-	return strings.TrimLeft(hex.EncodeToString(id[:]), "0") == ""
 }
 
 func spanKindString(k ptrace.SpanKind) string {

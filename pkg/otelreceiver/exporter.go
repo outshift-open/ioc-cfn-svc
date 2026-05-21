@@ -5,61 +5,50 @@
 package otelreceiver
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	"go.uber.org/zap"
 
+	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
 )
 
-const (
-	otelSpansBatchPath = "/api/otel-spans/batch"
-	retryAttempts      = 3
-	retryBaseDelay     = 500 * time.Millisecond
-)
+const otelSpansBatchPath = "/api/otel-spans/batch"
 
-var (
-	writerLog  *zap.SugaredLogger
-	writerOnce sync.Once
-)
+var exporterLog = logger.SubPkg("otelwriter")
 
-func getWriterLogger() *zap.SugaredLogger {
-	writerOnce.Do(func() {
-		writerLog = logger.SubPkg("otelwriter")
-	})
-	return writerLog
-}
-
-// SpanBatchRequest is the JSON body sent to memory-svc POST /api/otel-spans/batch.
+// SpanBatchRequest is the JSON body sent to POST /api/otel-spans/batch.
 type SpanBatchRequest struct {
 	Spans []SpanRecord `json:"spans"`
 }
 
 // MemorySvcExporter implements consumer.Traces and component.Component.
-// It maps ptrace.Traces to SpanRecords and POSTs them to memory-svc with retry.
-// Batching and queueing are handled upstream by the batchprocessor.
+// It maps ptrace.Traces to SpanRecords and POSTs them to the configured endpoint via
+// httpclient (retry + exponential backoff handled by the client). Batching is handled
+// upstream by the batchprocessor.
 type MemorySvcExporter struct {
 	memorySvcURL string
 	resolver     AgentResolver
-	httpClient   *http.Client
+	httpClient   *httpclient.Client
 }
 
 // NewMemorySvcExporter creates a MemorySvcExporter that posts to memorySvcURL.
 func NewMemorySvcExporter(memorySvcURL string, resolver AgentResolver) *MemorySvcExporter {
+	cfg := httpclient.DefaultConfig()
+	cfg.Timeout = 30 * time.Second
+	cfg.MaxRetries = 2
+	cfg.RetryWaitMin = 500 * time.Millisecond
+	cfg.RetryWaitMax = 2 * time.Second
 	return &MemorySvcExporter{
 		memorySvcURL: memorySvcURL,
 		resolver:     resolver,
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
+		httpClient:   httpclient.NewWithConfig(cfg),
 	}
 }
 
@@ -74,16 +63,14 @@ func (e *MemorySvcExporter) Start(_ context.Context, _ component.Host) error { r
 // Shutdown is a no-op required by component.Component.
 func (e *MemorySvcExporter) Shutdown(_ context.Context) error { return nil }
 
-// ConsumeTraces maps spans, drops those missing required fields, and posts the rest to memory-svc.
-func (e *MemorySvcExporter) ConsumeTraces(_ context.Context, td ptrace.Traces) error {
-	log := getWriterLogger()
-
+// ConsumeTraces maps spans, drops those missing required fields, and posts the rest to the configured endpoint.
+func (e *MemorySvcExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	spans := MapSpans(td, e.resolver)
 
 	valid := spans[:0]
 	for _, s := range spans {
 		if s.WorkspaceID == "" || s.MasID == "" {
-			log.Warnf("otelwriter: dropping span %s — missing workspace_id or mas_id", s.SpanID)
+			exporterLog.Warnf("otelwriter: dropping span %s — missing workspace_id or mas_id", s.SpanID)
 			continue
 		}
 		valid = append(valid, s)
@@ -92,57 +79,29 @@ func (e *MemorySvcExporter) ConsumeTraces(_ context.Context, td ptrace.Traces) e
 		return nil
 	}
 
-	return e.postWithRetry(valid)
+	return e.post(ctx, valid)
 }
 
-func (e *MemorySvcExporter) postWithRetry(spans []SpanRecord) error {
-	log := getWriterLogger()
-
-	payload := SpanBatchRequest{Spans: spans}
-	body, err := json.Marshal(payload)
+func (e *MemorySvcExporter) post(ctx context.Context, spans []SpanRecord) error {
+	body, err := json.Marshal(SpanBatchRequest{Spans: spans})
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	var lastErr error
-	for attempt := 1; attempt <= retryAttempts; attempt++ {
-		if err := e.postOnce(body, len(spans)); err != nil {
-			lastErr = err
-			if attempt < retryAttempts {
-				delay := retryBaseDelay * (1 << (attempt - 1)) // 500ms, 1s, 2s
-				log.Warnf("otelwriter: attempt %d/%d failed (%v), retrying in %s",
-					attempt, retryAttempts, err, delay)
-				time.Sleep(delay)
-				continue
-			}
-		} else {
-			return nil
-		}
-	}
-	return lastErr
-}
-
-func (e *MemorySvcExporter) postOnce(body []byte, spanCount int) error {
-	log := getWriterLogger()
-
 	url := e.memorySvcURL + otelSpansBatchPath
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	headers := map[string]string{"Content-Type": "application/json"}
 
-	resp, err := e.httpClient.Do(req)
+	resp, err := e.httpClient.Post(ctx, url, body, headers)
 	if err != nil {
-		return fmt.Errorf("http: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("memory-svc returned %d: %s", resp.StatusCode, string(respBody))
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("span storage returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	log.Infof("otelwriter: posted %d span(s), status=%d", spanCount, resp.StatusCode)
+	exporterLog.Infof("otelwriter: posted %d span(s), status=%d", len(spans), resp.StatusCode)
 	return nil
 }
