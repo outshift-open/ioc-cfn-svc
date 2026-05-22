@@ -1807,6 +1807,40 @@ const docTemplate = `{
                 }
             }
         },
+        "common.TokenUsage": {
+            "type": "object",
+            "properties": {
+                "completion": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "prompt": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "common.TokenUsageMeta": {
+            "type": "object",
+            "properties": {
+                "cost_usd": {
+                    "type": "number"
+                },
+                "latency_ms": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "$ref": "#/definitions/common.TokenUsage"
+                }
+            }
+        },
         "iocmemoryprovider.InternalAttributes": {
             "type": "object",
             "properties": {
@@ -1983,6 +2017,14 @@ const docTemplate = `{
                         }
                     }
                 },
+                "meta": {
+                    "description": "Meta contains LLM token usage metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.TokenUsageMeta"
+                        }
+                    ]
+                },
                 "round": {
                     "description": "Round is the round number that was just evaluated.",
                     "type": "integer"
@@ -2139,6 +2181,14 @@ const docTemplate = `{
                         }
                     }
                 },
+                "meta": {
+                    "description": "Meta contains LLM token usage metadata",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.TokenUsageMeta"
+                        }
+                    ]
+                },
                 "n_steps": {
                     "description": "NSteps is the SAO round budget for this session.",
                     "type": "integer"
@@ -2278,6 +2328,14 @@ const docTemplate = `{
                 "graph_store_message": {
                     "description": "Optional message from the graph store upsert operation",
                     "type": "string"
+                },
+                "meta": {
+                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.TokenUsageMeta"
+                        }
+                    ]
                 },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",
@@ -2494,6 +2552,14 @@ const docTemplate = `{
                 "message": {
                     "description": "Message provides detailed information from the query result",
                     "type": "string"
+                },
+                "meta": {
+                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.TokenUsageMeta"
+                        }
+                    ]
                 },
                 "response_id": {
                     "description": "ID of the response, this gets populated from request_id",

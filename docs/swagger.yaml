@@ -316,6 +316,28 @@ definitions:
         description: Mandatory
         type: string
     type: object
+  common.TokenUsage:
+    properties:
+      completion:
+        type: integer
+      model:
+        type: string
+      prompt:
+        type: integer
+      total:
+        type: integer
+    type: object
+  common.TokenUsageMeta:
+    properties:
+      cost_usd:
+        type: number
+      latency_ms:
+        type: number
+      timestamp:
+        type: string
+      tokens:
+        $ref: '#/definitions/common.TokenUsage'
+    type: object
   iocmemoryprovider.InternalAttributes:
     properties:
       attributes:
@@ -446,6 +468,10 @@ definitions:
             type: integer
           type: array
         type: array
+      meta:
+        allOf:
+        - $ref: '#/definitions/common.TokenUsageMeta'
+        description: Meta contains LLM token usage metadata
       round:
         description: Round is the round number that was just evaluated.
         type: integer
@@ -565,6 +591,10 @@ definitions:
             type: integer
           type: array
         type: array
+      meta:
+        allOf:
+        - $ref: '#/definitions/common.TokenUsageMeta'
+        description: Meta contains LLM token usage metadata
       n_steps:
         description: NSteps is the SAO round budget for this session.
         type: integer
@@ -659,6 +689,11 @@ definitions:
       graph_store_message:
         description: Optional message from the graph store upsert operation
         type: string
+      meta:
+        allOf:
+        - $ref: '#/definitions/common.TokenUsageMeta'
+        description: Meta provides LLM token usage and performance metrics (optional,
+          present when LLM calls are made)
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string
@@ -811,6 +846,11 @@ definitions:
       message:
         description: Message provides detailed information from the query result
         type: string
+      meta:
+        allOf:
+        - $ref: '#/definitions/common.TokenUsageMeta'
+        description: Meta provides LLM token usage and performance metrics (optional,
+          present when LLM calls are made)
       response_id:
         description: ID of the response, this gets populated from request_id
         type: string

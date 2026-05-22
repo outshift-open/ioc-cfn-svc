@@ -196,6 +196,7 @@ type KnowledgeCognitionResponse struct {
 	RagChunks  []RagChunk          `json:"rag_chunks,omitempty"`
 	Descriptor string              `json:"descriptor,omitempty"`
 	Metadata   Meta                `json:"metadata,omitempty"`
+	Meta       *TokenUsageMeta     `json:"meta,omitempty"`
 }
 
 // RagChunkMetadata contains metadata fields associated with a RAG chunk.
@@ -282,6 +283,22 @@ type ReasonerRelation struct {
 	Attributes map[string]interface{} `json:"attributes"`
 }
 
+// TokenUsage contains LLM token consumption metrics.
+type TokenUsage struct {
+	Prompt     int    `json:"prompt"`
+	Completion int    `json:"completion"`
+	Total      int    `json:"total"`
+	Model      string `json:"model"`
+}
+
+// TokenUsageMeta contains LLM call metadata including token usage.
+type TokenUsageMeta struct {
+	Tokens    TokenUsage `json:"tokens"`
+	LatencyMs float64    `json:"latency_ms"`
+	CostUsd   *float64   `json:"cost_usd,omitempty"`
+	Timestamp string     `json:"timestamp"`
+}
+
 // ReasonerCognitionResponse is the response from POST /api/knowledge-mgmt/reasoning/evidence.
 type ReasonerCognitionResponse struct {
 	Header     common.Header          `json:"header"`
@@ -289,6 +306,7 @@ type ReasonerCognitionResponse struct {
 	Error      *common.ErrorDetail    `json:"error,omitempty"`
 	Records    []ReasonerRecord       `json:"records,omitempty"`
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	Meta       *TokenUsageMeta        `json:"meta,omitempty"`
 }
 
 // SemanticNegotiationResponse is the response from POST /negotiate/initiate and
@@ -313,6 +331,7 @@ type SemanticNegotiationResponse struct {
 	FinalResult map[string]interface{} `json:"final_result,omitempty"`
 
 	Error *common.ErrorDetail `json:"error,omitempty"`
+	Meta  *TokenUsageMeta     `json:"meta,omitempty"`
 }
 
 // Meta contains metadata about the knowledge cognition processing.
@@ -437,6 +456,22 @@ func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *Semantic
 	if err := c.post(ctx, "/api/semantic-negotiation/negotiate/initiate", body, &result); err != nil {
 		return nil, err
 	}
+
+	// Extract token metadata from nested payload.payload.meta if present
+	if result.Payload != nil {
+		if nestedPayload, ok := result.Payload["payload"].(map[string]interface{}); ok {
+			if metaRaw, ok := nestedPayload["meta"].(map[string]interface{}); ok {
+				metaBytes, err := json.Marshal(metaRaw)
+				if err == nil {
+					var tokenMeta TokenUsageMeta
+					if err := json.Unmarshal(metaBytes, &tokenMeta); err == nil {
+						result.Meta = &tokenMeta
+					}
+				}
+			}
+		}
+	}
+
 	return &result, nil
 }
 

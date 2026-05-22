@@ -2,6 +2,8 @@ package semanticnegotiation
 
 import (
 	"encoding/json"
+
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 )
 
 // Agent represents a participant in a semantic negotiation session.
@@ -114,6 +116,9 @@ type StartResponse struct {
 
 	// Trace is the complete pre-computed SAO trace (SSTP envelope path only).
 	Trace *NegotiationTrace `json:"trace,omitempty"`
+
+	// Meta contains LLM token usage metadata
+	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
 
 // AgentReply is one agent's reply to a negotiation round message.
@@ -171,4 +176,7 @@ type DecideResponse struct {
 	// SharedMemory reports the outcome of persisting the agreement to shared
 	// memory. Only present when Status is "agreed".
 	SharedMemory *SharedMemoryResult `json:"shared_memory,omitempty"`
+
+	// Meta contains LLM token usage metadata
+	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
