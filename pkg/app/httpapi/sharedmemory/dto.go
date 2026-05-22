@@ -61,6 +61,8 @@ type CreateOrUpdateResponse struct {
 	GraphStoreMessage *string `json:"graph_store_message,omitempty"`
 	// Optional message from the vector store upsert operation
 	VectorStoreMessage *string `json:"vector_store_message,omitempty"`
+	// Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)
+	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
 
 type QueryRequest struct {
@@ -108,6 +110,8 @@ type QueryResponse struct {
 	ResponseID *string `json:"response_id,omitempty"`
 	// Message provides detailed information from the query result
 	Message *string `json:"message"`
+	// Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)
+	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
 
 type QueryResponseRecord struct {
