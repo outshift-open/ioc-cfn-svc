@@ -71,9 +71,7 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 ### OTLP Span Ingestion
 
-**POST /v1/traces** — Accepts OpenTelemetry spans from (protobuf or JSON).
-
-See [docs/otel-span-ingestion.md](./docs/otel-span-ingestion.md) for the full pipeline, drop conditions, and E2E testing steps.
+**POST /v1/traces** — Accepts OpenTelemetry spans (protobuf or JSON).
 
 ### Shared Memory APIs
 
