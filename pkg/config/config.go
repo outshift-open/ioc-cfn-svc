@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/namsral/flag"
@@ -47,6 +48,10 @@ var (
 
 	externalServiceURLFlag = flag.String("external_service_url", "", "")
 
+	// OTLP receiver configs
+	otelBatchSizeFlag     = flag.Int("otel_batch_size", 100, "maximum number of spans per batch before flushing")
+	otelFlushIntervalFlag = flag.Duration("otel_flush_interval", 5*time.Second, "maximum time to wait before flushing a partial batch")
+
 	defaultPageSizeFlag = flag.Int("default_page_size", 20, "default number of records per page")
 	maxPageSizeFlag     = flag.Int("max_page_size", 100, "maximum allowed number of records per page")
 
@@ -74,6 +79,13 @@ type Config struct {
 	DB                       Database
 	IDP                      IdentityProvider
 	Pagination               Pagination
+	OTel                     OTelConfig
+}
+
+// OTelConfig holds configurable parameters for the embedded OTLP receiver.
+type OTelConfig struct {
+	BatchSize     int
+	FlushInterval time.Duration
 }
 
 // Pagination holds configurable pagination defaults.
@@ -106,6 +118,10 @@ func Get() *Config {
 		Pagination: Pagination{
 			DefaultPageSize: *defaultPageSizeFlag,
 			MaxPageSize:     *maxPageSizeFlag,
+		},
+		OTel: OTelConfig{
+			BatchSize:     *otelBatchSizeFlag,
+			FlushInterval: *otelFlushIntervalFlag,
 		},
 		IDP: IdentityProvider{
 			Label:                     *idpLabelFlag,

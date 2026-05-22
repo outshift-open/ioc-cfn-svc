@@ -196,8 +196,8 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
 	// Build OTel receiver — batch and flush spans to cfn_cp otel_spans table.
-	otelBatchSize := 100
-	otelFlushInterval := 5 * time.Second
+	otelBatchSize := cfg.OTel.BatchSize
+	otelFlushInterval := cfg.OTel.FlushInterval
 
 	resolver := func(sessionKey string) string {
 		cfnConfigMutex.RLock()

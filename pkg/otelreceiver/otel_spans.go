@@ -87,7 +87,7 @@ func MigrateUp(db *gorm.DB) error {
 		otelSpansLog.Warnf("Compression not available (requires TimescaleDB Community edition): %v", err)
 	} else {
 		if err := db.Exec(`
-			SELECT add_compression_policy('otel_spans', INTERVAL '7 days')
+			SELECT add_compression_policy('otel_spans', INTERVAL '7 days', if_not_exists => true)
 		`).Error; err != nil {
 			otelSpansLog.Warnf("Compression policy not available: %v", err)
 		} else {
@@ -96,7 +96,7 @@ func MigrateUp(db *gorm.DB) error {
 	}
 
 	if err := db.Exec(`
-		SELECT add_retention_policy('otel_spans', INTERVAL '90 days')
+		SELECT add_retention_policy('otel_spans', INTERVAL '90 days', if_not_exists => true)
 	`).Error; err != nil {
 		otelSpansLog.Warnf("Retention policy not available: %v", err)
 	} else {
