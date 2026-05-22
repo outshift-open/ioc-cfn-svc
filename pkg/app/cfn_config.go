@@ -1,5 +1,7 @@
 package app
 
+import "strings"
+
 // CfnConfigPayload is the typed representation of the config blob received from the management plane.
 // Only fields that cfn-svc actually reads are declared; json.Unmarshal ignores the rest.
 type CfnConfigPayload struct {
@@ -106,6 +108,27 @@ func (c *CfnConfigPayload) FindWorkspace(workspaceID string) *WorkspaceConfig {
 		}
 	}
 	return nil
+}
+
+// FindAgentByURL returns the workspace, MAS, and agent IDs for the first agent whose
+// any Identity.Identifiers value is a prefix of the given session key.
+// Returns empty strings if not found.
+func (c *CfnConfigPayload) FindAgentByURL(sessionKey string) (workspaceID, masID, agentID string) {
+	for _, ws := range c.Workspaces {
+		for _, mas := range ws.MultiAgenticSystems {
+			for _, agent := range mas.Agents {
+				if agent.Identity == nil {
+					continue
+				}
+				for _, val := range agent.Identity.Identifiers {
+					if val != "" && strings.HasPrefix(sessionKey, val) {
+						return ws.ID, mas.ID, agent.AgentID
+					}
+				}
+			}
+		}
+	}
+	return "", "", ""
 }
 
 // getSharedMemoryID returns the shared memory ID for a given workspace/MAS from ParsedConfig.

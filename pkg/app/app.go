@@ -21,9 +21,15 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
 	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/collector/processor/batchprocessor"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/zap"
 )
 
@@ -136,6 +142,8 @@ type App struct {
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
 	cognitionAgentsClient *cognitionagentclient.Client
+
+	otelReceiver *otelreceiver.OTLPReceiver
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -187,6 +195,49 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
 	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, 120*time.Second)
 
+	// Build OTel receiver — batch and flush spans to cfn_cp otel_spans table.
+	otelBatchSize := cfg.OTel.BatchSize
+	otelFlushInterval := cfg.OTel.FlushInterval
+
+	resolver := func(sessionKey string) string {
+		cfnConfigMutex.RLock()
+		defer cfnConfigMutex.RUnlock()
+		if ParsedConfig == nil {
+			return ""
+		}
+		_, _, agentID := ParsedConfig.FindAgentByURL(sessionKey)
+		return agentID
+	}
+
+	exp := otelreceiver.NewSpanExporter(db, resolver)
+
+	batchFactory := batchprocessor.NewFactory()
+	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)
+	batchCfg.SendBatchSize = uint32(otelBatchSize)
+	batchCfg.Timeout = otelFlushInterval
+
+	telSet := component.TelemetrySettings{
+		Logger:         log.Desugar(),
+		TracerProvider: tracenoop.NewTracerProvider(),
+		MeterProvider:  metricnoop.NewMeterProvider(),
+	}
+	batchProc, err := batchFactory.CreateTraces(
+		context.Background(),
+		processor.Settings{
+			ID:                component.NewID(component.MustNewType("batch")),
+			TelemetrySettings: telSet,
+		},
+		batchCfg,
+		exp,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create batch processor: %w", err)
+	}
+
+	otelRcvr := otelreceiver.New(batchProc)
+	log.Infof("OTLP receiver configured on /v1/traces, batch_size=%d, flush_interval=%s",
+		otelBatchSize, otelFlushInterval)
+
 	a := &App{
 		buildVersion:          buildVersion,
 		gitCommitSHA:          gitCommitSHA,
@@ -201,6 +252,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		memoryProxyClient:     memoryProxyClient,
 		knowledgeMemSvcClient: knowledgeMemClient,
 		cognitionAgentsClient: cognitionAgentsClient,
+		otelReceiver:          otelRcvr,
 	}
 
 	rtr := a.initializeRoutes()
@@ -420,6 +472,11 @@ func (a *App) startHeartbeat(mgmtURL string) {
 // blocks
 func (a *App) Run() error {
 	log := getLogger()
+
+	if err := a.otelReceiver.Start(); err != nil {
+		return err
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	var serverErr error
@@ -449,10 +506,14 @@ func (a *App) Stop() error {
 	log.Infof("shutting down %s...", a.Cfg.ServiceName)
 	close(a.stopChan)
 	log.Info("- stopping http server")
-	err1 := a.server.Stop()
+	err0 := a.server.Stop()
+	log.Info("- stopping OTLP receiver")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err1 := a.otelReceiver.Stop(ctx)
 	log.Info("- closing connection to db")
 	err2 := a.db.Close()
-	return errors.Join(err1, err2)
+	return errors.Join(err0, err1, err2)
 }
 
 // CreateOrUpdateSharedMemoriesCore implements the McpService interface.
