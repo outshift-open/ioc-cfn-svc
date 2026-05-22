@@ -75,7 +75,11 @@ func (a *App) initializeRoutes() http.Handler {
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
-	// OTLP trace ingestion
+	// OTLP trace ingestion (canonical route follows API guidelines)
+	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)
+	// /v1/traces is kept as an alias: the openclaw-deep-observability plugin hardcodes
+	// this suffix onto whatever base endpoint is configured, so we cannot change it without
+	// a plugin-side code change.
 	rtr.Post("/v1/traces", a.otelReceiver.HandleTraces)
 
 	// metrics API - Cognition Engine integration
