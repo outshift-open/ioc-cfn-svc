@@ -12,22 +12,23 @@ import (
 )
 
 type SpanRecord struct {
-	TraceID       string            `json:"trace_id"`
-	SpanID        string            `json:"span_id"`
-	ParentSpanID  string            `json:"parent_span_id,omitempty"`
-	WorkspaceID   string            `json:"workspace_id"`
-	MasID         string            `json:"mas_id"`
-	AgentID       string            `json:"agent_id,omitempty"`
-	OperationName string            `json:"operation_name"`
-	ServiceName   string            `json:"service_name"`
-	SpanKind      string            `json:"span_kind,omitempty"`
-	DurationUs    int64             `json:"duration_us"`
-	StatusCode    string            `json:"status_code,omitempty"`
-	StartTime     string            `json:"start_time"` // RFC3339Nano
-	Attributes    map[string]any    `json:"attributes"`
-	Events        []map[string]any  `json:"events,omitempty"`
-	Links         []map[string]any  `json:"links,omitempty"`
-	Resource      map[string]any    `json:"resource,omitempty"`
+	TraceID       string           `json:"trace_id"`
+	SpanID        string           `json:"span_id"`
+	ParentSpanID  string           `json:"parent_span_id,omitempty"`
+	WorkspaceID   string           `json:"workspace_id"`
+	MasID         string           `json:"mas_id"`
+	AgentID       string           `json:"agent_id,omitempty"`
+	Name          string           `json:"name"`
+	ServiceName   string           `json:"service_name"`
+	Kind          int              `json:"kind,omitempty"`
+	DurationNano  int64            `json:"duration_nano"`
+	StatusCode    int              `json:"status_code,omitempty"`
+	StatusMessage string           `json:"status_message,omitempty"`
+	StartTime     string           `json:"start_time"` // RFC3339Nano
+	Attributes    map[string]any   `json:"attributes"`
+	Events        []map[string]any `json:"events,omitempty"`
+	Links         []map[string]any `json:"links,omitempty"`
+	Resource      map[string]any   `json:"resource,omitempty"`
 }
 
 // AgentResolver resolves an agent_id UUID from an agent session key by matching
@@ -133,26 +134,26 @@ func mapSpan(
 
 	startNs := span.StartTimestamp()
 	endNs := span.EndTimestamp()
-	durationUs := int64(0)
+	durationNano := int64(0)
 	if endNs > startNs {
-		durationUs = int64((endNs - startNs) / 1000)
+		durationNano = int64(endNs - startNs)
 	}
 
 	traceID := span.TraceID()
 	spanID := span.SpanID()
 
 	record := SpanRecord{
-		TraceID:       hex.EncodeToString(traceID[:]),
-		SpanID:        hex.EncodeToString(spanID[:]),
-		WorkspaceID:   workspaceID,
-		MasID:         masID,
-		AgentID:       agentID,
-		OperationName: span.Name(),
-		ServiceName:   serviceName,
-		SpanKind:      spanKindString(span.Kind()),
-		DurationUs:    durationUs,
-		StartTime:     startNs.AsTime().UTC().Format(time.RFC3339Nano),
-		Attributes:    attrs.AsRaw(),
+		TraceID:      hex.EncodeToString(traceID[:]),
+		SpanID:       hex.EncodeToString(spanID[:]),
+		WorkspaceID:  workspaceID,
+		MasID:        masID,
+		AgentID:      agentID,
+		Name:         span.Name(),
+		ServiceName:  serviceName,
+		Kind:         int(span.Kind()),
+		DurationNano: durationNano,
+		StartTime:    startNs.AsTime().UTC().Format(time.RFC3339Nano),
+		Attributes:   attrs.AsRaw(),
 	}
 
 	if parentID := span.ParentSpanID(); !parentID.IsEmpty() {
@@ -160,7 +161,8 @@ func mapSpan(
 	}
 
 	if status := span.Status(); status.Code() != ptrace.StatusCodeUnset {
-		record.StatusCode = statusCodeString(status.Code())
+		record.StatusCode = int(status.Code())
+		record.StatusMessage = status.Message()
 	}
 
 	if events := span.Events(); events.Len() > 0 {
@@ -176,34 +178,6 @@ func mapSpan(
 	}
 
 	return record
-}
-
-func spanKindString(k ptrace.SpanKind) string {
-	switch k {
-	case ptrace.SpanKindInternal:
-		return "INTERNAL"
-	case ptrace.SpanKindServer:
-		return "SERVER"
-	case ptrace.SpanKindClient:
-		return "CLIENT"
-	case ptrace.SpanKindProducer:
-		return "PRODUCER"
-	case ptrace.SpanKindConsumer:
-		return "CONSUMER"
-	default:
-		return ""
-	}
-}
-
-func statusCodeString(c ptrace.StatusCode) string {
-	switch c {
-	case ptrace.StatusCodeOk:
-		return "OK"
-	case ptrace.StatusCodeError:
-		return "ERROR"
-	default:
-		return "UNSET"
-	}
 }
 
 func mapEvents(events ptrace.SpanEventSlice) []map[string]any {

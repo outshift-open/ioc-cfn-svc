@@ -27,11 +27,12 @@ type OtelSpan struct {
 	MasID         uuid.UUID      `gorm:"type:uuid;not null;index"`
 	AgentID       string         `gorm:"type:text"`
 	ParentSpanID  string         `gorm:"type:text"`
-	OperationName string         `gorm:"type:text;not null"`
+	Name          string         `gorm:"type:text;not null"`
 	ServiceName   string         `gorm:"type:text"`
-	SpanKind      string         `gorm:"type:text"`
-	DurationUs    int64          `gorm:"not null"`
-	StatusCode    string         `gorm:"type:text"`
+	Kind          int            `gorm:"not null"`
+	DurationNano  int64          `gorm:"not null"`
+	StatusCode    int            `gorm:"not null"`
+	StatusMessage string         `gorm:"type:text"`
 	Attributes    datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
 	Events        datatypes.JSON `gorm:"type:jsonb"`
 	Links         datatypes.JSON `gorm:"type:jsonb"`
@@ -137,11 +138,12 @@ func spanRecordToOtelSpan(r SpanRecord) (OtelSpan, error) {
 		WorkspaceID:   wsID,
 		MasID:         masID,
 		AgentID:       r.AgentID,
-		OperationName: r.OperationName,
+		Name:          r.Name,
 		ServiceName:   r.ServiceName,
-		SpanKind:      r.SpanKind,
-		DurationUs:    r.DurationUs,
+		Kind:          r.Kind,
+		DurationNano:  r.DurationNano,
 		StatusCode:    r.StatusCode,
+		StatusMessage: r.StatusMessage,
 		Attributes:    datatypes.JSON(attrsJSON),
 		Events:        datatypes.JSON(eventsJSON),
 		Links:         datatypes.JSON(linksJSON),

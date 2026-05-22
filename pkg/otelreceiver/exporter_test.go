@@ -65,7 +65,7 @@ func TestConsumeTraces_ValidSpan(t *testing.T) {
 	err := exp.ConsumeTraces(context.Background(), td)
 	require.NoError(t, err)
 	assert.Len(t, store.inserted, 1)
-	assert.Equal(t, "llm.call", store.inserted[0].OperationName)
+	assert.Equal(t, "llm.call", store.inserted[0].Name)
 }
 
 func TestConsumeTraces_DropsSpanMissingWorkspaceID(t *testing.T) {
@@ -171,5 +171,5 @@ func TestConsumeTraces_MixedValidAndDropped(t *testing.T) {
 	err := exp.ConsumeTraces(context.Background(), td)
 	require.NoError(t, err)
 	assert.Len(t, store.inserted, 1)
-	assert.Equal(t, "valid.op", store.inserted[0].OperationName)
+	assert.Equal(t, "valid.op", store.inserted[0].Name)
 }

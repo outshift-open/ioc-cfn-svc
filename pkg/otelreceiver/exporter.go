@@ -52,10 +52,10 @@ func (e *SpanExporter) ConsumeTraces(_ context.Context, td ptrace.Traces) error 
 	var otelSpans []OtelSpan
 	for _, r := range records {
 		if r.WorkspaceID == "" || r.MasID == "" {
-			exporterLog.Warnf("otelwriter: dropping span %s (%s) — missing workspace_id or mas_id", r.SpanID, r.OperationName)
+			exporterLog.Warnf("otelwriter: dropping span %s (%s) — missing workspace_id or mas_id", r.SpanID, r.Name)
 			continue
 		}
-		if r.OperationName == "openclaw.session.stuck" {
+		if r.Name == "openclaw.session.stuck" {
 			continue
 		}
 		if ch, ok := r.Attributes["openclaw.message.channel"].(string); ok && ch == "heartbeat" {

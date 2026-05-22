@@ -62,7 +62,7 @@ func TestMapSpans_ResourceAttributesPath(t *testing.T) {
 	assert.Equal(t, testWorkspaceID, records[0].WorkspaceID)
 	assert.Equal(t, testMasID, records[0].MasID)
 	assert.Equal(t, "test-service", records[0].ServiceName)
-	assert.Equal(t, "test.op", records[0].OperationName)
+	assert.Equal(t, "test.op", records[0].Name)
 }
 
 func TestMapSpans_SpanAttributesFallback(t *testing.T) {
@@ -150,7 +150,7 @@ func TestMapSpans_DurationAndIDs(t *testing.T) {
 	records := MapSpans(td, nil)
 	require.Len(t, records, 1)
 
-	assert.Equal(t, int64(500000), records[0].DurationUs) // 500ms = 500000µs
+	assert.Equal(t, int64(500000000), records[0].DurationNano) // 500ms = 500_000_000 ns
 	assert.Equal(t, hex.EncodeToString([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}), records[0].TraceID)
 	assert.Equal(t, hex.EncodeToString([]byte{1, 2, 3, 4, 5, 6, 7, 8}), records[0].SpanID)
 	assert.Equal(t, "2026-01-01T12:00:00Z", records[0].StartTime)
@@ -181,18 +181,18 @@ func TestMapSpans_EmptyTraces(t *testing.T) {
 
 func TestSpanRecordToOtelSpan_HappyPath(t *testing.T) {
 	r := SpanRecord{
-		TraceID:       "0102030405060708090a0b0c0d0e0f10",
-		SpanID:        "0102030405060708",
-		WorkspaceID:   testWorkspaceID,
-		MasID:         testMasID,
-		AgentID:       testAgentID,
-		OperationName: "test.op",
-		ServiceName:   "svc",
-		SpanKind:      "CLIENT",
-		DurationUs:    500000,
-		StatusCode:    "OK",
-		StartTime:     "2026-01-01T12:00:00Z",
-		Attributes:    map[string]any{"key": "val"},
+		TraceID:      "0102030405060708090a0b0c0d0e0f10",
+		SpanID:       "0102030405060708",
+		WorkspaceID:  testWorkspaceID,
+		MasID:        testMasID,
+		AgentID:      testAgentID,
+		Name:         "test.op",
+		ServiceName:  "svc",
+		Kind:         int(ptrace.SpanKindClient),
+		DurationNano: 500000000,
+		StatusCode:   int(ptrace.StatusCodeOk),
+		StartTime:    "2026-01-01T12:00:00Z",
+		Attributes:   map[string]any{"key": "val"},
 	}
 
 	span, err := spanRecordToOtelSpan(r)
@@ -202,8 +202,8 @@ func TestSpanRecordToOtelSpan_HappyPath(t *testing.T) {
 	assert.Equal(t, testWorkspaceID, span.WorkspaceID.String())
 	assert.Equal(t, testMasID, span.MasID.String())
 	assert.Equal(t, testAgentID, span.AgentID)
-	assert.Equal(t, "test.op", span.OperationName)
-	assert.Equal(t, int64(500000), span.DurationUs)
+	assert.Equal(t, "test.op", span.Name)
+	assert.Equal(t, int64(500000000), span.DurationNano)
 	assert.NotEmpty(t, span.Attributes)
 }
 
