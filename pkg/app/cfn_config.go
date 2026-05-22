@@ -121,7 +121,7 @@ func (c *CfnConfigPayload) FindAgentByURL(sessionKey string) (workspaceID, masID
 					continue
 				}
 				for _, val := range agent.Identity.Identifiers {
-					if strings.HasPrefix(sessionKey, val) {
+					if val != "" && strings.HasPrefix(sessionKey, val) {
 						return ws.ID, mas.ID, agent.AgentID
 					}
 				}

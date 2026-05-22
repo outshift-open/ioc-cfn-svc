@@ -60,10 +60,9 @@ func MigrateUp(db *gorm.DB) error {
 		return err
 	}
 
-	otelSpansLog.Info("Attempting to enable TimescaleDB extension...")
 	if err := db.Exec(`CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE`).Error; err != nil {
-		otelSpansLog.Errorf("Failed to create TimescaleDB extension: %v", err)
-		return err
+		otelSpansLog.Warnf("TimescaleDB extension not available, skipping hypertable setup: %v", err)
+		return nil
 	}
 
 	otelSpansLog.Info("Converting otel_spans to TimescaleDB hypertable...")

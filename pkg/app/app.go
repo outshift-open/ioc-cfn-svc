@@ -473,7 +473,9 @@ func (a *App) startHeartbeat(mgmtURL string) {
 func (a *App) Run() error {
 	log := getLogger()
 
-	a.otelReceiver.Start()
+	if err := a.otelReceiver.Start(); err != nil {
+		return err
+	}
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -503,12 +505,12 @@ func (a *App) Stop() error {
 
 	log.Infof("shutting down %s...", a.Cfg.ServiceName)
 	close(a.stopChan)
+	log.Info("- stopping http server")
+	err0 := a.server.Stop()
 	log.Info("- stopping OTLP receiver")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err0 := a.otelReceiver.Stop(ctx)
-	log.Info("- stopping http server")
-	err1 := a.server.Stop()
+	err1 := a.otelReceiver.Stop(ctx)
 	log.Info("- closing connection to db")
 	err2 := a.db.Close()
 	return errors.Join(err0, err1, err2)

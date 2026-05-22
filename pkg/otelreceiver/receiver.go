@@ -6,6 +6,7 @@ package otelreceiver
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -32,12 +33,13 @@ func New(consumer consumer.Traces) *OTLPReceiver {
 }
 
 // Start begins the consumer pipeline.
-func (r *OTLPReceiver) Start() {
+func (r *OTLPReceiver) Start() error {
 	if c, ok := r.consumer.(component.Component); ok {
 		if err := c.Start(context.Background(), &minimalHost{}); err != nil {
-			receiverLog.Errorf("OTLP receiver: failed to start consumer pipeline: %v", err)
+			return fmt.Errorf("OTLP receiver: failed to start consumer pipeline: %w", err)
 		}
 	}
+	return nil
 }
 
 // Stop drains pending spans and shuts down the consumer pipeline.
@@ -75,6 +77,7 @@ func (r *OTLPReceiver) HandleTraces(w http.ResponseWriter, req *http.Request) (i
 
 	if err := r.consumer.ConsumeTraces(req.Context(), exportReq.Traces()); err != nil {
 		receiverLog.Errorf("otelreceiver: consume failed: %v", err)
+		return http.StatusServiceUnavailable, err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
