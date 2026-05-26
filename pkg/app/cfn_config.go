@@ -23,6 +23,7 @@ type MASCfg struct {
 	TaskSchedule *TaskScheduleCfg `json:"task_schedule"`
 }
 
+// TaskScheduleCfg holds the per-MAS task scheduling configuration propagated from the management plane.
 type TaskScheduleCfg struct {
 	TaskName string `json:"task_name"`
 	Enabled  bool   `json:"enabled"`

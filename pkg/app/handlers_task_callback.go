@@ -8,6 +8,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
 )
 
+// taskCallbackRequest is the payload CE sends when a task execution completes or fails.
 type taskCallbackRequest struct {
 	WorkspaceID string `json:"workspace_id"`
 	MASID       string `json:"mas_id"`
@@ -17,6 +18,9 @@ type taskCallbackRequest struct {
 	Result      string `json:"result,omitempty"`
 }
 
+// handleTaskCallback processes CE completion callbacks for async task executions.
+// On success it resets the task to scheduled with a new next_run_time; on failure it marks the task as failed.
+// Late callbacks for already-finalized tasks are ignored.
 func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 

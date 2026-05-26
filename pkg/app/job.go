@@ -8,6 +8,8 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
 )
 
+// LongRunningBackgroundJob runs the DB-driven task scheduler loop.
+// It polls every 30 seconds for due tasks, recovers timed-out executions, and dispatches work to CE.
 func (a *App) LongRunningBackgroundJob() {
 	log := getLogger()
 
@@ -32,6 +34,8 @@ func (a *App) LongRunningBackgroundJob() {
 	}
 }
 
+// runSchedulerTick executes one iteration of the scheduler: first recovers any tasks
+// whose callback deadline has expired, then finds and dispatches all due tasks.
 func (a *App) runSchedulerTick() {
 	log := getLogger()
 
@@ -54,6 +58,8 @@ func (a *App) runSchedulerTick() {
 	}
 }
 
+// dispatchTask looks up the CE endpoint for a task, marks it as running with a 30-minute
+// callback deadline, creates an execution history record, and sends the request to CE in a goroutine.
 func (a *App) dispatchTask(t model.Task) {
 	log := getLogger()
 
@@ -90,6 +96,8 @@ func (a *App) dispatchTask(t model.Task) {
 	go a.sendTaskExecution(t, endpointPath, hist.ID)
 }
 
+// sendTaskExecution sends the task execution request to CE and handles dispatch failures
+// by marking both the task and execution history as failed.
 func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID uint) {
 	log := getLogger()
 
@@ -118,6 +126,9 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID uin
 	}
 }
 
+// syncTasksFromConfig reconciles the tasks table with the latest config from the management plane.
+// New tasks are created with next_run_time=now for immediate first execution; changed schedules
+// recompute next_run_time; unknown task names are logged and skipped.
 func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 	log := getLogger()
 

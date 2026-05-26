@@ -6,6 +6,9 @@ import (
 	"gorm.io/datatypes"
 )
 
+// TaskExecutionHistory records each individual execution attempt of a scheduled task.
+// A new row is inserted when the scheduler dispatches a task to CE, and updated when
+// the callback arrives or the execution times out.
 type TaskExecutionHistory struct {
 	ID         uint           `gorm:"primaryKey;autoIncrement"`
 	TaskID     uint           `gorm:"not null;index"`
