@@ -519,6 +519,61 @@ func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *Semanti
 }
 
 // ---------------------------------------------------------------------------
+// Task execution types and methods
+// ---------------------------------------------------------------------------
+
+// TaskExecutionRequest is sent to CE to trigger an async task execution.
+type TaskExecutionRequest struct {
+	WorkspaceID string `json:"workspace_id"`
+	MASID       string `json:"mas_id"`
+	TaskName    string `json:"task_name"`
+	CallbackURL string `json:"callback_url"`
+}
+
+// TaskExecutionResponse is returned by CE on 202 Accepted.
+type TaskExecutionResponse struct {
+	ExecutionID string `json:"execution_id"`
+}
+
+// SendTaskExecution dispatches a task to the given CE endpoint path.
+// Handles 202 Accepted (success), 409 Conflict (already running), and 400 Bad Request.
+func (c *Client) SendTaskExecution(endpointPath string, req TaskExecutionRequest) (*TaskExecutionResponse, error) {
+	url := fmt.Sprintf("%s%s", c.baseURL, endpointPath)
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal task execution request: %w", err)
+	}
+
+	ctx := context.Background()
+	resp, err := c.httpClient.Post(ctx, url, body, jsonHeaders)
+	if err != nil {
+		return nil, fmt.Errorf("task execution request to %s failed: %w", endpointPath, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read task execution response from %s: %w", endpointPath, readErr)
+	}
+
+	switch resp.StatusCode {
+	case http.StatusAccepted:
+		var result TaskExecutionResponse
+		if err := json.Unmarshal(respBody, &result); err != nil {
+			return nil, fmt.Errorf("failed to decode task execution response from %s: %w", endpointPath, err)
+		}
+		return &result, nil
+	case http.StatusConflict:
+		return nil, fmt.Errorf("task already running (409 from %s): %s", endpointPath, string(respBody))
+	case http.StatusBadRequest:
+		return nil, fmt.Errorf("bad request (400 from %s): %s", endpointPath, string(respBody))
+	default:
+		return nil, fmt.Errorf("unexpected status %d from %s: %s", resp.StatusCode, endpointPath, string(respBody))
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 

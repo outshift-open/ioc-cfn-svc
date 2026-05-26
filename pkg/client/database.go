@@ -42,6 +42,16 @@ type Database interface {
 	DeleteAuditEventByID(uuid.UUID) error
 
 	BulkInsertOtelSpans([]otelreceiver.OtelSpan) error
+
+	// Task scheduling
+	FindDueTasks() ([]model.Task, error)
+	UpsertTask(task *model.Task) error
+	UpdateTaskStatus(taskID uint, status string, fields map[string]interface{}) error
+	RecoverExpiredCallbacks() (int64, error)
+	InsertTaskExecutionHistory(h *model.TaskExecutionHistory) error
+	UpdateTaskExecutionHistory(id uint, fields map[string]interface{}) error
+	UpdateLatestExecutionHistoryByTaskID(taskID uint, fields map[string]interface{}) error
+	FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error)
 }
 
 // ensure at build time that this mock type fulfills the interface
@@ -204,4 +214,36 @@ func (m *MockDatabase) DeleteAuditEventByID(id uuid.UUID) error {
 
 func (m *MockDatabase) BulkInsertOtelSpans(_ []otelreceiver.OtelSpan) error {
 	return nil
+}
+
+func (m *MockDatabase) FindDueTasks() ([]model.Task, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) UpsertTask(_ *model.Task) error {
+	return nil
+}
+
+func (m *MockDatabase) UpdateTaskStatus(_ uint, _ string, _ map[string]interface{}) error {
+	return nil
+}
+
+func (m *MockDatabase) RecoverExpiredCallbacks() (int64, error) {
+	return 0, nil
+}
+
+func (m *MockDatabase) InsertTaskExecutionHistory(_ *model.TaskExecutionHistory) error {
+	return nil
+}
+
+func (m *MockDatabase) UpdateTaskExecutionHistory(_ uint, _ map[string]interface{}) error {
+	return nil
+}
+
+func (m *MockDatabase) UpdateLatestExecutionHistoryByTaskID(_ uint, _ map[string]interface{}) error {
+	return nil
+}
+
+func (m *MockDatabase) FindTaskByKey(_, _, _ string) (*model.Task, error) {
+	return nil, nil
 }
