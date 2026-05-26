@@ -46,11 +46,11 @@ type Database interface {
 	// Task scheduling
 	FindDueTasks() ([]model.Task, error)
 	UpsertTask(task *model.Task) error
-	UpdateTaskStatus(taskID uint, status string, fields map[string]interface{}) error
+	UpdateTaskStatus(taskID string, status string, fields map[string]interface{}) error
 	RecoverExpiredCallbacks() (int64, error)
 	InsertTaskExecutionHistory(h *model.TaskExecutionHistory) error
-	UpdateTaskExecutionHistory(id uint, fields map[string]interface{}) error
-	UpdateLatestExecutionHistoryByTaskID(taskID uint, fields map[string]interface{}) error
+	UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error
+	UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error
 	FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error)
 }
 
@@ -224,7 +224,7 @@ func (m *MockDatabase) UpsertTask(_ *model.Task) error {
 	return nil
 }
 
-func (m *MockDatabase) UpdateTaskStatus(_ uint, _ string, _ map[string]interface{}) error {
+func (m *MockDatabase) UpdateTaskStatus(_ string, _ string, _ map[string]interface{}) error {
 	return nil
 }
 
@@ -236,11 +236,11 @@ func (m *MockDatabase) InsertTaskExecutionHistory(_ *model.TaskExecutionHistory)
 	return nil
 }
 
-func (m *MockDatabase) UpdateTaskExecutionHistory(_ uint, _ map[string]interface{}) error {
+func (m *MockDatabase) UpdateTaskExecutionHistory(_ string, _ map[string]interface{}) error {
 	return nil
 }
 
-func (m *MockDatabase) UpdateLatestExecutionHistoryByTaskID(_ uint, _ map[string]interface{}) error {
+func (m *MockDatabase) UpdateLatestExecutionHistoryByTaskID(_ string, _ map[string]interface{}) error {
 	return nil
 }
 

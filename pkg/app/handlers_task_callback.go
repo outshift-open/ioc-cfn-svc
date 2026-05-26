@@ -46,7 +46,7 @@ func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, e
 	}
 
 	if t.Status != "running" {
-		log.Warnf("callback: task %d is not in running state (status=%s), ignoring late callback", t.ID, t.Status)
+		log.Warnf("callback: task %s is not in running state (status=%s), ignoring late callback", t.ID, t.Status)
 		w.WriteHeader(http.StatusOK)
 		return http.StatusOK, nil
 	}
@@ -65,17 +65,19 @@ func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, e
 	}
 
 	if err := a.db.UpdateLatestExecutionHistoryByTaskID(t.ID, historyFields); err != nil {
-		log.Errorf("callback: failed to update execution history for task %d: %s", t.ID, err)
+		log.Errorf("callback: failed to update execution history for task %s: %s", t.ID, err)
 	}
 
 	taskFields := map[string]interface{}{
 		"callback_deadline": nil,
+		"last_run_time":     now,
+		"last_status":       req.Status,
 	}
 
 	if req.Status == "success" {
 		nextRun, err := task.NextRunTime(t.Schedule, now)
 		if err != nil {
-			log.Errorf("callback: failed to compute next run time for task %d: %s", t.ID, err)
+			log.Errorf("callback: failed to compute next run time for task %s: %s", t.ID, err)
 			_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
 			w.WriteHeader(http.StatusOK)
 			return http.StatusOK, nil

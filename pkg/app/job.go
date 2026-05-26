@@ -3,6 +3,8 @@ package app
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
@@ -65,7 +67,7 @@ func (a *App) dispatchTask(t model.Task) {
 
 	endpointPath, ok := task.LookupEndpoint(t.Name)
 	if !ok {
-		log.Errorf("task %d has unknown task_name %q, skipping", t.ID, t.Name)
+		log.Errorf("task %s has unknown task_name %q, skipping", t.ID, t.Name)
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
 			"callback_deadline": nil,
 		})
@@ -79,17 +81,21 @@ func (a *App) dispatchTask(t model.Task) {
 		"callback_deadline": deadline,
 	})
 	if err != nil {
-		log.Errorf("failed to mark task %d as running: %s", t.ID, err)
+		log.Errorf("failed to mark task %s as running: %s", t.ID, err)
 		return
 	}
 
 	hist := &model.TaskExecutionHistory{
-		TaskID:    t.ID,
-		Status:    "running",
-		StartedAt: now,
+		ID:          uuid.New().String(),
+		TaskID:      t.ID,
+		TaskName:    t.Name,
+		WorkspaceID: &t.WorkspaceID,
+		MasID:       &t.MASID,
+		Status:      "running",
+		StartedAt:   now,
 	}
 	if err := a.db.InsertTaskExecutionHistory(hist); err != nil {
-		log.Errorf("failed to insert execution history for task %d: %s", t.ID, err)
+		log.Errorf("failed to insert execution history for task %s: %s", t.ID, err)
 		return
 	}
 
@@ -98,7 +104,7 @@ func (a *App) dispatchTask(t model.Task) {
 
 // sendTaskExecution sends the task execution request to CE and handles dispatch failures
 // by marking both the task and execution history as failed.
-func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID uint) {
+func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID string) {
 	log := getLogger()
 
 	callbackURL := a.Cfg.ExternalServiceURL + "/api/internal/tasks/callback"
@@ -112,11 +118,13 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID uin
 
 	_, err := a.cognitionAgentsClient.SendTaskExecution(endpointPath, req)
 	if err != nil {
-		log.Errorf("failed to dispatch task %d to CE: %s", t.ID, err)
+		log.Errorf("failed to dispatch task %s to CE: %s", t.ID, err)
 		now := time.Now()
 		errStr := err.Error()
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
 			"callback_deadline": nil,
+			"last_run_time":     now,
+			"last_status":       "failed",
 		})
 		_ = a.db.UpdateTaskExecutionHistory(historyID, map[string]interface{}{
 			"status":      "failed",
@@ -157,13 +165,14 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 					continue
 				}
 				newTask := &model.Task{
+					ID:          uuid.New().String(),
 					WorkspaceID: ws.ID,
 					MASID:       mas.ID,
 					Name:        ts.TaskName,
 					Schedule:    ts.Schedule,
 					Enabled:     ts.Enabled,
 					Status:      "scheduled",
-					NextRunTime: &nextRun,
+					NextRunTime: nextRun,
 				}
 				if err := a.db.UpsertTask(newTask); err != nil {
 					log.Errorf("failed to create task for ws=%s mas=%s: %s", ws.ID, mas.ID, err)
@@ -182,7 +191,7 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 							log.Errorf("invalid cron expression %q for ws=%s mas=%s: %s", ts.Schedule, ws.ID, mas.ID, err)
 							continue
 						}
-						existing.NextRunTime = &nextRun
+						existing.NextRunTime = nextRun
 					}
 
 					if err := a.db.UpsertTask(existing); err != nil {

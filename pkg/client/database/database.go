@@ -80,6 +80,15 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
+	// Partial index for efficient due-task polling — only indexes rows the scheduler queries.
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_next_run_time
+		ON tasks (next_run_time)
+		WHERE enabled = TRUE AND status = 'scheduled'`)
+
+	// Composite index for looking up execution history by task ordered by recency.
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_execution_history_task_id
+		ON task_execution_history (task_id, started_at DESC)`)
+
 	return nil
 }
 
@@ -164,7 +173,7 @@ func (db *Database) UpsertTask(task *model.Task) error {
 }
 
 // UpdateTaskStatus updates a task's status and any extra fields atomically.
-func (db *Database) UpdateTaskStatus(taskID uint, status string, fields map[string]interface{}) error {
+func (db *Database) UpdateTaskStatus(taskID string, status string, fields map[string]interface{}) error {
 	if fields == nil {
 		fields = make(map[string]interface{})
 	}
@@ -185,7 +194,7 @@ func (db *Database) RecoverExpiredCallbacks() (int64, error) {
 		return 0, nil
 	}
 
-	taskIDs := make([]uint, len(expiredTasks))
+	taskIDs := make([]string, len(expiredTasks))
 	for i, t := range expiredTasks {
 		taskIDs[i] = t.ID
 	}
@@ -196,7 +205,12 @@ func (db *Database) RecoverExpiredCallbacks() (int64, error) {
 
 	result := db.DB.Model(&model.Task{}).
 		Where("id IN ?", taskIDs).
-		Updates(map[string]interface{}{"status": "failed", "callback_deadline": nil})
+		Updates(map[string]interface{}{
+			"status":            "failed",
+			"callback_deadline": nil,
+			"last_run_time":     now,
+			"last_status":       "timeout",
+		})
 
 	return result.RowsAffected, result.Error
 }
@@ -207,12 +221,12 @@ func (db *Database) InsertTaskExecutionHistory(h *model.TaskExecutionHistory) er
 }
 
 // UpdateTaskExecutionHistory updates an execution history record by ID.
-func (db *Database) UpdateTaskExecutionHistory(id uint, fields map[string]interface{}) error {
+func (db *Database) UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error {
 	return db.DB.Model(&model.TaskExecutionHistory{}).Where("id = ?", id).Updates(fields).Error
 }
 
 // UpdateLatestExecutionHistoryByTaskID updates the most recent execution history for a task.
-func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID uint, fields map[string]interface{}) error {
+func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error {
 	var hist model.TaskExecutionHistory
 	err := db.DB.Where("task_id = ?", taskID).Order("started_at DESC").First(&hist).Error
 	if err != nil {

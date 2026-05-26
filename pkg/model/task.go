@@ -6,16 +6,17 @@ import "time"
 // The composite unique index (workspace_id, mas_id, name) ensures one task definition per MAS.
 // Status transitions: scheduled → running → scheduled (on success) or failed (on error/timeout).
 type Task struct {
-	ID               uint       `gorm:"primaryKey;autoIncrement"`
-	WorkspaceID      string     `gorm:"size:36;not null;uniqueIndex:idx_task_ws_mas_name"`
-	MASID            string     `gorm:"column:mas_id;size:36;not null;uniqueIndex:idx_task_ws_mas_name"`
-	Name             string     `gorm:"size:128;not null;uniqueIndex:idx_task_ws_mas_name"`
-	Schedule         string     `gorm:"size:64;not null"`
+	ID               string     `gorm:"primaryKey;type:uuid"`
+	Name             string     `gorm:"not null;uniqueIndex:idx_task_ws_mas_name"`
+	Schedule         string     `gorm:"not null"`
 	Enabled          bool       `gorm:"not null;default:true"`
-	Status           string     `gorm:"size:32;not null;default:'scheduled'"`
-	NextRunTime      *time.Time `gorm:"index"`
-	CallbackDeadline *time.Time
-	CreatedAt        time.Time  `gorm:"not null;autoCreateTime"`
+	Status           string     `gorm:"not null;default:'scheduled'"`
+	WorkspaceID      string     `gorm:"type:text;uniqueIndex:idx_task_ws_mas_name"`
+	MASID            string     `gorm:"column:mas_id;type:text;uniqueIndex:idx_task_ws_mas_name"`
+	NextRunTime      time.Time  `gorm:"not null"`
+	LastRunTime      *time.Time
+	LastStatus       *string
+	CallbackDeadline *time.Time `gorm:"type:timestamptz"`
 	UpdatedAt        time.Time  `gorm:"not null;autoUpdateTime"`
 }
 
