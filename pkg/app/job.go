@@ -75,7 +75,7 @@ func (a *App) dispatchTask(t model.Task) {
 	}
 
 	now := time.Now()
-	deadline := now.Add(30 * time.Minute)
+	deadline := now.Add(time.Duration(a.Cfg.TaskCallbackDeadlineMinutes) * time.Minute)
 
 	err := a.db.UpdateTaskStatus(t.ID, "running", map[string]interface{}{
 		"callback_deadline": deadline,
