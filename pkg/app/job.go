@@ -211,6 +211,8 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 		}
 	}
 
+	// Disable tasks whose MAS no longer exists in config (e.g. MAS was deleted).
+	// Soft-disables by setting enabled=false — preserves execution history for audit.
 	disabled, err := a.db.DisableTasksNotInSet(seenKeys)
 	if err != nil {
 		log.Warnf("error disabling orphaned tasks: %s", err)

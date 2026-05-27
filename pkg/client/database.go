@@ -52,6 +52,7 @@ type Database interface {
 	UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error
 	UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error
 	FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error)
+	// DisableTasksNotInSet disables orphaned tasks when their MAS is deleted from config.
 	DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error)
 }
 

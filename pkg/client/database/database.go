@@ -235,8 +235,9 @@ func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields m
 	return db.DB.Model(&hist).Updates(fields).Error
 }
 
-// DisableTasksNotInSet disables tasks whose (workspace_id, mas_id) key is not in the provided set.
-// Returns the list of tasks that were disabled.
+// DisableTasksNotInSet soft-disables tasks whose (workspace_id, mas_id) is not in activeKeys.
+// Called during config sync to clean up tasks for deleted MAS entries.
+// Sets enabled=false so FindDueTasks() skips them; preserves rows for audit history.
 func (db *Database) DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error) {
 	var allTasks []model.Task
 	if err := db.DB.Where("enabled = ?", true).Find(&allTasks).Error; err != nil {
