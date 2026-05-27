@@ -4,6 +4,7 @@ package task
 
 // registry maps each known task_name to its corresponding CE endpoint path.
 // When a new scheduled task type is added, register it here.
+// todo- this registry is used to map task_name to endpoint path, needs to be revisited and with better implementation
 var registry = map[string]string{
 	"distillation-task": "/api/knowledge-mgmt/runDistillation",
 	"otel-task":         "/api/knowledge-mgmt/runOtelTask",
