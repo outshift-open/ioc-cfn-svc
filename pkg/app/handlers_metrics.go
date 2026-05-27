@@ -19,6 +19,23 @@ import (
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
+// defaultCEID is a placeholder CE ID used when real CE ID is not available from configuration.
+// TODO: Replace with actual CE ID extracted from management plane config.
+// This well-known UUID makes it easy to identify and query metrics during development:
+//   SELECT * FROM mas_metrics WHERE ce_id = '00000000-0000-0000-0000-000000000001';
+var defaultCEID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
+// Safety limits for time-series queries (no pagination needed)
+const (
+	maxDatapoints = 100000 // Max datapoints per query (prevents unbounded result sets)
+)
+
+// getDefaultCEID returns a placeholder CE ID for metrics storage.
+// TODO: Extract real CE ID from cognition agent client configuration.
+func (a *App) getDefaultCEID() *uuid.UUID {
+	return &defaultCEID
+}
+
 // MetricDataPoint represents a single metric in the batch
 type MetricDataPoint struct {
 	Timestamp  *time.Time             `json:"timestamp"`
@@ -293,6 +310,16 @@ func (a *App) storeMetricsBatch(
 		return
 	}
 
+	// Parse CE ID once if provided
+	var ceIDPtr *uuid.UUID
+	if req.CEID != "" {
+		if ceIDParsed, err := uuid.Parse(req.CEID); err == nil {
+			ceIDPtr = &ceIDParsed
+		} else {
+			log.Warnf("Invalid CE ID format: %s", req.CEID)
+		}
+	}
+
 	// Build records for batch insert
 	var records []metric.MASMetric
 	now := time.Now()
@@ -352,6 +379,7 @@ func (a *App) storeMetricsBatch(
 			WorkspaceID: workspaceID,
 			MASID:       masID,
 			AgentID:     req.AgentID,
+			CEID:        ceIDPtr,
 			MetricName:  m.Name,
 			Value:       m.Value,
 			Attributes:  attributesJSON,
@@ -457,9 +485,6 @@ func (a *App) storeCEMetricsBatch(req IngestMetricsRequest, ceID uuid.UUID) {
 type MetricSeries struct {
 	MetricName string `json:"metric_name"`
 
-	// CE fields (populated for CE metrics)
-	CEID string `json:"ce_id,omitempty"`
-
 	// MAS fields (populated for MAS metrics)
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	MASID       string `json:"mas_id,omitempty"`
@@ -475,31 +500,14 @@ type MetricSeries struct {
 
 // MetricsQueryResponse represents the unified query result with separate CE and MAS metrics
 type MetricsQueryResponse struct {
-	Period     Period           `json:"period"`
-	Filters    Filters          `json:"filters,omitempty"`
+	CEID       string           `json:"ce_id"`
 	CEMetrics  *MetricResultSet `json:"ce_metrics,omitempty"`
 	MASMetrics *MetricResultSet `json:"mas_metrics,omitempty"`
 }
 
-// MetricResultSet represents metrics from a single table with page-based pagination
+// MetricResultSet represents metrics from a single table
 type MetricResultSet struct {
-	Page       int            `json:"page"`
-	PageSize   int            `json:"pageSize"`
-	TotalCount int            `json:"totalCount"`
-	Series     []MetricSeries `json:"series"`
-}
-
-type Period struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
-}
-
-type Filters struct {
-	CEID        *string `json:"ce_id,omitempty"`
-	WorkspaceID *string `json:"workspace_id,omitempty"`
-	MASID       *string `json:"mas_id,omitempty"`
-	AgentID     *string `json:"agent_id,omitempty"`
-	MetricName  *string `json:"metric_name,omitempty"`
+	Series []MetricSeries `json:"series"`
 }
 
 // parseFlexibleTime parses time from multiple formats:
@@ -534,28 +542,43 @@ func parseFlexibleTime(s string) (time.Time, error) {
 //
 // @Summary     Query metrics within time range (CE and/or MAS)
 // @Description Returns grouped time-series data filtered by time and entity dimensions.
-// @Description At least one entity filter is REQUIRED: ce_id, workspace_id, mas_id, or agent_id.
+// @Description Returns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.
 // @Description Response format groups datapoints by metric name to reduce verbosity (60-70% size reduction).
+// @Description No pagination - queries return all matching datapoints up to safety limit (100K max).
 //
 // @Tags        cognition-engine
 // @Produce     json
 //
+// @Param       ceId path string true "Cognition Engine UUID"
 // @Param       start_time query string true "Start time (Unix timestamp, RFC3339, or date)"
 // @Param       end_time query string true "End time (Unix timestamp, RFC3339, or date)"
-// @Param       ce_id query string false "Filter CE metrics by instance UUID (required if no MAS filters)"
-// @Param       workspace_id query string false "Filter MAS metrics by workspace UUID (required if no CE filter)"
+// @Param       workspace_id query string false "Filter MAS metrics by workspace UUID"
 // @Param       mas_id query string false "Filter MAS metrics by MAS UUID"
 // @Param       agent_id query string false "Filter MAS metrics by agent ID"
 // @Param       metric_name query string false "Filter by metric name (supports * wildcard)"
-// @Param       page query int false "Page number (default 0, 0-indexed)"
-// @Param       pageSize query int false "Datapoints per page (default 100, max 1000). Note: applies to raw datapoints before grouping."
 //
 // @Success     200 {object} MetricsQueryResponse
-// @Failure     400 {object} map[string]string "Invalid parameters or missing entity filter"
+// @Failure     400 {object} map[string]string "Invalid parameters"
+// @Failure     413 {object} map[string]string "Too many datapoints (exceeds 100K limit)"
 //
-// @Router      /api/cognition-engine/metrics [get]
+// @Router      /api/cognition-engines/{ceId}/metrics [get]
 func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
+
+	// Extract CE ID from path parameter (required)
+	ceIDStr := eh.PathParam(r, "ceId")
+	if ceIDStr == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "ce_id is required in path",
+		})
+	}
+
+	// Validate CE ID format
+	if _, err := uuid.Parse(ceIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "ce_id must be a valid UUID",
+		})
+	}
 
 	// Parse required time range
 	startTimeStr := r.URL.Query().Get("start_time")
@@ -581,38 +604,11 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		})
 	}
 
-	// Parse optional filters
-	ceIDStr := r.URL.Query().Get("ce_id")
+	// Parse optional filters (to narrow MAS metrics)
 	workspaceIDStr := r.URL.Query().Get("workspace_id")
 	masIDStr := r.URL.Query().Get("mas_id")
 	agentID := r.URL.Query().Get("agent_id")
 	metricName := r.URL.Query().Get("metric_name")
-
-	// Parse pagination (page-based, not offset-based)
-	// NOTE: pageSize applies to RAW DATAPOINTS fetched from DB, not grouped series count.
-	// After grouping, the number of series returned may be less than pageSize.
-	// Example: pageSize=100 may return 10-100 series depending on metric cardinality.
-	page := 0
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p >= 0 {
-			page = p
-		}
-	}
-
-	pageSize := 100     // default: increased from 20 to account for grouping
-	maxPageSize := 1000 // max: increased from 100 to balance grouped format size reduction
-	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
-		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
-			pageSize = ps
-		}
-	}
-	if pageSize > maxPageSize {
-		pageSize = maxPageSize
-	}
-
-	// Convert to DB offset/limit
-	offset := page * pageSize
-	limit := pageSize
 
 	// Get database
 	db, ok := a.db.(*database.Database)
@@ -622,66 +618,43 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		})
 	}
 
-	// Smart routing: determine which tables to query
-	queryCE := ceIDStr != ""
-	queryMAS := workspaceIDStr != "" || masIDStr != "" || agentID != ""
-
-	// REQUIRE at least one entity filter (prevent expensive full-table scans)
-	if !queryCE && !queryMAS {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "at least one entity filter required: ce_id, workspace_id, mas_id, or agent_id",
-		})
-	}
-
 	// Build response
 	response := MetricsQueryResponse{
-		Period: Period{
-			Start: startTime.Format(time.RFC3339),
-			End:   endTime.Format(time.RFC3339),
-		},
-		Filters: Filters{},
+		CEID: ceIDStr,
 	}
 
-	// Query CE metrics if applicable
-	if queryCE {
-		ceResult, err := a.queryCEMetricsData(db.DB, startTime, endTime, ceIDStr, metricName, limit, offset)
-		if err != nil {
-			log.Errorf("CE query failed: %v", err)
-			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-				"error": "ce_query_failed",
+	// Query CE infrastructure metrics
+	ceResult, err := a.queryCEMetricsData(db.DB, startTime, endTime, ceIDStr, metricName)
+	if err != nil {
+		log.Errorf("CE query failed: %v", err)
+		// Check if error is due to too many datapoints
+		if strings.Contains(err.Error(), "exceeds maximum") {
+			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+				"error": err.Error(),
 			})
 		}
-		response.CEMetrics = ceResult
-		if ceIDStr != "" {
-			response.Filters.CEID = &ceIDStr
-		}
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "ce_query_failed",
+		})
 	}
+	response.CEMetrics = ceResult
 
-	// Query MAS metrics if applicable
-	if queryMAS {
-		masResult, err := a.queryMASMetricsData(db.DB, startTime, endTime, workspaceIDStr, masIDStr, agentID, metricName, limit, offset)
-		if err != nil {
-			log.Errorf("MAS query failed: %v", err)
-			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-				"error": "mas_query_failed",
+	// Query MAS operations processed by this CE
+	// Optional filters (workspace_id, mas_id, agent_id) can narrow results
+	masResult, err := a.queryMASMetricsData(db.DB, startTime, endTime, workspaceIDStr, masIDStr, agentID, metricName, ceIDStr)
+	if err != nil {
+		log.Errorf("MAS query (by CE ID) failed: %v", err)
+		// Check if error is due to too many datapoints
+		if strings.Contains(err.Error(), "exceeds maximum") {
+			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+				"error": err.Error(),
 			})
 		}
-		response.MASMetrics = masResult
-		if workspaceIDStr != "" {
-			response.Filters.WorkspaceID = &workspaceIDStr
-		}
-		if masIDStr != "" {
-			response.Filters.MASID = &masIDStr
-		}
-		if agentID != "" {
-			response.Filters.AgentID = &agentID
-		}
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "mas_query_failed",
+		})
 	}
-
-	// Add metric name filter if specified
-	if metricName != "" {
-		response.Filters.MetricName = &metricName
-	}
+	response.MASMetrics = masResult
 
 	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
@@ -691,10 +664,16 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 func (a *App) storeTokenMetricsAsync(
 	workspaceID, masID uuid.UUID,
 	agentID, service, requestID string,
+	ceID *uuid.UUID,
 	tokenMeta *common.TokenUsageMeta,
 ) {
 	if tokenMeta == nil || tokenMeta.Tokens.Total == 0 {
 		return // No tokens to record
+	}
+
+	// Use default CE ID if not provided
+	if ceID == nil {
+		ceID = a.getDefaultCEID()
 	}
 
 	// Build metrics batch
@@ -716,6 +695,7 @@ func (a *App) storeTokenMetricsAsync(
 		WorkspaceID: workspaceID.String(),
 		MASID:       masID.String(),
 		AgentID:     agentID,
+		CEID:        "", // Set below if ceID provided
 		Attributes:  attributes,
 		Metrics: []MetricDataPoint{
 			{
@@ -755,6 +735,11 @@ func (a *App) storeTokenMetricsAsync(
 		})
 	}
 
+	// Set CE ID if provided
+	if ceID != nil {
+		metricsReq.CEID = ceID.String()
+	}
+
 	// Store asynchronously (fire-and-forget)
 	go a.storeMetricsBatch(metricsReq, workspaceID, masID)
 }
@@ -764,7 +749,6 @@ func (a *App) queryCEMetricsData(
 	db *gorm.DB,
 	startTime, endTime time.Time,
 	ceIDStr, metricName string,
-	limit, offset int,
 ) (*MetricResultSet, error) {
 	query := db.Model(&metric.CEMetric{}).
 		Where("time >= ? AND time < ?", startTime, endTime)
@@ -788,21 +772,25 @@ func (a *App) queryCEMetricsData(
 		}
 	}
 
-	// Get total count (total datapoints)
+	// Check count before fetching (safety limit)
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
-	// Execute query with pagination
+	if total > maxDatapoints {
+		return nil, fmt.Errorf("query would return %d datapoints, exceeds maximum of %d. narrow your time range or add more filters", total, maxDatapoints)
+	}
+
+	// Execute query (no pagination)
 	var records []metric.CEMetric
-	if err := query.Order("time DESC").Limit(limit).Offset(offset).Find(&records).Error; err != nil {
+	if err := query.Order("time DESC").Find(&records).Error; err != nil {
 		return nil, err
 	}
 
-	// Group by (ce_id, metric_name, attributes) to build series
+	// Group by (metric_name, attributes) to build series
+	// Note: ce_id is already at top level of response, no need to repeat per series
 	type seriesKey struct {
-		ceID       string
 		metricName string
 		attrsJSON  string
 	}
@@ -813,7 +801,6 @@ func (a *App) queryCEMetricsData(
 		json.Unmarshal(r.Attributes, &attrs)
 
 		key := seriesKey{
-			ceID:       r.CEID.String(),
 			metricName: r.MetricName,
 			attrsJSON:  string(r.Attributes),
 		}
@@ -821,7 +808,6 @@ func (a *App) queryCEMetricsData(
 		if _, exists := seriesMap[key]; !exists {
 			seriesMap[key] = &MetricSeries{
 				MetricName: r.MetricName,
-				CEID:       r.CEID.String(),
 				Attributes: attrs,
 				Datapoints: [][]interface{}{},
 			}
@@ -840,29 +826,29 @@ func (a *App) queryCEMetricsData(
 		series = append(series, *s)
 	}
 
-	// Calculate page from offset
-	page := 0
-	if limit > 0 {
-		page = offset / limit
-	}
-
 	return &MetricResultSet{
-		Page:       page,
-		PageSize:   limit,
-		TotalCount: int(total),
-		Series:     series,
+		Series: series,
 	}, nil
 }
 
 // queryMASMetricsData queries mas_metrics table with filters
+// If ceIDStr is provided, filters MAS metrics by ce_id (for CE-centric queries)
 func (a *App) queryMASMetricsData(
 	db *gorm.DB,
 	startTime, endTime time.Time,
-	workspaceIDStr, masIDStr, agentID, metricName string,
-	limit, offset int,
+	workspaceIDStr, masIDStr, agentID, metricName, ceIDStr string,
 ) (*MetricResultSet, error) {
 	query := db.Model(&metric.MASMetric{}).
 		Where("time >= ? AND time < ?", startTime, endTime)
+
+	// Apply CE ID filter (for CE-centric queries)
+	if ceIDStr != "" {
+		ceID, err := uuid.Parse(ceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("ce_id must be valid UUID")
+		}
+		query = query.Where("ce_id = ?", ceID)
+	}
 
 	// Apply workspace ID filter
 	if workspaceIDStr != "" {
@@ -897,19 +883,24 @@ func (a *App) queryMASMetricsData(
 		}
 	}
 
-	// Get total count (total datapoints)
+	// Check count before fetching (safety limit)
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
-	// Execute query with pagination
+	if total > maxDatapoints {
+		return nil, fmt.Errorf("query would return %d datapoints, exceeds maximum of %d. narrow your time range or add more filters", total, maxDatapoints)
+	}
+
+	// Execute query (no pagination)
 	var records []metric.MASMetric
-	if err := query.Order("time DESC").Limit(limit).Offset(offset).Find(&records).Error; err != nil {
+	if err := query.Order("time DESC").Find(&records).Error; err != nil {
 		return nil, err
 	}
 
 	// Group by (workspace_id, mas_id, agent_id, metric_name, attributes) to build series
+	// Note: ce_id is already at top level of response, no need to repeat per series
 	type seriesKey struct {
 		workspaceID string
 		masID       string
@@ -955,16 +946,7 @@ func (a *App) queryMASMetricsData(
 		series = append(series, *s)
 	}
 
-	// Calculate page from offset
-	page := 0
-	if limit > 0 {
-		page = offset / limit
-	}
-
 	return &MetricResultSet{
-		Page:       page,
-		PageSize:   limit,
-		TotalCount: int(total),
-		Series:     series,
+		Series: series,
 	}, nil
 }

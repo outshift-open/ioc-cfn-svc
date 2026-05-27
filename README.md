@@ -102,47 +102,37 @@ curl -X POST http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716
 
 #### Query Metrics
 
-**GET /api/cognition-engine/metrics** — Query metrics with entity-scoped filtering
+**GET /api/cognition-engines/{ceId}/metrics** — Query metrics for a specific Cognition Engine
 
-**⚠️ At least one entity filter is REQUIRED** (prevents expensive full-table scans):
-- `ce_id` → CE metrics only
-- `workspace_id`/`mas_id`/`agent_id` → MAS metrics only
+Returns both CE infrastructure metrics and MAS operation metrics processed by that CE. This enables complete observability: see what the CE is doing (infrastructure) and what work it's processing (operations).
 
 ```bash
-# Query CE metrics only
-curl "http://localhost:9002/api/cognition-engine/metrics?\
-ce_id=550e8400-e29b-41d4-a716-446655440000&\
+# Query all metrics for a CE
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
 start_time=2026-05-27T00:00:00Z&\
 end_time=2026-05-27T23:59:59Z"
 
-# Query MAS metrics only
-curl "http://localhost:9002/api/cognition-engine/metrics?\
+# Filter MAS metrics to specific workspace
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
 workspace_id=770fa621-04bd-42f6-a938-668877662222&\
 start_time=2026-05-27&\
 end_time=2026-05-28"
 
-# Query with pagination
-curl "http://localhost:9002/api/cognition-engine/metrics?\
-ce_id=550e8400-e29b-41d4-a716-446655440000&\
+# Filter to specific metric names
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
+metric_name=llm.token.*&\
 start_time=2026-05-27&\
-end_time=2026-05-28&\
-page=0&\
-pageSize=50"
+end_time=2026-05-28"
 ```
 
 **Response structure (grouped format for size reduction):**
 ```json
 {
-  "period": {"start": "...", "end": "..."},
-  "filters": {"ce_id": "..."},
+  "ce_id": "550e8400-e29b-41d4-a716-446655440000",
   "ce_metrics": {
-    "page": 0,
-    "pageSize": 100,
-    "totalCount": 245,
     "series": [
       {
         "metric_name": "ce.queue.depth",
-        "ce_id": "550e8400-...",
         "attributes": {"hostname": "ce-prod-01"},
         "datapoints": [
           ["2026-05-27T10:00:00Z", 12.0],
@@ -152,7 +142,6 @@ pageSize=50"
       },
       {
         "metric_name": "ce.memory.usage_pct",
-        "ce_id": "550e8400-...",
         "attributes": {"hostname": "ce-prod-01"},
         "datapoints": [
           ["2026-05-27T10:00:00Z", 67.5],
@@ -161,24 +150,39 @@ pageSize=50"
       }
     ]
   },
-  "mas_metrics": null
+  "mas_metrics": {
+    "series": [
+      {
+        "metric_name": "llm.token.input",
+        "workspace_id": "770fa621-04bd-42f6-a938-668877662222",
+        "mas_id": "880fb732-d9e4-53c6-af56-445566778899",
+        "agent_id": "agent-1",
+        "attributes": {"model": "gpt-4o"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 1500.0],
+          ["2026-05-27T10:01:00Z", 2000.0]
+        ]
+      }
+    ]
+  }
 }
 ```
 
 **Benefits of grouped format:**
 - 60-70% size reduction (metadata not repeated per datapoint)
+- No duplication (ce_id at top level, not repeated per series)
 - Natural for charting (series = metric + labels)
 - Industry standard (Prometheus, InfluxDB, Grafana)
 
 **Query Parameters:**
 - `start_time`, `end_time` (required): Unix timestamp, RFC3339, or date
-- **At least one required:** `ce_id`, `workspace_id`, `mas_id`, or `agent_id`
-- `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.tokens.*`)
-- `page` (optional): Page number (default 0, 0-indexed)
-- `pageSize` (optional): Datapoints per page (default 100, max 1000)
+- `workspace_id` (optional): Filter MAS metrics to specific workspace
+- `mas_id` (optional): Filter MAS metrics to specific MAS
+- `agent_id` (optional): Filter MAS metrics to specific agent
+- `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.token.*`)
 
-**Pagination Note:**  
-`pageSize` applies to raw datapoints fetched from the database **before grouping**. After grouping, the number of series returned may be less than `pageSize` depending on metric cardinality. For example, `pageSize=100` might return 10-100 series depending on how many unique metric names exist in the result set.
+**No Pagination:**  
+Time-series queries return all matching datapoints (up to 100K safety limit). If you hit the limit, narrow your time range or add more filters. This is the standard approach for time-series databases (Prometheus, InfluxDB, Grafana).
 
 **Storage:**
 - **TimescaleDB** hypertables (`ce_metrics`, `mas_metrics`)

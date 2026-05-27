@@ -404,12 +404,15 @@ func TestGetMetricsHandler_FlexibleTimeFormats(t *testing.T) {
 		},
 	}
 
+	ceID := uuid.New()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=%s&end_time=%s",
-				tt.startTime, tt.endTime)
+			url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=%s&end_time=%s",
+				ceID.String(), tt.startTime, tt.endTime)
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("ceId", ceID.String())
 			rr := httptest.NewRecorder()
 
 			code, err := app.getMetricsHandler(rr, req)
@@ -418,8 +421,7 @@ func TestGetMetricsHandler_FlexibleTimeFormats(t *testing.T) {
 
 			var resp MetricsQueryResponse
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-			assert.NotEmpty(t, resp.Period.Start)
-			assert.NotEmpty(t, resp.Period.End)
+			assert.Equal(t, ceID.String(), resp.CEID)
 		})
 	}
 }
@@ -428,6 +430,8 @@ func TestGetMetricsHandler_InvalidUUIDs(t *testing.T) {
 	t.Skip("Skipping - requires real database for GORM operations")
 
 	app := newTestApp()
+
+	ceID := uuid.New()
 
 	tests := []struct {
 		name        string
@@ -451,10 +455,11 @@ func TestGetMetricsHandler_InvalidUUIDs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&%s=%s",
-				tt.queryParam, tt.value)
+			url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&%s=%s",
+				ceID.String(), tt.queryParam, tt.value)
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("ceId", ceID.String())
 			rr := httptest.NewRecorder()
 
 			code, err := app.getMetricsHandler(rr, req)
@@ -473,20 +478,23 @@ func TestGetMetricsHandler_ValidRequest(t *testing.T) {
 
 	app := newTestApp()
 
-	url := "/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z"
+	ceID := uuid.New()
+
+	// CE-centric API: CE ID in path is required
+	url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z", ceID.String())
 	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.SetPathValue("ceId", ceID.String())
 	rr := httptest.NewRecorder()
 
 	code, err := app.getMetricsHandler(rr, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	// Should fail with 400 - entity filter required in v2
-	assert.Equal(t, http.StatusBadRequest, code)
-
-	var errResp map[string]string
-	require.NoError(t, json.NewDecoder(rr.Body).Decode(&errResp))
-	assert.Contains(t, errResp["error"], "at least one entity filter required")
+	var resp MetricsQueryResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, ceID.String(), resp.CEID)
+	assert.NotNil(t, resp.CEMetrics)
+	assert.NotNil(t, resp.MASMetrics)
 }
 
 func TestGetMetricsHandler_WithFilters(t *testing.T) {
@@ -494,14 +502,16 @@ func TestGetMetricsHandler_WithFilters(t *testing.T) {
 
 	app := newTestApp()
 
+	ceID := uuid.New()
 	workspaceID := uuid.New()
 	masID := uuid.New()
 
-	// v2 API: use page/pageSize instead of limit/offset
-	url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&workspace_id=%s&mas_id=%s&agent_id=test-agent&metric_name=llm.token.*&page=0&pageSize=50",
-		workspaceID.String(), masID.String())
+	// CE-centric API: CE ID in path, other filters in query
+	url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&workspace_id=%s&mas_id=%s&agent_id=test-agent&metric_name=llm.token.*",
+		ceID.String(), workspaceID.String(), masID.String())
 
 	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.SetPathValue("ceId", ceID.String())
 	rr := httptest.NewRecorder()
 
 	code, err := app.getMetricsHandler(rr, req)
@@ -511,81 +521,48 @@ func TestGetMetricsHandler_WithFilters(t *testing.T) {
 	var resp MetricsQueryResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 
-	// Verify filters are set
-	assert.NotNil(t, resp.Filters.WorkspaceID)
-	assert.Equal(t, workspaceID.String(), *resp.Filters.WorkspaceID)
-	assert.NotNil(t, resp.Filters.MASID)
-	assert.Equal(t, masID.String(), *resp.Filters.MASID)
-	assert.NotNil(t, resp.Filters.AgentID)
-	assert.Equal(t, "test-agent", *resp.Filters.AgentID)
-	assert.NotNil(t, resp.Filters.MetricName)
-	assert.Equal(t, "llm.token.*", *resp.Filters.MetricName)
+	// Verify CE ID at top level
+	assert.Equal(t, ceID.String(), resp.CEID)
 
-	// Verify pagination (v2: page/pageSize instead of limit/offset)
+	// Verify both metric types returned
+	assert.NotNil(t, resp.CEMetrics)
+	assert.NotNil(t, resp.CEMetrics.Series)
 	assert.NotNil(t, resp.MASMetrics)
-	assert.Equal(t, 0, resp.MASMetrics.Page)
-	assert.Equal(t, 50, resp.MASMetrics.PageSize)
+	assert.NotNil(t, resp.MASMetrics.Series)
 }
 
-func TestGetMetricsHandler_Pagination(t *testing.T) {
+func TestGetMetricsHandler_NoPagination(t *testing.T) {
 	t.Skip("Skipping - requires real database for GORM operations")
 
 	app := newTestApp()
 
 	ceID := uuid.New()
 
-	// v2 API: page/pageSize instead of limit/offset
-	tests := []struct {
-		name             string
-		page             string
-		pageSize         string
-		expectedPageSize int
-	}{
-		{
-			name:             "default pagination",
-			page:             "",
-			pageSize:         "",
-			expectedPageSize: 100, // v2 default (increased to account for grouping)
-		},
-		{
-			name:             "custom pageSize",
-			page:             "1",
-			pageSize:         "50",
-			expectedPageSize: 50,
-		},
-		{
-			name:             "max pageSize enforced",
-			page:             "",
-			pageSize:         "2000",
-			expectedPageSize: 1000, // v2 max is 1000
-		},
-	}
+	// No pagination - queries return all matching datapoints (up to safety limit)
+	// CE-centric: CE ID in path
+	url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z", ceID.String())
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// v2 requires entity filter
-			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&ce_id=%s", ceID.String())
-			if tt.page != "" {
-				url += "&page=" + tt.page
-			}
-			if tt.pageSize != "" {
-				url += "&pageSize=" + tt.pageSize
-			}
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.SetPathValue("ceId", ceID.String())
+	rr := httptest.NewRecorder()
 
-			req := httptest.NewRequest(http.MethodGet, url, nil)
-			rr := httptest.NewRecorder()
+	code, err := app.getMetricsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, code)
 
-			code, err := app.getMetricsHandler(rr, req)
-			assert.NoError(t, err)
-			assert.Equal(t, http.StatusOK, code)
+	var resp MetricsQueryResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 
-			var resp MetricsQueryResponse
-			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-			assert.NotNil(t, resp.CEMetrics)
-			assert.LessOrEqual(t, resp.CEMetrics.PageSize, 1000) // v2 max
-			assert.Equal(t, tt.expectedPageSize, resp.CEMetrics.PageSize)
-		})
-	}
+	// Verify CE ID at top level
+	assert.Equal(t, ceID.String(), resp.CEID)
+
+	// Verify both metric types returned
+	assert.NotNil(t, resp.CEMetrics)
+	assert.NotNil(t, resp.CEMetrics.Series)
+	assert.NotNil(t, resp.MASMetrics)
+	assert.NotNil(t, resp.MASMetrics.Series)
+
+	// No pagination, period, or filters fields in response
 }
 
 func TestIngestCEMetricsHandler_Success(t *testing.T) {

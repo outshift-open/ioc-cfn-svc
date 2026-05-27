@@ -84,9 +84,9 @@ func (a *App) initializeRoutes() http.Handler {
 
 	// metrics API - Cognition Engine integration
 	// POST: CE pushes infrastructure metrics (queue depth, memory, CPU, etc.)
-	// GET: public (for dashboards and monitoring tools)
+	// GET: Query CE infrastructure + MAS operations for a specific CE
 	rtr.Post(apiPrefix+"/cognition-engines/{ceId}/metrics", a.ingestCEMetricsHandler)
-	rtr.Get(apiPrefix+"/cognition-engine/metrics", a.getMetricsHandler)
+	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/metrics", a.getMetricsHandler)
 
 	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
 	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))

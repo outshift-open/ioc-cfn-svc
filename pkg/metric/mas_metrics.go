@@ -33,6 +33,7 @@ type MASMetric struct {
 	MASID       uuid.UUID      `gorm:"type:uuid;primaryKey;not null;index:idx_mas_metrics_mas"`
 	AgentID     string         `gorm:"type:text;primaryKey;not null"`
 	MetricName  string         `gorm:"type:text;primaryKey;not null"`
+	CEID        *uuid.UUID     `gorm:"type:uuid;index:idx_mas_metrics_ce_id"`
 	Value       float64        `gorm:"type:double precision;not null"`
 	Attributes  datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'"`
 }
