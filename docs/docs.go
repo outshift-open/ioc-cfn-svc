@@ -78,7 +78,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Results per page (default 20, max 100)",
+                        "description": "Datapoints per page (default 100, max 1000). Note: applies to raw datapoints before grouping.",
                         "name": "pageSize",
                         "in": "query"
                     }

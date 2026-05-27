@@ -545,7 +545,7 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 			name:             "default pagination",
 			page:             "",
 			pageSize:         "",
-			expectedPageSize: 20, // v2 default
+			expectedPageSize: 100, // v2 default (increased to account for grouping)
 		},
 		{
 			name:             "custom pageSize",
@@ -556,8 +556,8 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 		{
 			name:             "max pageSize enforced",
 			page:             "",
-			pageSize:         "500",
-			expectedPageSize: 100, // v2 max is 100
+			pageSize:         "2000",
+			expectedPageSize: 1000, // v2 max is 1000
 		},
 	}
 
@@ -582,7 +582,7 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 			var resp MetricsQueryResponse
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 			assert.NotNil(t, resp.CEMetrics)
-			assert.LessOrEqual(t, resp.CEMetrics.PageSize, 100) // v2 max
+			assert.LessOrEqual(t, resp.CEMetrics.PageSize, 1000) // v2 max
 			assert.Equal(t, tt.expectedPageSize, resp.CEMetrics.PageSize)
 		})
 	}

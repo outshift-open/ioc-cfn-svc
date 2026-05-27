@@ -462,7 +462,7 @@ func parseFlexibleTime(s string) (time.Time, error) {
 // @Param       agent_id query string false "Filter MAS metrics by agent ID"
 // @Param       metric_name query string false "Filter by metric name (supports * wildcard)"
 // @Param       page query int false "Page number (default 0, 0-indexed)"
-// @Param       pageSize query int false "Results per page (default 20, max 100)"
+// @Param       pageSize query int false "Datapoints per page (default 100, max 1000). Note: applies to raw datapoints before grouping."
 //
 // @Success     200 {object} MetricsQueryResponse
 // @Failure     400 {object} map[string]string "Invalid parameters or missing entity filter"
@@ -503,6 +503,9 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 	metricName := r.URL.Query().Get("metric_name")
 
 	// Parse pagination (page-based, not offset-based)
+	// NOTE: pageSize applies to RAW DATAPOINTS fetched from DB, not grouped series count.
+	// After grouping, the number of series returned may be less than pageSize.
+	// Example: pageSize=100 may return 10-100 series depending on metric cardinality.
 	page := 0
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p >= 0 {
@@ -510,8 +513,8 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		}
 	}
 
-	pageSize := 20 // default
-	maxPageSize := 100
+	pageSize := 100      // default: increased from 20 to account for grouping
+	maxPageSize := 1000  // max: increased from 100 to balance grouped format size reduction
 	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
 		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
 			pageSize = ps

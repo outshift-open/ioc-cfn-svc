@@ -148,7 +148,7 @@ pageSize=50"
   "filters": {"ce_id": "..."},
   "ce_metrics": {
     "page": 0,
-    "pageSize": 20,
+    "pageSize": 100,
     "totalCount": 245,
     "series": [
       {
@@ -186,7 +186,10 @@ pageSize=50"
 - **At least one required:** `ce_id`, `workspace_id`, `mas_id`, or `agent_id`
 - `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.tokens.*`)
 - `page` (optional): Page number (default 0, 0-indexed)
-- `pageSize` (optional): Results per page (default 20, max 100)
+- `pageSize` (optional): Datapoints per page (default 100, max 1000)
+
+**Pagination Note:**  
+`pageSize` applies to raw datapoints fetched from the database **before grouping**. After grouping, the number of series returned may be less than `pageSize` depending on metric cardinality. For example, `pageSize=100` might return 10-100 series depending on how many unique metric names exist in the result set.
 
 **Storage:**
 - **TimescaleDB** hypertables (`ce_metrics`, `mas_metrics`)
