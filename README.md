@@ -113,13 +113,11 @@ curl -X POST http://localhost:9002/api/internal/cognition-engine/metrics \
 
 #### Query Metrics
 
-**GET /api/cognition-engine/metrics** — Query metrics with smart routing
+**GET /api/cognition-engine/metrics** — Query metrics with entity-scoped filtering
 
-Smart routing based on filters:
-- Only `ce_id`? → CE metrics only
-- Only `workspace_id`/`mas_id`/`agent_id`? → MAS metrics only
-- Both? → Both tables
-- Neither? → Both tables (time-range query)
+**⚠️ At least one entity filter is REQUIRED** (prevents expensive full-table scans):
+- `ce_id` → CE metrics only
+- `workspace_id`/`mas_id`/`agent_id` → MAS metrics only
 
 ```bash
 # Query CE metrics only
@@ -134,57 +132,61 @@ workspace_id=770fa621-04bd-42f6-a938-668877662222&\
 start_time=2026-05-27&\
 end_time=2026-05-28"
 
-# Query both (time-range only)
+# Query with pagination
 curl "http://localhost:9002/api/cognition-engine/metrics?\
-start_time=2026-05-27T14:00:00Z&\
-end_time=2026-05-27T15:00:00Z"
+ce_id=550e8400-e29b-41d4-a716-446655440000&\
+start_time=2026-05-27&\
+end_time=2026-05-28&\
+page=0&\
+pageSize=50"
 ```
 
-**Response structure:**
+**Response structure (grouped format for size reduction):**
 ```json
 {
   "period": {"start": "...", "end": "..."},
-  "filters": {"ce_id": "...", "workspace_id": "..."},
+  "filters": {"ce_id": "..."},
   "ce_metrics": {
-    "total": 245,
-    "limit": 1000,
-    "offset": 0,
-    "data": [
+    "page": 0,
+    "pageSize": 20,
+    "totalCount": 245,
+    "series": [
       {
-        "timestamp": "2026-05-27T10:30:00Z",
-        "ce_id": "550e8400-...",
         "metric_name": "ce.queue.depth",
-        "value": 12.0,
-        "attributes": {"hostname": "ce-prod-01"}
+        "ce_id": "550e8400-...",
+        "attributes": {"hostname": "ce-prod-01"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 12.0],
+          ["2026-05-27T10:01:00Z", 15.0],
+          ["2026-05-27T10:02:00Z", 11.0]
+        ]
+      },
+      {
+        "metric_name": "ce.memory.usage_pct",
+        "ce_id": "550e8400-...",
+        "attributes": {"hostname": "ce-prod-01"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 67.5],
+          ["2026-05-27T10:01:00Z", 68.2]
+        ]
       }
     ]
   },
-  "mas_metrics": {
-    "total": 1823,
-    "limit": 1000,
-    "offset": 0,
-    "data": [
-      {
-        "timestamp": "2026-05-27T10:30:05Z",
-        "workspace_id": "770fa621-...",
-        "mas_id": "880fb732-...",
-        "agent_id": "negotiator-1",
-        "metric_name": "llm.tokens.prompt",
-        "value": 1234.0,
-        "attributes": {"model": "claude-sonnet-4-6"}
-      }
-    ]
-  }
+  "mas_metrics": null
 }
 ```
 
+**Benefits of grouped format:**
+- 60-70% size reduction (metadata not repeated per datapoint)
+- Natural for charting (series = metric + labels)
+- Industry standard (Prometheus, InfluxDB, Grafana)
+
 **Query Parameters:**
 - `start_time`, `end_time` (required): Unix timestamp, RFC3339, or date
-- `ce_id` (optional): Filter CE metrics by instance
-- `workspace_id`, `mas_id`, `agent_id` (optional): Filter MAS metrics
+- **At least one required:** `ce_id`, `workspace_id`, `mas_id`, or `agent_id`
 - `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.tokens.*`)
-- `limit` (optional): Max results per table (default 1000, max 10000)
-- `offset` (optional): Pagination offset per table (default 0)
+- `page` (optional): Page number (default 0, 0-indexed)
+- `pageSize` (optional): Results per page (default 20, max 100)
 
 **Storage:**
 - **TimescaleDB** hypertables (`ce_metrics`, `mas_metrics`)

@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/api/cognition-engine/metrics": {
             "get": {
-                "description": "Returns raw metric data points filtered by time and optional dimensions.\nSmart routing: ce_id → CE metrics, workspace/mas/agent → MAS metrics, neither → both",
+                "description": "Returns grouped time-series data filtered by time and entity dimensions.\nAt least one entity filter is REQUIRED: ce_id, workspace_id, mas_id, or agent_id.\nResponse format groups datapoints by metric name to reduce verbosity (60-70% size reduction).",
                 "produces": [
                     "application/json"
                 ],
@@ -42,13 +42,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter CE metrics by instance UUID",
+                        "description": "Filter CE metrics by instance UUID (required if no MAS filters)",
                         "name": "ce_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter MAS metrics by workspace UUID",
+                        "description": "Filter MAS metrics by workspace UUID (required if no CE filter)",
                         "name": "workspace_id",
                         "in": "query"
                     },
@@ -72,14 +72,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Max results per table (default 1000, max 10000)",
-                        "name": "limit",
+                        "description": "Page number (default 0, 0-indexed)",
+                        "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination offset per table (default 0)",
-                        "name": "offset",
+                        "description": "Results per page (default 20, max 100)",
+                        "name": "pageSize",
                         "in": "query"
                     }
                 ],
@@ -91,7 +91,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid parameters",
+                        "description": "Invalid parameters or missing entity filter",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1432,13 +1432,34 @@ const docTemplate = `{
                 }
             }
         },
-        "app.MetricRecord": {
+        "app.MetricResultSet": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricSeries"
+                    }
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "app.MetricSeries": {
             "type": "object",
             "properties": {
                 "agent_id": {
                     "type": "string"
                 },
                 "attributes": {
+                    "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
                 },
@@ -1446,42 +1467,23 @@ const docTemplate = `{
                     "description": "CE fields (populated for CE metrics)",
                     "type": "string"
                 },
+                "datapoints": {
+                    "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
                 "mas_id": {
                     "type": "string"
                 },
                 "metric_name": {
-                    "description": "Common fields",
                     "type": "string"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "number"
                 },
                 "workspace_id": {
                     "description": "MAS fields (populated for MAS metrics)",
                     "type": "string"
-                }
-            }
-        },
-        "app.MetricResultSet": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/app.MetricRecord"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },

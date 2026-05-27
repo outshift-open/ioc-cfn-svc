@@ -721,13 +721,34 @@
                 }
             }
         },
-        "app.MetricRecord": {
+        "app.MetricResultSet": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricSeries"
+                    }
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "app.MetricSeries": {
             "type": "object",
             "properties": {
                 "agent_id": {
                     "type": "string"
                 },
                 "attributes": {
+                    "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
                 },
@@ -735,42 +756,23 @@
                     "description": "CE fields (populated for CE metrics)",
                     "type": "string"
                 },
+                "datapoints": {
+                    "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
                 "mas_id": {
                     "type": "string"
                 },
                 "metric_name": {
-                    "description": "Common fields",
                     "type": "string"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "number"
                 },
                 "workspace_id": {
                     "description": "MAS fields (populated for MAS metrics)",
                     "type": "string"
-                }
-            }
-        },
-        "app.MetricResultSet": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/app.MetricRecord"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },
