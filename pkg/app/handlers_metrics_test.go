@@ -588,5 +588,97 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 	}
 }
 
+func TestIngestCEMetricsHandler_Success(t *testing.T) {
+	app := newTestApp()
+
+	ceID := uuid.New()
+	timestamp := time.Now().UTC()
+
+	payload := IngestCEMetricsRequest{
+		Attributes: map[string]interface{}{
+			"hostname": "ce-prod-01",
+			"region":   "us-west-2",
+		},
+		Metrics: []MetricDataPoint{
+			{
+				Timestamp: &timestamp,
+				Name:      "ce.queue.depth",
+				Value:     12.0,
+			},
+			{
+				Timestamp: &timestamp,
+				Name:      "ce.memory.usage_pct",
+				Value:     67.5,
+			},
+			{
+				Name:  "ce.cpu.usage_pct",
+				Value: 45.2,
+			},
+		},
+	}
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/cognition-engines/%s/metrics", ceID), bytes.NewReader(body))
+	req.SetPathValue("ceId", ceID.String())
+	rr := httptest.NewRecorder()
+
+	code, err := app.ingestCEMetricsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusAccepted, code)
+
+	var resp map[string]interface{}
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "accepted", resp["status"])
+	assert.Equal(t, float64(3), resp["received"])
+
+	// Give async storage time to complete
+	time.Sleep(100 * time.Millisecond)
+}
+
+func TestIngestCEMetricsHandler_InvalidCEID(t *testing.T) {
+	app := newTestApp()
+
+	payload := IngestCEMetricsRequest{
+		Metrics: []MetricDataPoint{
+			{Name: "ce.queue.depth", Value: 12.0},
+		},
+	}
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines/not-a-uuid/metrics", bytes.NewReader(body))
+	req.SetPathValue("ceId", "not-a-uuid")
+	rr := httptest.NewRecorder()
+
+	code, err := app.ingestCEMetricsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["details"], "ce_id must be a valid UUID")
+}
+
+func TestIngestCEMetricsHandler_EmptyMetrics(t *testing.T) {
+	app := newTestApp()
+
+	ceID := uuid.New()
+	payload := IngestCEMetricsRequest{
+		Metrics: []MetricDataPoint{},
+	}
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/cognition-engines/%s/metrics", ceID), bytes.NewReader(body))
+	req.SetPathValue("ceId", ceID.String())
+	rr := httptest.NewRecorder()
+
+	code, err := app.ingestCEMetricsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["details"], "metrics array must contain at least one metric")
+}
+
 // Note: Full integration tests with database require a real database connection.
 // These tests focus on validation, error handling, and API contract.

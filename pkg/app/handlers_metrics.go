@@ -27,6 +27,83 @@ type MetricDataPoint struct {
 	Attributes map[string]interface{} `json:"attributes"`
 }
 
+// IngestCEMetricsRequest represents CE infrastructure metrics payload
+type IngestCEMetricsRequest struct {
+	Attributes map[string]interface{} `json:"attributes"`
+	Metrics    []MetricDataPoint      `json:"metrics"`
+}
+
+// ingestCEMetricsHandler godoc
+//
+// @Summary     Ingest CE infrastructure metrics
+// @Description Accepts batch of CE infrastructure metrics (queue depth, memory, CPU, active requests) and stores in TimescaleDB asynchronously.
+//
+// @Tags        cognition-engine
+// @Accept      json
+// @Produce     json
+//
+// @Param       ceId path string true "Cognition Engine ID"
+// @Param       body body IngestCEMetricsRequest true "Metrics batch"
+//
+// @Success     202 {object} map[string]interface{} "Metrics accepted"
+// @Failure     400 {object} map[string]string "Validation error"
+//
+// @Router      /api/cognition-engines/{ceId}/metrics [post]
+func (a *App) ingestCEMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	ceIDStr := eh.PathParam(r, "ceId")
+
+	// Validate ce_id
+	ceID, err := uuid.Parse(ceIDStr)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "ce_id must be a valid UUID v4",
+		})
+	}
+
+	var req IngestCEMetricsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "invalid_payload",
+			"details": err.Error(),
+		})
+	}
+
+	// Validate metrics array
+	if len(req.Metrics) == 0 {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "metrics array must contain at least one metric",
+		})
+	}
+
+	if len(req.Metrics) > 10000 {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "batch_size_exceeded",
+			"details": fmt.Sprintf("batch contains %d metrics, maximum is 10000", len(req.Metrics)),
+		})
+	}
+
+	// Validate metric values are finite
+	for i, m := range req.Metrics {
+		if math.IsNaN(m.Value) || math.IsInf(m.Value, 0) {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "validation_failed",
+				"details": fmt.Sprintf("metric %d (%s): value must be finite (NaN and Infinity not allowed)", i, m.Name),
+			})
+		}
+	}
+
+	// Store CE metrics asynchronously
+	go a.storeCEMetricsBatchFromRequest(req, ceID)
+
+	// Return 202 Accepted immediately
+	return eh.RespondWithJSON(w, http.StatusAccepted, map[string]interface{}{
+		"status":   "accepted",
+		"received": len(req.Metrics),
+	})
+}
+
 // IngestMetricsRequest represents unified metrics ingestion payload.
 // Auto-detects CE metrics (if ce_id present) vs MAS metrics (if workspace_id/mas_id present).
 type IngestMetricsRequest struct {
@@ -292,6 +369,15 @@ func (a *App) storeMetricsBatch(
 }
 
 // storeCEMetricsBatch inserts CE metrics batch into TimescaleDB (runs async)
+// storeCEMetricsBatchFromRequest adapts IngestCEMetricsRequest to storage
+func (a *App) storeCEMetricsBatchFromRequest(req IngestCEMetricsRequest, ceID uuid.UUID) {
+	a.storeCEMetricsBatch(IngestMetricsRequest{
+		CEID:       ceID.String(),
+		Attributes: req.Attributes,
+		Metrics:    req.Metrics,
+	}, ceID)
+}
+
 func (a *App) storeCEMetricsBatch(req IngestMetricsRequest, ceID uuid.UUID) {
 	log := getLogger()
 

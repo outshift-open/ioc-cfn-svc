@@ -79,37 +79,26 @@ Time-series metrics storage and querying for CE infrastructure and MAS operation
 
 #### Push Metrics
 
-**POST /api/internal/cognition-engine/metrics** — Ingest metrics batch (CE or MAS)
+**POST /api/cognition-engines/{ceId}/metrics** — Ingest CE infrastructure metrics
 
-Auto-detects metric type:
-- Has `ce_id`? → CE infrastructure metrics
-- Has `workspace_id` + `mas_id` + `agent_id`? → MAS operation metrics
+CE services push their own infrastructure metrics (queue depth, memory, CPU, active requests).
 
 ```bash
-# CE metrics example
-curl -X POST http://localhost:9002/api/internal/cognition-engine/metrics \
+# CE infrastructure metrics
+curl -X POST http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics \
   -H "Content-Type: application/json" \
   -d '{
-    "ce_id": "550e8400-e29b-41d4-a716-446655440000",
     "attributes": {"hostname": "ce-prod-01", "region": "us-west-2"},
     "metrics": [
       {"name": "ce.queue.depth", "value": 12},
-      {"name": "ce.memory.usage_pct", "value": 67.5}
-    ]
-  }'
-
-# MAS metrics example
-curl -X POST http://localhost:9002/api/internal/cognition-engine/metrics \
-  -H "Content-Type: application/json" \
-  -d '{
-    "workspace_id": "770fa621-04bd-42f6-a938-668877662222",
-    "mas_id": "880fb732-15ce-43a7-b049-779988773333",
-    "agent_id": "agent-1",
-    "metrics": [
-      {"name": "llm.tokens.total", "value": 1234}
+      {"name": "ce.memory.usage_pct", "value": 67.5},
+      {"name": "ce.cpu.usage_pct", "value": 45.2},
+      {"name": "ce.active_requests", "value": 8}
     ]
   }'
 ```
+
+**Note:** MAS operation metrics (token usage, latency, cost) are stored internally by CFN after calling CE — no HTTP endpoint needed.
 
 #### Query Metrics
 
