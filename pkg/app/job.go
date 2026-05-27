@@ -146,6 +146,9 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 // recompute next_run_time; unknown task names are logged and skipped.
 func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 	log := getLogger()
+	log.Info("syncing tasks from config")
+
+	seenKeys := make(map[string]bool)
 
 	for _, ws := range cfg.Workspaces {
 		for _, mas := range ws.MultiAgenticSystems {
@@ -157,6 +160,8 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 				log.Warnf("workspace %s MAS %s: unknown task_name %q, skipping", ws.ID, mas.ID, ts.TaskName)
 				continue
 			}
+
+			seenKeys[ws.ID+"|"+mas.ID] = true
 
 			existing, err := a.db.FindTaskByKey(ws.ID, mas.ID, ts.TaskName)
 			if err != nil {
@@ -178,6 +183,8 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 				}
 				if err := a.db.UpsertTask(newTask); err != nil {
 					log.Errorf("failed to create task for ws=%s mas=%s: %s", ws.ID, mas.ID, err)
+				} else {
+					log.Infof("task added | ws=%s mas=%s task_name=%s schedule=%s", ws.ID, mas.ID, ts.TaskName, ts.Schedule)
 				}
 			} else {
 				scheduleChanged := existing.Schedule != ts.Schedule
@@ -202,5 +209,13 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 				}
 			}
 		}
+	}
+
+	disabled, err := a.db.DisableTasksNotInSet(seenKeys)
+	if err != nil {
+		log.Warnf("error disabling orphaned tasks: %s", err)
+	}
+	for _, dt := range disabled {
+		log.Infof("task removed | ws=%s mas=%s task_name=%s", dt.WorkspaceID, dt.MASID, dt.Name)
 	}
 }

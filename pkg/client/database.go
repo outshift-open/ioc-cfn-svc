@@ -52,6 +52,7 @@ type Database interface {
 	UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error
 	UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error
 	FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error)
+	DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error)
 }
 
 // ensure at build time that this mock type fulfills the interface
@@ -245,5 +246,9 @@ func (m *MockDatabase) UpdateLatestExecutionHistoryByTaskID(_ string, _ map[stri
 }
 
 func (m *MockDatabase) FindTaskByKey(_, _, _ string) (*model.Task, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) DisableTasksNotInSet(_ map[string]bool) ([]model.Task, error) {
 	return nil, nil
 }
