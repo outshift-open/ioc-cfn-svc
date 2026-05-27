@@ -275,6 +275,8 @@ func TestIngestMetricsHandler_AttributeMerging(t *testing.T) {
 func TestGetMetricsHandler_MissingTimeParams(t *testing.T) {
 	app := newTestApp()
 
+	ceID := uuid.New()
+
 	tests := []struct {
 		name        string
 		startTime   string
@@ -303,7 +305,7 @@ func TestGetMetricsHandler_MissingTimeParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := "/api/cognition-engine/metrics?"
+			url := fmt.Sprintf("/api/cognition-engines/%s/metrics?", ceID.String())
 			if tt.startTime != "" {
 				url += "start_time=" + tt.startTime + "&"
 			}
@@ -312,6 +314,7 @@ func TestGetMetricsHandler_MissingTimeParams(t *testing.T) {
 			}
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("ceId", ceID.String())
 			rr := httptest.NewRecorder()
 
 			code, err := app.getMetricsHandler(rr, req)
@@ -327,6 +330,8 @@ func TestGetMetricsHandler_MissingTimeParams(t *testing.T) {
 
 func TestGetMetricsHandler_InvalidTimeFormats(t *testing.T) {
 	app := newTestApp()
+
+	ceID := uuid.New()
 
 	tests := []struct {
 		name        string
@@ -350,10 +355,11 @@ func TestGetMetricsHandler_InvalidTimeFormats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=%s&end_time=%s",
-				tt.startTime, tt.endTime)
+			url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=%s&end_time=%s",
+				ceID.String(), tt.startTime, tt.endTime)
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("ceId", ceID.String())
 			rr := httptest.NewRecorder()
 
 			code, err := app.getMetricsHandler(rr, req)
