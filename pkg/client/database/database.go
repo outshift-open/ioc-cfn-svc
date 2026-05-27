@@ -65,7 +65,13 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
+	// Migrate MAS metrics table
 	if err := metric.MigrateUp(db.DB); err != nil {
+		return err
+	}
+
+	// Migrate CE metrics table
+	if err := metric.MigrateCEMetricsUp(db.DB); err != nil {
 		return err
 	}
 
