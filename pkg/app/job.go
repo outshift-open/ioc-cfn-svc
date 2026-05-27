@@ -118,13 +118,20 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 
 	_, err := a.cognitionAgentsClient.SendTaskExecution(endpointPath, req)
 	if err != nil {
-		log.Errorf("failed to dispatch task %s to CE: %s", t.ID, err)
+		log.Errorf("failed to dispatch task %s to CE | workspace=%s mas=%s task_name=%s: %s", t.ID, t.WorkspaceID, t.MASID, t.Name, err)
 		now := time.Now()
 		errStr := err.Error()
+
+		nextRun, cronErr := task.NextRunTime(t.Schedule, now)
+		if cronErr != nil {
+			nextRun = now.Add(time.Hour)
+		}
+
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
 			"callback_deadline": nil,
 			"last_run_time":     now,
 			"last_status":       "failed",
+			"next_run_time":     nextRun,
 		})
 		_ = a.db.UpdateTaskExecutionHistory(historyID, map[string]interface{}{
 			"status":      "failed",
@@ -159,11 +166,6 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 
 			now := time.Now()
 			if existing == nil {
-				nextRun, err := task.NextRunTime(ts.Schedule, now)
-				if err != nil {
-					log.Errorf("invalid cron expression %q for ws=%s mas=%s: %s", ts.Schedule, ws.ID, mas.ID, err)
-					continue
-				}
 				newTask := &model.Task{
 					ID:          uuid.New().String(),
 					WorkspaceID: ws.ID,
@@ -172,7 +174,7 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 					Schedule:    ts.Schedule,
 					Enabled:     ts.Enabled,
 					Status:      "scheduled",
-					NextRunTime: nextRun,
+					NextRunTime: now,
 				}
 				if err := a.db.UpsertTask(newTask); err != nil {
 					log.Errorf("failed to create task for ws=%s mas=%s: %s", ws.ID, mas.ID, err)

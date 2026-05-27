@@ -155,11 +155,11 @@ func (db *Database) DeleteAuditEventByID(id uuid.UUID) error {
 	return audit.DeleteAuditEventByID(db.DB, id)
 }
 
-// FindDueTasks returns enabled tasks in 'scheduled' status whose next_run_time has passed.
+// FindDueTasks returns enabled tasks in 'scheduled' or 'failed' status whose next_run_time has passed.
 func (db *Database) FindDueTasks() ([]model.Task, error) {
 	var tasks []model.Task
 	err := db.DB.
-		Where("enabled = ? AND status = ? AND next_run_time <= ?", true, "scheduled", time.Now()).
+		Where("enabled = ? AND status IN ? AND next_run_time <= ?", true, []string{"scheduled", "failed"}, time.Now()).
 		Find(&tasks).Error
 	return tasks, err
 }
@@ -237,15 +237,16 @@ func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields m
 
 // FindTaskByKey looks up a task by its unique key.
 func (db *Database) FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error) {
-	var task model.Task
+	var tasks []model.Task
 	err := db.DB.
 		Where("workspace_id = ? AND mas_id = ? AND name = ?", workspaceID, masID, taskName).
-		First(&task).Error
+		Limit(1).
+		Find(&tasks).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	return &task, nil
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+	return &tasks[0], nil
 }
