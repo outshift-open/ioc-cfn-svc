@@ -653,23 +653,18 @@
         }
     },
     "definitions": {
-        "app.Filters": {
+        "app.IngestCEMetricsRequest": {
             "type": "object",
             "properties": {
-                "agent_id": {
-                    "type": "string"
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
                 },
-                "ce_id": {
-                    "type": "string"
-                },
-                "mas_id": {
-                    "type": "string"
-                },
-                "metric_name": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricDataPoint"
+                    }
                 }
             }
         },
@@ -724,20 +719,11 @@
         "app.MetricResultSet": {
             "type": "object",
             "properties": {
-                "page": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
                 "series": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/app.MetricSeries"
                     }
-                },
-                "totalCount": {
-                    "type": "integer"
                 }
             }
         },
@@ -751,10 +737,6 @@
                     "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
-                },
-                "ce_id": {
-                    "description": "CE fields (populated for CE metrics)",
-                    "type": "string"
                 },
                 "datapoints": {
                     "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
@@ -779,28 +761,14 @@
         "app.MetricsQueryResponse": {
             "type": "object",
             "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
                 "ce_metrics": {
                     "$ref": "#/definitions/app.MetricResultSet"
                 },
-                "filters": {
-                    "$ref": "#/definitions/app.Filters"
-                },
                 "mas_metrics": {
                     "$ref": "#/definitions/app.MetricResultSet"
-                },
-                "period": {
-                    "$ref": "#/definitions/app.Period"
-                }
-            }
-        },
-        "app.Period": {
-            "type": "object",
-            "properties": {
-                "end": {
-                    "type": "string"
-                },
-                "start": {
-                    "type": "string"
                 }
             }
         },

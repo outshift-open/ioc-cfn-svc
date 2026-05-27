@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/cognition-engine/metrics": {
+        "/api/cognition-engines/{ceId}/metrics": {
             "get": {
-                "description": "Returns grouped time-series data filtered by time and entity dimensions.\nAt least one entity filter is REQUIRED: ce_id, workspace_id, mas_id, or agent_id.\nResponse format groups datapoints by metric name to reduce verbosity (60-70% size reduction).",
+                "description": "Returns grouped time-series data filtered by time and entity dimensions.\nReturns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.\nResponse format groups datapoints by metric name to reduce verbosity (60-70% size reduction).\nNo pagination - queries return all matching datapoints up to safety limit (100K max).",
                 "produces": [
                     "application/json"
                 ],
@@ -26,6 +26,13 @@ const docTemplate = `{
                 ],
                 "summary": "Query metrics within time range (CE and/or MAS)",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine UUID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "description": "Start time (Unix timestamp, RFC3339, or date)",
@@ -42,13 +49,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter CE metrics by instance UUID (required if no MAS filters)",
-                        "name": "ce_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter MAS metrics by workspace UUID (required if no CE filter)",
+                        "description": "Filter MAS metrics by workspace UUID",
                         "name": "workspace_id",
                         "in": "query"
                     },
@@ -69,18 +70,6 @@ const docTemplate = `{
                         "description": "Filter by metric name (supports * wildcard)",
                         "name": "metric_name",
                         "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page number (default 0, 0-indexed)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Datapoints per page (default 100, max 1000). Note: applies to raw datapoints before grouping.",
-                        "name": "pageSize",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -91,7 +80,65 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid parameters or missing entity filter",
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Too many datapoints (exceeds 100K limit)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Accepts batch of CE infrastructure metrics (queue depth, memory, CPU, active requests) and stores in TimescaleDB asynchronously.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Ingest CE infrastructure metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Metrics batch",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.IngestCEMetricsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Metrics accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1364,23 +1411,18 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "app.Filters": {
+        "app.IngestCEMetricsRequest": {
             "type": "object",
             "properties": {
-                "agent_id": {
-                    "type": "string"
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
                 },
-                "ce_id": {
-                    "type": "string"
-                },
-                "mas_id": {
-                    "type": "string"
-                },
-                "metric_name": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricDataPoint"
+                    }
                 }
             }
         },
@@ -1435,20 +1477,11 @@ const docTemplate = `{
         "app.MetricResultSet": {
             "type": "object",
             "properties": {
-                "page": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
                 "series": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/app.MetricSeries"
                     }
-                },
-                "totalCount": {
-                    "type": "integer"
                 }
             }
         },
@@ -1462,10 +1495,6 @@ const docTemplate = `{
                     "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
-                },
-                "ce_id": {
-                    "description": "CE fields (populated for CE metrics)",
-                    "type": "string"
                 },
                 "datapoints": {
                     "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
@@ -1490,28 +1519,14 @@ const docTemplate = `{
         "app.MetricsQueryResponse": {
             "type": "object",
             "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
                 "ce_metrics": {
                     "$ref": "#/definitions/app.MetricResultSet"
                 },
-                "filters": {
-                    "$ref": "#/definitions/app.Filters"
-                },
                 "mas_metrics": {
                     "$ref": "#/definitions/app.MetricResultSet"
-                },
-                "period": {
-                    "$ref": "#/definitions/app.Period"
-                }
-            }
-        },
-        "app.Period": {
-            "type": "object",
-            "properties": {
-                "end": {
-                    "type": "string"
-                },
-                "start": {
-                    "type": "string"
                 }
             }
         },
