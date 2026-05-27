@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
@@ -366,22 +367,38 @@ func (a *App) storeCEMetricsBatch(req IngestMetricsRequest, ceID uuid.UUID) {
 }
 
 // MetricRecord represents a single metric data point in response
+// Fields are populated based on which table the metric came from (CE or MAS)
 type MetricRecord struct {
-	Timestamp   string                 `json:"timestamp"`
-	WorkspaceID string                 `json:"workspace_id"`
-	MASID       string                 `json:"mas_id"`
-	AgentID     string                 `json:"agent_id"`
-	MetricName  string                 `json:"metric_name"`
-	Value       float64                `json:"value"`
-	Attributes  map[string]interface{} `json:"attributes"`
+	Timestamp string                 `json:"timestamp"`
+
+	// CE fields (populated for CE metrics)
+	CEID string `json:"ce_id,omitempty"`
+
+	// MAS fields (populated for MAS metrics)
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	MASID       string `json:"mas_id,omitempty"`
+	AgentID     string `json:"agent_id,omitempty"`
+
+	// Common fields
+	MetricName string                 `json:"metric_name"`
+	Value      float64                `json:"value"`
+	Attributes map[string]interface{} `json:"attributes"`
 }
 
-// MetricsQueryResponse represents the query result
+// MetricsQueryResponse represents the unified query result with separate CE and MAS metrics
 type MetricsQueryResponse struct {
-	Period     Period         `json:"period"`
-	Filters    Filters        `json:"filters,omitempty"`
-	Pagination Pagination     `json:"pagination"`
-	Metrics    []MetricRecord `json:"metrics"`
+	Period     Period              `json:"period"`
+	Filters    Filters             `json:"filters,omitempty"`
+	CEMetrics  *MetricResultSet    `json:"ce_metrics,omitempty"`
+	MASMetrics *MetricResultSet    `json:"mas_metrics,omitempty"`
+}
+
+// MetricResultSet represents metrics from a single table with pagination
+type MetricResultSet struct {
+	Total  int            `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Data   []MetricRecord `json:"data"`
 }
 
 type Period struct {
@@ -390,16 +407,11 @@ type Period struct {
 }
 
 type Filters struct {
+	CEID        *string `json:"ce_id,omitempty"`
 	WorkspaceID *string `json:"workspace_id,omitempty"`
 	MASID       *string `json:"mas_id,omitempty"`
 	AgentID     *string `json:"agent_id,omitempty"`
 	MetricName  *string `json:"metric_name,omitempty"`
-}
-
-type Pagination struct {
-	Limit  int `json:"limit"`
-	Offset int `json:"offset"`
-	Total  int `json:"total"`
 }
 
 // parseFlexibleTime parses time from multiple formats:
@@ -432,20 +444,22 @@ func parseFlexibleTime(s string) (time.Time, error) {
 
 // getMetricsHandler godoc
 //
-// @Summary     Query metrics within time range
-// @Description Returns raw metric data points filtered by time and optional dimensions
+// @Summary     Query metrics within time range (CE and/or MAS)
+// @Description Returns raw metric data points filtered by time and optional dimensions.
+// @Description Smart routing: ce_id → CE metrics, workspace/mas/agent → MAS metrics, neither → both
 //
 // @Tags        cognition-engine
 // @Produce     json
 //
-// @Param       start_time query string true "Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')"
-// @Param       end_time query string true "End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z', or date '2026-05-20')"
-// @Param       workspace_id query string false "Filter by workspace UUID"
-// @Param       mas_id query string false "Filter by MAS UUID"
-// @Param       agent_id query string false "Filter by agent ID"
+// @Param       start_time query string true "Start time (Unix timestamp, RFC3339, or date)"
+// @Param       end_time query string true "End time (Unix timestamp, RFC3339, or date)"
+// @Param       ce_id query string false "Filter CE metrics by instance UUID"
+// @Param       workspace_id query string false "Filter MAS metrics by workspace UUID"
+// @Param       mas_id query string false "Filter MAS metrics by MAS UUID"
+// @Param       agent_id query string false "Filter MAS metrics by agent ID"
 // @Param       metric_name query string false "Filter by metric name (supports * wildcard)"
-// @Param       limit query int false "Max results (default 1000, max 10000)"
-// @Param       offset query int false "Pagination offset (default 0)"
+// @Param       limit query int false "Max results per table (default 1000, max 10000)"
+// @Param       offset query int false "Pagination offset per table (default 0)"
 //
 // @Success     200 {object} MetricsQueryResponse
 // @Failure     400 {object} map[string]string "Invalid parameters"
@@ -454,7 +468,7 @@ func parseFlexibleTime(s string) (time.Time, error) {
 func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
-	// Parse query parameters
+	// Parse required time range
 	startTimeStr := r.URL.Query().Get("start_time")
 	endTimeStr := r.URL.Query().Get("end_time")
 
@@ -478,13 +492,14 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		})
 	}
 
-	// Optional filters
+	// Parse optional filters
+	ceIDStr := r.URL.Query().Get("ce_id")
 	workspaceIDStr := r.URL.Query().Get("workspace_id")
 	masIDStr := r.URL.Query().Get("mas_id")
 	agentID := r.URL.Query().Get("agent_id")
 	metricName := r.URL.Query().Get("metric_name")
 
-	// Pagination
+	// Parse pagination
 	limit := 1000
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 10000 {
@@ -499,7 +514,7 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		}
 	}
 
-	// Build query
+	// Get database
 	db, ok := a.db.(*database.Database)
 	if !ok {
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
@@ -507,60 +522,14 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		})
 	}
 
-	query := db.Model(&metric.MASMetric{}).
-		Where("time >= ? AND time < ?", startTime, endTime)
+	// Smart routing: determine which tables to query
+	queryCE := ceIDStr != ""
+	queryMAS := workspaceIDStr != "" || masIDStr != "" || agentID != ""
 
-	filters := Filters{}
-
-	if workspaceIDStr != "" {
-		workspaceID, err := uuid.Parse(workspaceIDStr)
-		if err != nil {
-			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "workspace_id must be valid UUID",
-			})
-		}
-		query = query.Where("workspace_id = ?", workspaceID)
-		filters.WorkspaceID = &workspaceIDStr
-	}
-
-	if masIDStr != "" {
-		masID, err := uuid.Parse(masIDStr)
-		if err != nil {
-			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "mas_id must be valid UUID",
-			})
-		}
-		query = query.Where("mas_id = ?", masID)
-		filters.MASID = &masIDStr
-	}
-
-	if agentID != "" {
-		query = query.Where("agent_id = ?", agentID)
-		filters.AgentID = &agentID
-	}
-
-	if metricName != "" {
-		if strings.Contains(metricName, "*") {
-			// Wildcard support: llm.token.* → llm.token.%
-			pattern := strings.ReplaceAll(metricName, "*", "%")
-			query = query.Where("metric_name LIKE ?", pattern)
-		} else {
-			query = query.Where("metric_name = ?", metricName)
-		}
-		filters.MetricName = &metricName
-	}
-
-	// Get total count
-	var total int64
-	query.Count(&total)
-
-	// Execute query with pagination
-	var records []metric.MASMetric
-	if err := query.Order("time DESC").Limit(limit).Offset(offset).Find(&records).Error; err != nil {
-		log.Errorf("Query failed: %v", err)
-		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "query_failed",
-		})
+	// If NEITHER specified, query BOTH (time-only query)
+	if !queryCE && !queryMAS {
+		queryCE = true
+		queryMAS = true
 	}
 
 	// Build response
@@ -569,28 +538,48 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 			Start: startTime.Format(time.RFC3339),
 			End:   endTime.Format(time.RFC3339),
 		},
-		Filters: filters,
-		Pagination: Pagination{
-			Limit:  limit,
-			Offset: offset,
-			Total:  int(total),
-		},
-		Metrics: make([]MetricRecord, len(records)),
+		Filters: Filters{},
 	}
 
-	for i, r := range records {
-		var attrs map[string]interface{}
-		json.Unmarshal([]byte(r.Attributes), &attrs)
-
-		response.Metrics[i] = MetricRecord{
-			Timestamp:   r.Time.Format(time.RFC3339Nano),
-			WorkspaceID: r.WorkspaceID.String(),
-			MASID:       r.MASID.String(),
-			AgentID:     r.AgentID,
-			MetricName:  r.MetricName,
-			Value:       r.Value,
-			Attributes:  attrs,
+	// Query CE metrics if applicable
+	if queryCE {
+		ceResult, err := a.queryCEMetricsData(db.DB, startTime, endTime, ceIDStr, metricName, limit, offset)
+		if err != nil {
+			log.Errorf("CE query failed: %v", err)
+			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "ce_query_failed",
+			})
 		}
+		response.CEMetrics = ceResult
+		if ceIDStr != "" {
+			response.Filters.CEID = &ceIDStr
+		}
+	}
+
+	// Query MAS metrics if applicable
+	if queryMAS {
+		masResult, err := a.queryMASMetricsData(db.DB, startTime, endTime, workspaceIDStr, masIDStr, agentID, metricName, limit, offset)
+		if err != nil {
+			log.Errorf("MAS query failed: %v", err)
+			return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "mas_query_failed",
+			})
+		}
+		response.MASMetrics = masResult
+		if workspaceIDStr != "" {
+			response.Filters.WorkspaceID = &workspaceIDStr
+		}
+		if masIDStr != "" {
+			response.Filters.MASID = &masIDStr
+		}
+		if agentID != "" {
+			response.Filters.AgentID = &agentID
+		}
+	}
+
+	// Add metric name filter if specified
+	if metricName != "" {
+		response.Filters.MetricName = &metricName
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, response)
@@ -669,3 +658,146 @@ func (a *App) storeTokenMetricsAsync(
 	go a.storeMetricsBatch(metricsReq, workspaceID, masID)
 }
 
+// queryCEMetricsData queries ce_metrics table with filters
+func (a *App) queryCEMetricsData(
+	db *gorm.DB,
+	startTime, endTime time.Time,
+	ceIDStr, metricName string,
+	limit, offset int,
+) (*MetricResultSet, error) {
+	query := db.Model(&metric.CEMetric{}).
+		Where("time >= ? AND time < ?", startTime, endTime)
+
+	// Apply CE ID filter
+	if ceIDStr != "" {
+		ceID, err := uuid.Parse(ceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("ce_id must be valid UUID")
+		}
+		query = query.Where("ce_id = ?", ceID)
+	}
+
+	// Apply metric name filter
+	if metricName != "" {
+		if strings.Contains(metricName, "*") {
+			pattern := strings.ReplaceAll(metricName, "*", "%")
+			query = query.Where("metric_name LIKE ?", pattern)
+		} else {
+			query = query.Where("metric_name = ?", metricName)
+		}
+	}
+
+	// Get total count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Execute query with pagination
+	var records []metric.CEMetric
+	if err := query.Order("time DESC").Limit(limit).Offset(offset).Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	// Build result set
+	data := make([]MetricRecord, len(records))
+	for i, r := range records {
+		var attrs map[string]interface{}
+		json.Unmarshal([]byte(r.Attributes), &attrs)
+
+		data[i] = MetricRecord{
+			Timestamp:  r.Time.Format(time.RFC3339Nano),
+			CEID:       r.CEID.String(),
+			MetricName: r.MetricName,
+			Value:      r.Value,
+			Attributes: attrs,
+		}
+	}
+
+	return &MetricResultSet{
+		Total:  int(total),
+		Limit:  limit,
+		Offset: offset,
+		Data:   data,
+	}, nil
+}
+
+// queryMASMetricsData queries mas_metrics table with filters
+func (a *App) queryMASMetricsData(
+	db *gorm.DB,
+	startTime, endTime time.Time,
+	workspaceIDStr, masIDStr, agentID, metricName string,
+	limit, offset int,
+) (*MetricResultSet, error) {
+	query := db.Model(&metric.MASMetric{}).
+		Where("time >= ? AND time < ?", startTime, endTime)
+
+	// Apply workspace ID filter
+	if workspaceIDStr != "" {
+		workspaceID, err := uuid.Parse(workspaceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("workspace_id must be valid UUID")
+		}
+		query = query.Where("workspace_id = ?", workspaceID)
+	}
+
+	// Apply MAS ID filter
+	if masIDStr != "" {
+		masID, err := uuid.Parse(masIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("mas_id must be valid UUID")
+		}
+		query = query.Where("mas_id = ?", masID)
+	}
+
+	// Apply agent ID filter
+	if agentID != "" {
+		query = query.Where("agent_id = ?", agentID)
+	}
+
+	// Apply metric name filter
+	if metricName != "" {
+		if strings.Contains(metricName, "*") {
+			pattern := strings.ReplaceAll(metricName, "*", "%")
+			query = query.Where("metric_name LIKE ?", pattern)
+		} else {
+			query = query.Where("metric_name = ?", metricName)
+		}
+	}
+
+	// Get total count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Execute query with pagination
+	var records []metric.MASMetric
+	if err := query.Order("time DESC").Limit(limit).Offset(offset).Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	// Build result set
+	data := make([]MetricRecord, len(records))
+	for i, r := range records {
+		var attrs map[string]interface{}
+		json.Unmarshal([]byte(r.Attributes), &attrs)
+
+		data[i] = MetricRecord{
+			Timestamp:   r.Time.Format(time.RFC3339Nano),
+			WorkspaceID: r.WorkspaceID.String(),
+			MASID:       r.MASID.String(),
+			AgentID:     r.AgentID,
+			MetricName:  r.MetricName,
+			Value:       r.Value,
+			Attributes:  attrs,
+		}
+	}
+
+	return &MetricResultSet{
+		Total:  int(total),
+		Limit:  limit,
+		Offset: offset,
+		Data:   data,
+	}, nil
+}

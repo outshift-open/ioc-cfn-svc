@@ -73,6 +73,125 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 **POST /v1/traces** — Accepts OpenTelemetry spans (protobuf or JSON).
 
+### Metrics APIs
+
+Time-series metrics storage and querying for CE infrastructure and MAS operations.
+
+#### Push Metrics
+
+**POST /api/internal/cognition-engine/metrics** — Ingest metrics batch (CE or MAS)
+
+Auto-detects metric type:
+- Has `ce_id`? → CE infrastructure metrics
+- Has `workspace_id` + `mas_id` + `agent_id`? → MAS operation metrics
+
+```bash
+# CE metrics example
+curl -X POST http://localhost:9002/api/internal/cognition-engine/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ce_id": "550e8400-e29b-41d4-a716-446655440000",
+    "attributes": {"hostname": "ce-prod-01", "region": "us-west-2"},
+    "metrics": [
+      {"name": "ce.queue.depth", "value": 12},
+      {"name": "ce.memory.usage_pct", "value": 67.5}
+    ]
+  }'
+
+# MAS metrics example
+curl -X POST http://localhost:9002/api/internal/cognition-engine/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "770fa621-04bd-42f6-a938-668877662222",
+    "mas_id": "880fb732-15ce-43a7-b049-779988773333",
+    "agent_id": "agent-1",
+    "metrics": [
+      {"name": "llm.tokens.total", "value": 1234}
+    ]
+  }'
+```
+
+#### Query Metrics
+
+**GET /api/cognition-engine/metrics** — Query metrics with smart routing
+
+Smart routing based on filters:
+- Only `ce_id`? → CE metrics only
+- Only `workspace_id`/`mas_id`/`agent_id`? → MAS metrics only
+- Both? → Both tables
+- Neither? → Both tables (time-range query)
+
+```bash
+# Query CE metrics only
+curl "http://localhost:9002/api/cognition-engine/metrics?\
+ce_id=550e8400-e29b-41d4-a716-446655440000&\
+start_time=2026-05-27T00:00:00Z&\
+end_time=2026-05-27T23:59:59Z"
+
+# Query MAS metrics only
+curl "http://localhost:9002/api/cognition-engine/metrics?\
+workspace_id=770fa621-04bd-42f6-a938-668877662222&\
+start_time=2026-05-27&\
+end_time=2026-05-28"
+
+# Query both (time-range only)
+curl "http://localhost:9002/api/cognition-engine/metrics?\
+start_time=2026-05-27T14:00:00Z&\
+end_time=2026-05-27T15:00:00Z"
+```
+
+**Response structure:**
+```json
+{
+  "period": {"start": "...", "end": "..."},
+  "filters": {"ce_id": "...", "workspace_id": "..."},
+  "ce_metrics": {
+    "total": 245,
+    "limit": 1000,
+    "offset": 0,
+    "data": [
+      {
+        "timestamp": "2026-05-27T10:30:00Z",
+        "ce_id": "550e8400-...",
+        "metric_name": "ce.queue.depth",
+        "value": 12.0,
+        "attributes": {"hostname": "ce-prod-01"}
+      }
+    ]
+  },
+  "mas_metrics": {
+    "total": 1823,
+    "limit": 1000,
+    "offset": 0,
+    "data": [
+      {
+        "timestamp": "2026-05-27T10:30:05Z",
+        "workspace_id": "770fa621-...",
+        "mas_id": "880fb732-...",
+        "agent_id": "negotiator-1",
+        "metric_name": "llm.tokens.prompt",
+        "value": 1234.0,
+        "attributes": {"model": "claude-sonnet-4-6"}
+      }
+    ]
+  }
+}
+```
+
+**Query Parameters:**
+- `start_time`, `end_time` (required): Unix timestamp, RFC3339, or date
+- `ce_id` (optional): Filter CE metrics by instance
+- `workspace_id`, `mas_id`, `agent_id` (optional): Filter MAS metrics
+- `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.tokens.*`)
+- `limit` (optional): Max results per table (default 1000, max 10000)
+- `offset` (optional): Pagination offset per table (default 0)
+
+**Storage:**
+- **TimescaleDB** hypertables (`ce_metrics`, `mas_metrics`)
+- **Retention**: 90 days
+- **Compression**: After 7 days
+- **Indexing**: Optimized for time-range + entity ID queries
+
 ### Shared Memory APIs
 
 See [shared-memory-operations](./docs/shared-memory-operations.md)
