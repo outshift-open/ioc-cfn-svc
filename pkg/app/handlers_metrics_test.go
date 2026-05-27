@@ -481,12 +481,12 @@ func TestGetMetricsHandler_ValidRequest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, code)
 
-	var resp MetricsQueryResponse
-	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Equal(t, "2026-05-19T00:00:00Z", resp.Period.Start)
-	assert.Equal(t, "2026-05-20T00:00:00Z", resp.Period.End)
-	assert.Equal(t, 1000, resp.Pagination.Limit)
-	assert.Equal(t, 0, resp.Pagination.Offset)
+	// Should fail with 400 - entity filter required in v2
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var errResp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&errResp))
+	assert.Contains(t, errResp["error"], "at least one entity filter required")
 }
 
 func TestGetMetricsHandler_WithFilters(t *testing.T) {
@@ -497,7 +497,8 @@ func TestGetMetricsHandler_WithFilters(t *testing.T) {
 	workspaceID := uuid.New()
 	masID := uuid.New()
 
-	url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&workspace_id=%s&mas_id=%s&agent_id=test-agent&metric_name=llm.token.*&limit=50&offset=10",
+	// v2 API: use page/pageSize instead of limit/offset
+	url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&workspace_id=%s&mas_id=%s&agent_id=test-agent&metric_name=llm.token.*&page=0&pageSize=50",
 		workspaceID.String(), masID.String())
 
 	req := httptest.NewRequest(http.MethodGet, url, nil)
@@ -520,9 +521,10 @@ func TestGetMetricsHandler_WithFilters(t *testing.T) {
 	assert.NotNil(t, resp.Filters.MetricName)
 	assert.Equal(t, "llm.token.*", *resp.Filters.MetricName)
 
-	// Verify pagination
-	assert.Equal(t, 50, resp.Pagination.Limit)
-	assert.Equal(t, 10, resp.Pagination.Offset)
+	// Verify pagination (v2: page/pageSize instead of limit/offset)
+	assert.NotNil(t, resp.MASMetrics)
+	assert.Equal(t, 0, resp.MASMetrics.Page)
+	assert.Equal(t, 50, resp.MASMetrics.PageSize)
 }
 
 func TestGetMetricsHandler_Pagination(t *testing.T) {
@@ -530,40 +532,44 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 
 	app := newTestApp()
 
+	ceID := uuid.New()
+
+	// v2 API: page/pageSize instead of limit/offset
 	tests := []struct {
-		name          string
-		limit         string
-		offset        string
-		expectedLimit int
+		name             string
+		page             string
+		pageSize         string
+		expectedPageSize int
 	}{
 		{
-			name:          "default pagination",
-			limit:         "",
-			offset:        "",
-			expectedLimit: 1000,
+			name:             "default pagination",
+			page:             "",
+			pageSize:         "",
+			expectedPageSize: 20, // v2 default
 		},
 		{
-			name:          "custom limit",
-			limit:         "100",
-			offset:        "50",
-			expectedLimit: 100,
+			name:             "custom pageSize",
+			page:             "1",
+			pageSize:         "50",
+			expectedPageSize: 50,
 		},
 		{
-			name:          "max limit enforced",
-			limit:         "20000",
-			offset:        "",
-			expectedLimit: 1000, // Should be clamped to 1000 default
+			name:             "max pageSize enforced",
+			page:             "",
+			pageSize:         "500",
+			expectedPageSize: 100, // v2 max is 100
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := "/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z"
-			if tt.limit != "" {
-				url += "&limit=" + tt.limit
+			// v2 requires entity filter
+			url := fmt.Sprintf("/api/cognition-engine/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&ce_id=%s", ceID.String())
+			if tt.page != "" {
+				url += "&page=" + tt.page
 			}
-			if tt.offset != "" {
-				url += "&offset=" + tt.offset
+			if tt.pageSize != "" {
+				url += "&pageSize=" + tt.pageSize
 			}
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
@@ -575,7 +581,9 @@ func TestGetMetricsHandler_Pagination(t *testing.T) {
 
 			var resp MetricsQueryResponse
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-			assert.LessOrEqual(t, resp.Pagination.Limit, 10000)
+			assert.NotNil(t, resp.CEMetrics)
+			assert.LessOrEqual(t, resp.CEMetrics.PageSize, 100) // v2 max
+			assert.Equal(t, tt.expectedPageSize, resp.CEMetrics.PageSize)
 		})
 	}
 }
