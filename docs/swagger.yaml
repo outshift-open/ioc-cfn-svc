@@ -4,6 +4,8 @@ definitions:
     properties:
       agent_id:
         type: string
+      ce_id:
+        type: string
       mas_id:
         type: string
       metric_name:
@@ -17,7 +19,11 @@ definitions:
         type: string
       attributes:
         additionalProperties: true
+        description: Common fields
         type: object
+      ce_id:
+        description: CE metrics fields (mutually exclusive with MAS fields)
+        type: string
       mas_id:
         type: string
       metrics:
@@ -25,6 +31,7 @@ definitions:
           $ref: '#/definitions/app.MetricDataPoint'
         type: array
       workspace_id:
+        description: MAS metrics fields (mutually exclusive with CE fields)
         type: string
     type: object
   app.MetricDataPoint:
@@ -46,38 +53,45 @@ definitions:
       attributes:
         additionalProperties: true
         type: object
+      ce_id:
+        description: CE fields (populated for CE metrics)
+        type: string
       mas_id:
         type: string
       metric_name:
+        description: Common fields
         type: string
       timestamp:
         type: string
       value:
         type: number
       workspace_id:
+        description: MAS fields (populated for MAS metrics)
         type: string
     type: object
-  app.MetricsQueryResponse:
+  app.MetricResultSet:
     properties:
-      filters:
-        $ref: '#/definitions/app.Filters'
-      metrics:
+      data:
         items:
           $ref: '#/definitions/app.MetricRecord'
         type: array
-      pagination:
-        $ref: '#/definitions/app.Pagination'
-      period:
-        $ref: '#/definitions/app.Period'
-    type: object
-  app.Pagination:
-    properties:
       limit:
         type: integer
       offset:
         type: integer
       total:
         type: integer
+    type: object
+  app.MetricsQueryResponse:
+    properties:
+      ce_metrics:
+        $ref: '#/definitions/app.MetricResultSet'
+      filters:
+        $ref: '#/definitions/app.Filters'
+      mas_metrics:
+        $ref: '#/definitions/app.MetricResultSet'
+      period:
+        $ref: '#/definitions/app.Period'
     type: object
   app.Period:
     properties:
@@ -953,29 +967,33 @@ info:
 paths:
   /api/cognition-engine/metrics:
     get:
-      description: Returns raw metric data points filtered by time and optional dimensions
+      description: |-
+        Returns raw metric data points filtered by time and optional dimensions.
+        Smart routing: ce_id → CE metrics, workspace/mas/agent → MAS metrics, neither → both
       parameters:
-      - description: Start time (Unix timestamp '1716076800', RFC3339 '2026-05-19T00:00:00Z',
-          or date '2026-05-19')
+      - description: Start time (Unix timestamp, RFC3339, or date)
         in: query
         name: start_time
         required: true
         type: string
-      - description: End time (Unix timestamp '1716163200', RFC3339 '2026-05-20T00:00:00Z',
-          or date '2026-05-20')
+      - description: End time (Unix timestamp, RFC3339, or date)
         in: query
         name: end_time
         required: true
         type: string
-      - description: Filter by workspace UUID
+      - description: Filter CE metrics by instance UUID
+        in: query
+        name: ce_id
+        type: string
+      - description: Filter MAS metrics by workspace UUID
         in: query
         name: workspace_id
         type: string
-      - description: Filter by MAS UUID
+      - description: Filter MAS metrics by MAS UUID
         in: query
         name: mas_id
         type: string
-      - description: Filter by agent ID
+      - description: Filter MAS metrics by agent ID
         in: query
         name: agent_id
         type: string
@@ -983,11 +1001,11 @@ paths:
         in: query
         name: metric_name
         type: string
-      - description: Max results (default 1000, max 10000)
+      - description: Max results per table (default 1000, max 10000)
         in: query
         name: limit
         type: integer
-      - description: Pagination offset (default 0)
+      - description: Pagination offset per table (default 0)
         in: query
         name: offset
         type: integer
@@ -1004,14 +1022,16 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Query metrics within time range
+      summary: Query metrics within time range (CE and/or MAS)
       tags:
       - cognition-engine
   /api/internal/cognition-engine/metrics:
     post:
       consumes:
       - application/json
-      description: Accepts batch of metrics from CE and stores in TimescaleDB asynchronously
+      description: |-
+        Accepts batch of metrics from CE and stores in TimescaleDB asynchronously.
+        Auto-detects CE metrics (ce_id) vs MAS metrics (workspace_id/mas_id/agent_id).
       parameters:
       - description: Metrics batch
         in: body
@@ -1033,7 +1053,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Ingest metrics batch from Cognition Engine
+      summary: Ingest metrics batch (CE or MAS)
       tags:
       - internal
   /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph:
