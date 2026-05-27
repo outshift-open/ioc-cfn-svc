@@ -26,19 +26,27 @@ type MetricDataPoint struct {
 	Attributes map[string]interface{} `json:"attributes"`
 }
 
-// IngestMetricsRequest represents the batch metrics ingestion payload
+// IngestMetricsRequest represents unified metrics ingestion payload.
+// Auto-detects CE metrics (if ce_id present) vs MAS metrics (if workspace_id/mas_id present).
 type IngestMetricsRequest struct {
-	WorkspaceID string                 `json:"workspace_id"`
-	MASID       string                 `json:"mas_id"`
-	AgentID     string                 `json:"agent_id"`
-	Attributes  map[string]interface{} `json:"attributes"`
-	Metrics     []MetricDataPoint      `json:"metrics"`
+	// CE metrics fields (mutually exclusive with MAS fields)
+	CEID string `json:"ce_id,omitempty"`
+
+	// MAS metrics fields (mutually exclusive with CE fields)
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	MASID       string `json:"mas_id,omitempty"`
+	AgentID     string `json:"agent_id,omitempty"`
+
+	// Common fields
+	Attributes map[string]interface{} `json:"attributes"`
+	Metrics    []MetricDataPoint      `json:"metrics"`
 }
 
 // ingestMetricsHandler godoc
 //
-// @Summary     Ingest metrics batch from Cognition Engine
-// @Description Accepts batch of metrics from CE and stores in TimescaleDB asynchronously
+// @Summary     Ingest metrics batch (CE or MAS)
+// @Description Accepts batch of metrics from CE and stores in TimescaleDB asynchronously.
+// @Description Auto-detects CE metrics (ce_id) vs MAS metrics (workspace_id/mas_id/agent_id).
 //
 // @Tags        internal
 // @Accept      json
@@ -59,14 +67,89 @@ func (a *App) ingestMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 		})
 	}
 
+	// Auto-detect metric type based on payload
+	isCEMetrics := req.CEID != ""
+	isMASMetrics := req.WorkspaceID != "" || req.MASID != "" || req.AgentID != ""
+
+	// Validate: must be one or the other, not both
+	if isCEMetrics && isMASMetrics {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "cannot specify both ce_id and workspace_id/mas_id/agent_id",
+		})
+	}
+
+	if !isCEMetrics && !isMASMetrics {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "must specify either ce_id (CE metrics) or workspace_id/mas_id/agent_id (MAS metrics)",
+		})
+	}
+
+	// Route to appropriate handler
+	if isCEMetrics {
+		return a.handleCEMetrics(w, req)
+	}
+	return a.handleMASMetrics(w, req)
+}
+
+// handleCEMetrics processes CE infrastructure metrics
+func (a *App) handleCEMetrics(w http.ResponseWriter, req IngestMetricsRequest) (int, error) {
+	// Validate ce_id
+	ceID, err := uuid.Parse(req.CEID)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "ce_id must be a valid UUID v4",
+		})
+	}
+
+	// Validate metrics array
+	if len(req.Metrics) == 0 {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "validation_failed",
+			"details": "metrics array must contain at least one metric",
+		})
+	}
+
+	if len(req.Metrics) > 10000 {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "batch_size_exceeded",
+			"details": fmt.Sprintf("batch contains %d metrics, maximum is 10000", len(req.Metrics)),
+		})
+	}
+
+	// Validate metric values are finite
+	for i, m := range req.Metrics {
+		if math.IsNaN(m.Value) || math.IsInf(m.Value, 0) {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "validation_failed",
+				"details": fmt.Sprintf("metric %d (%s): value must be finite (NaN and Infinity not allowed)", i, m.Name),
+			})
+		}
+	}
+
+	// Store CE metrics asynchronously
+	go a.storeCEMetricsBatch(req, ceID)
+
+	// Return 202 Accepted immediately
+	return eh.RespondWithJSON(w, http.StatusAccepted, map[string]interface{}{
+		"status":   "accepted",
+		"received": len(req.Metrics),
+	})
+}
+
+// handleMASMetrics processes MAS operation metrics
+func (a *App) handleMASMetrics(w http.ResponseWriter, req IngestMetricsRequest) (int, error) {
 	// Validate required fields
 	if req.WorkspaceID == "" || req.MASID == "" || req.AgentID == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "validation_failed",
-			"details": "workspace_id, mas_id, and agent_id are required",
+			"details": "workspace_id, mas_id, and agent_id are required for MAS metrics",
 		})
 	}
 
+	// Validate metrics array
 	if len(req.Metrics) == 0 {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "validation_failed",
@@ -98,7 +181,7 @@ func (a *App) ingestMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 		})
 	}
 
-	// Validate metric values are finite (JSON cannot encode NaN/Infinity)
+	// Validate metric values are finite
 	for i, m := range req.Metrics {
 		if math.IsNaN(m.Value) || math.IsInf(m.Value, 0) {
 			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
@@ -108,7 +191,7 @@ func (a *App) ingestMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 		}
 	}
 
-	// Store metrics asynchronously
+	// Store MAS metrics asynchronously
 	go a.storeMetricsBatch(req, workspaceID, masID)
 
 	// Return 202 Accepted immediately
@@ -203,6 +286,81 @@ func (a *App) storeMetricsBatch(
 			log.Errorf("Failed to store %d metrics: %v", len(records), err)
 		} else {
 			log.Infof("Stored %d metrics for agent %s", len(records), req.AgentID)
+		}
+	}
+}
+
+// storeCEMetricsBatch inserts CE metrics batch into TimescaleDB (runs async)
+func (a *App) storeCEMetricsBatch(req IngestMetricsRequest, ceID uuid.UUID) {
+	log := getLogger()
+
+	db, ok := a.db.(*database.Database)
+	if !ok {
+		log.Errorf("Failed to type-assert database")
+		return
+	}
+
+	var records []metric.CEMetric
+	now := time.Now()
+
+	for i, m := range req.Metrics {
+		if m.Name == "" {
+			log.Warnf("Skipping metric %d: empty name", i)
+			continue
+		}
+
+		if math.IsNaN(m.Value) || math.IsInf(m.Value, 0) {
+			log.Warnf("Skipping metric %s: non-finite value", m.Name)
+			continue
+		}
+
+		timestamp := now
+		if m.Timestamp != nil {
+			timestamp = *m.Timestamp
+		}
+
+		// Merge batch-level and metric-level attributes
+		finalAttributes := make(map[string]interface{})
+		if req.Attributes != nil {
+			for k, v := range req.Attributes {
+				finalAttributes[k] = v
+			}
+		}
+		if m.Attributes != nil {
+			for k, v := range m.Attributes {
+				finalAttributes[k] = v
+			}
+		}
+
+		// Marshal attributes to JSONB
+		var attributesJSON datatypes.JSON
+		if len(finalAttributes) > 0 {
+			attrBytes, err := json.Marshal(finalAttributes)
+			if err != nil {
+				log.Warnf("Failed to marshal attributes for metric %s: %v", m.Name, err)
+				attributesJSON = datatypes.JSON([]byte("{}"))
+			} else {
+				attributesJSON = datatypes.JSON(attrBytes)
+			}
+		} else {
+			attributesJSON = datatypes.JSON([]byte("{}"))
+		}
+
+		records = append(records, metric.CEMetric{
+			Time:       timestamp,
+			CEID:       ceID,
+			MetricName: m.Name,
+			Value:      m.Value,
+			Attributes: attributesJSON,
+		})
+	}
+
+	// Batch insert
+	if len(records) > 0 {
+		if err := db.Create(&records).Error; err != nil {
+			log.Errorf("Failed to store %d CE metrics: %v", len(records), err)
+		} else {
+			log.Infof("Stored %d CE metrics for ce_id=%s", len(records), ceID)
 		}
 	}
 }

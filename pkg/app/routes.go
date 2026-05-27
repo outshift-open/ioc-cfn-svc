@@ -83,7 +83,7 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post("/v1/traces", a.otelReceiver.HandleTraces)
 
 	// metrics API - Cognition Engine integration
-	// POST: internal (only for CE service-to-service)
+	// POST: internal (only for CE service-to-service) - auto-detects CE vs MAS metrics
 	// GET: public (for dashboards and monitoring tools)
 	rtr.Post(internalPrefix+"/cognition-engine/metrics", a.ingestMetricsHandler)
 	rtr.Get(apiPrefix+"/cognition-engine/metrics", a.getMetricsHandler)
