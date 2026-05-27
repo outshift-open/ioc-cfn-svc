@@ -373,6 +373,63 @@ func TestGetMetricsHandler_InvalidTimeFormats(t *testing.T) {
 	}
 }
 
+func TestGetMetricsHandler_TimeRangeValidation(t *testing.T) {
+	app := newTestApp()
+
+	ceID := uuid.New()
+
+	tests := []struct {
+		name        string
+		startTime   string
+		endTime     string
+		expectedErr string
+	}{
+		{
+			name:        "end_time before start_time",
+			startTime:   "2026-05-20T00:00:00Z",
+			endTime:     "2026-05-19T00:00:00Z",
+			expectedErr: "end_time must be after start_time",
+		},
+		{
+			name:        "year before 2000",
+			startTime:   "1999-05-19T00:00:00Z",
+			endTime:     "2026-05-20T00:00:00Z",
+			expectedErr: "start_time year must be between 2000 and 2100",
+		},
+		{
+			name:        "year after 2100",
+			startTime:   "2026-05-19T00:00:00Z",
+			endTime:     "2101-05-20T00:00:00Z",
+			expectedErr: "end_time year must be between 2000 and 2100",
+		},
+		{
+			name:        "time range exceeds 366 days",
+			startTime:   "2026-01-01T00:00:00Z",
+			endTime:     "2027-01-03T00:00:00Z",
+			expectedErr: "time range cannot exceed 366 days",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := fmt.Sprintf("/api/cognition-engines/%s/metrics?start_time=%s&end_time=%s",
+				ceID.String(), tt.startTime, tt.endTime)
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("ceId", ceID.String())
+			rr := httptest.NewRecorder()
+
+			code, err := app.getMetricsHandler(rr, req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, code)
+
+			var resp map[string]string
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
 func TestGetMetricsHandler_FlexibleTimeFormats(t *testing.T) {
 	t.Skip("Skipping - requires real database for GORM operations")
 

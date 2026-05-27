@@ -538,6 +538,38 @@ func parseFlexibleTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("invalid format (use Unix timestamp, RFC3339 '2026-05-19T00:00:00Z', or date '2026-05-19')")
 }
 
+// validateTimeRange validates time range constraints
+func validateTimeRange(startTime, endTime time.Time) error {
+	// End time must be after start time
+	if endTime.Before(startTime) {
+		return fmt.Errorf("end_time must be after start_time")
+	}
+
+	// Reject unreasonable years (before 2000 or after 2100)
+	if startTime.Year() < 2000 || startTime.Year() > 2100 {
+		return fmt.Errorf("start_time year must be between 2000 and 2100")
+	}
+	if endTime.Year() < 2000 || endTime.Year() > 2100 {
+		return fmt.Errorf("end_time year must be between 2000 and 2100")
+	}
+
+	// Reject queries into far future (more than 1 day ahead)
+	now := time.Now().UTC()
+	maxFuture := now.Add(24 * time.Hour)
+	if startTime.After(maxFuture) {
+		return fmt.Errorf("start_time cannot be more than 1 day in the future")
+	}
+
+	// Maximum time range: 366 days (1 year + leap day)
+	maxDuration := 366 * 24 * time.Hour
+	duration := endTime.Sub(startTime)
+	if duration > maxDuration {
+		return fmt.Errorf("time range cannot exceed 366 days (requested: %d days)", int(duration.Hours()/24))
+	}
+
+	return nil
+}
+
 // getMetricsHandler godoc
 //
 // @Summary     Query metrics within time range (CE and/or MAS)
@@ -601,6 +633,14 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 	if err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": fmt.Sprintf("end_time: %v", err),
+		})
+	}
+
+	// Validate time range
+	if err := validateTimeRange(startTime, endTime); err != nil {
+		log.Warnf("Time range validation failed: %v", err)
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
 		})
 	}
 
