@@ -262,12 +262,12 @@ func (a *App) storeMetricsBatch(
 			attrBytes, err := json.Marshal(finalAttributes)
 			if err != nil {
 				log.Warnf("Failed to marshal attributes for metric %s: %v", m.Name, err)
-				attributesJSON = datatypes.JSON([]byte("{}"))
+				attributesJSON = datatypes.JSON("{}")
 			} else {
-				attributesJSON = datatypes.JSON(attrBytes)
+				attributesJSON = attrBytes
 			}
 		} else {
-			attributesJSON = datatypes.JSON([]byte("{}"))
+			attributesJSON = datatypes.JSON("{}")
 		}
 
 		records = append(records, metric.MASMetric{
@@ -339,12 +339,12 @@ func (a *App) storeCEMetricsBatch(req IngestMetricsRequest, ceID uuid.UUID) {
 			attrBytes, err := json.Marshal(finalAttributes)
 			if err != nil {
 				log.Warnf("Failed to marshal attributes for metric %s: %v", m.Name, err)
-				attributesJSON = datatypes.JSON([]byte("{}"))
+				attributesJSON = datatypes.JSON("{}")
 			} else {
-				attributesJSON = datatypes.JSON(attrBytes)
+				attributesJSON = attrBytes
 			}
 		} else {
-			attributesJSON = datatypes.JSON([]byte("{}"))
+			attributesJSON = datatypes.JSON("{}")
 		}
 
 		records = append(records, metric.CEMetric{
@@ -389,10 +389,10 @@ type MetricSeries struct {
 
 // MetricsQueryResponse represents the unified query result with separate CE and MAS metrics
 type MetricsQueryResponse struct {
-	Period     Period              `json:"period"`
-	Filters    Filters             `json:"filters,omitempty"`
-	CEMetrics  *MetricResultSet    `json:"ce_metrics,omitempty"`
-	MASMetrics *MetricResultSet    `json:"mas_metrics,omitempty"`
+	Period     Period           `json:"period"`
+	Filters    Filters          `json:"filters,omitempty"`
+	CEMetrics  *MetricResultSet `json:"ce_metrics,omitempty"`
+	MASMetrics *MetricResultSet `json:"mas_metrics,omitempty"`
 }
 
 // MetricResultSet represents metrics from a single table with page-based pagination
@@ -513,8 +513,8 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 		}
 	}
 
-	pageSize := 100      // default: increased from 20 to account for grouping
-	maxPageSize := 1000  // max: increased from 100 to balance grouped format size reduction
+	pageSize := 100     // default: increased from 20 to account for grouping
+	maxPageSize := 1000 // max: increased from 100 to balance grouped format size reduction
 	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
 		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
 			pageSize = ps
@@ -724,7 +724,7 @@ func (a *App) queryCEMetricsData(
 
 	for _, r := range records {
 		var attrs map[string]interface{}
-		json.Unmarshal([]byte(r.Attributes), &attrs)
+		json.Unmarshal(r.Attributes, &attrs)
 
 		key := seriesKey{
 			ceID:       r.CEID.String(),
@@ -835,7 +835,7 @@ func (a *App) queryMASMetricsData(
 
 	for _, r := range records {
 		var attrs map[string]interface{}
-		json.Unmarshal([]byte(r.Attributes), &attrs)
+		json.Unmarshal(r.Attributes, &attrs)
 
 		key := seriesKey{
 			workspaceID: r.WorkspaceID.String(),
