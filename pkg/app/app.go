@@ -382,6 +382,8 @@ func (a *App) RefreshConfig(mgmtURL string) error {
 		ConfigVersion = parsed.ConfigVersion
 		cfnConfigMutex.Unlock()
 		log.Infof("CFN Config refreshed, config_version=%d", parsed.ConfigVersion)
+
+		a.syncTasksFromConfig(&parsed)
 	} else {
 		log.Warnf("RefreshConfig response missing config key")
 	}

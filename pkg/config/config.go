@@ -55,6 +55,9 @@ var (
 	defaultPageSizeFlag = flag.Int("default_page_size", 20, "default number of records per page")
 	maxPageSizeFlag     = flag.Int("max_page_size", 100, "maximum allowed number of records per page")
 
+	// Task scheduler configs
+	taskCallbackDeadlineMinutesFlag = flag.Int("task_callback_deadline_minutes", 30, "minutes to wait for CE callback before marking task as timed out")
+
 	idpLabelFlag                     = flag.String("idp_label", "", "label for the idp")
 	idpClientIDFlag                  = flag.String("idp_client_id", "", "client id for the idp")
 	idpClientSecretFlag              = flag.String("idp_client_secret", "", "client secret for the idp")
@@ -67,19 +70,20 @@ var (
 )
 
 type Config struct {
-	AppPort                  int
-	McpPort                  int
-	MetricsPort              int
-	HostID                   string
-	HelmChartVersion         string
-	TagVersion               string
-	ServiceName              string
-	OomGracefulExitThreshold float64
-	ExternalServiceURL       string
-	DB                       Database
-	IDP                      IdentityProvider
-	Pagination               Pagination
-	OTel                     OTelConfig
+	AppPort                      int
+	McpPort                      int
+	MetricsPort                  int
+	HostID                       string
+	HelmChartVersion             string
+	TagVersion                   string
+	ServiceName                  string
+	OomGracefulExitThreshold     float64
+	ExternalServiceURL           string
+	TaskCallbackDeadlineMinutes  int
+	DB                           Database
+	IDP                          IdentityProvider
+	Pagination                   Pagination
+	OTel                         OTelConfig
 }
 
 // OTelConfig holds configurable parameters for the embedded OTLP receiver.
@@ -105,7 +109,8 @@ func Get() *Config {
 		TagVersion:               *tagVersionFlag,
 		ServiceName:              *appNameFlag,
 		OomGracefulExitThreshold: *oomGracefulExitThresholdFlag,
-		ExternalServiceURL:       *externalServiceURLFlag,
+		ExternalServiceURL:          *externalServiceURLFlag,
+		TaskCallbackDeadlineMinutes: *taskCallbackDeadlineMinutesFlag,
 		DB: Database{
 			Host:        *dbHostFlag,
 			Port:        *dbPortFlag,

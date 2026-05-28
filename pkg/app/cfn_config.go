@@ -17,9 +17,17 @@ type WorkspaceConfig struct {
 }
 
 type MASCfg struct {
-	ID           string     `json:"id"`
-	SharedMemory *MemoryCfg `json:"shared_memory"`
-	Agents       []AgentCfg `json:"agents"`
+	ID           string          `json:"id"`
+	SharedMemory *MemoryCfg      `json:"shared_memory"`
+	Agents       []AgentCfg      `json:"agents"`
+	TaskSchedule *TaskScheduleCfg `json:"task_schedule"`
+}
+
+// TaskScheduleCfg holds the per-MAS task scheduling configuration propagated from the management plane.
+type TaskScheduleCfg struct {
+	TaskName string `json:"task_name"`
+	Enabled  bool   `json:"enabled"`
+	Schedule string `json:"schedule"`
 }
 
 type AgentIdentityCfg struct {

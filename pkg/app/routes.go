@@ -68,6 +68,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
+	// task scheduler callback (internal API)
+	rtr.Post(internalPrefix+"/tasks/callback", a.handleTaskCallback)
+
 	// audit events (internal API)
 	rtr.Get(internalPrefix+"/mgmt/audit", a.listAuditEventsHandler)
 	rtr.Get(internalPrefix+"/mgmt/audit/{eventId}", a.getAuditEventHandler)

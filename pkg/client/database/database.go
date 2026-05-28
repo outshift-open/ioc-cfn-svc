@@ -1,10 +1,13 @@
 package database
 
 import (
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/plugin/prometheus"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
@@ -73,6 +76,19 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
+	if err := db.DB.AutoMigrate(&model.Task{}, &model.TaskExecutionHistory{}); err != nil {
+		return err
+	}
+
+	// Partial index for efficient due-task polling — only indexes rows the scheduler queries.
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_next_run_time
+		ON tasks (next_run_time)
+		WHERE enabled = TRUE AND status = 'scheduled'`)
+
+	// Composite index for looking up execution history by task ordered by recency.
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_execution_history_task_id
+		ON task_execution_history (task_id, started_at DESC)`)
+
 	return nil
 }
 
@@ -137,4 +153,119 @@ func (db *Database) ListAuditEvents(resourceType, auditType string, page, pageSi
 // DeleteAuditEventByID deletes a single audit event by UUID.
 func (db *Database) DeleteAuditEventByID(id uuid.UUID) error {
 	return audit.DeleteAuditEventByID(db.DB, id)
+}
+
+// FindDueTasks returns enabled tasks in 'scheduled' or 'failed' status whose next_run_time has passed.
+func (db *Database) FindDueTasks() ([]model.Task, error) {
+	var tasks []model.Task
+	err := db.DB.
+		Where("enabled = ? AND status IN ? AND next_run_time <= ?", true, []string{"scheduled", "failed"}, time.Now()).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+// UpsertTask creates or updates a task based on the unique (workspace_id, mas_id, name) key.
+func (db *Database) UpsertTask(task *model.Task) error {
+	return db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "workspace_id"}, {Name: "mas_id"}, {Name: "name"}},
+		DoUpdates: clause.AssignmentColumns([]string{"schedule", "enabled", "next_run_time", "updated_at"}),
+	}).Create(task).Error
+}
+
+// UpdateTaskStatus updates a task's status and any extra fields atomically.
+func (db *Database) UpdateTaskStatus(taskID string, status string, fields map[string]interface{}) error {
+	if fields == nil {
+		fields = make(map[string]interface{})
+	}
+	fields["status"] = status
+	return db.DB.Model(&model.Task{}).Where("id = ?", taskID).Updates(fields).Error
+}
+
+// RecoverExpiredCallbacks marks tasks whose callback deadline has passed as failed,
+// and updates their corresponding execution history records.
+func (db *Database) RecoverExpiredCallbacks() (int64, error) {
+	now := time.Now()
+
+	var expiredTasks []model.Task
+	if err := db.DB.Where("status = ? AND callback_deadline < ?", "running", now).Find(&expiredTasks).Error; err != nil {
+		return 0, err
+	}
+	if len(expiredTasks) == 0 {
+		return 0, nil
+	}
+
+	taskIDs := make([]string, len(expiredTasks))
+	for i, t := range expiredTasks {
+		taskIDs[i] = t.ID
+	}
+
+	db.DB.Model(&model.TaskExecutionHistory{}).
+		Where("task_id IN ? AND status = ?", taskIDs, "running").
+		Updates(map[string]interface{}{"status": "timeout", "finished_at": now})
+
+	result := db.DB.Model(&model.Task{}).
+		Where("id IN ?", taskIDs).
+		Updates(map[string]interface{}{
+			"status":            "failed",
+			"callback_deadline": nil,
+			"last_run_time":     now,
+			"last_status":       "timeout",
+		})
+
+	return result.RowsAffected, result.Error
+}
+
+// InsertTaskExecutionHistory creates a new execution history record.
+func (db *Database) InsertTaskExecutionHistory(h *model.TaskExecutionHistory) error {
+	return db.DB.Create(h).Error
+}
+
+// UpdateTaskExecutionHistory updates an execution history record by ID.
+func (db *Database) UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error {
+	return db.DB.Model(&model.TaskExecutionHistory{}).Where("id = ?", id).Updates(fields).Error
+}
+
+// UpdateLatestExecutionHistoryByTaskID updates the most recent execution history for a task.
+func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error {
+	var hist model.TaskExecutionHistory
+	err := db.DB.Where("task_id = ?", taskID).Order("started_at DESC").First(&hist).Error
+	if err != nil {
+		return err
+	}
+	return db.DB.Model(&hist).Updates(fields).Error
+}
+
+// DisableTasksNotInSet soft-disables tasks whose (workspace_id, mas_id) is not in activeKeys.
+// Called during config sync to clean up tasks for deleted MAS entries.
+// Sets enabled=false so FindDueTasks() skips them; preserves rows for audit history.
+func (db *Database) DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error) {
+	var allTasks []model.Task
+	if err := db.DB.Where("enabled = ?", true).Find(&allTasks).Error; err != nil {
+		return nil, err
+	}
+	var disabled []model.Task
+	for _, t := range allTasks {
+		key := t.WorkspaceID + "|" + t.MASID
+		if !activeKeys[key] {
+			db.DB.Model(&t).Updates(map[string]interface{}{"enabled": false})
+			disabled = append(disabled, t)
+		}
+	}
+	return disabled, nil
+}
+
+// FindTaskByKey looks up a task by its unique key.
+func (db *Database) FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error) {
+	var tasks []model.Task
+	err := db.DB.
+		Where("workspace_id = ? AND mas_id = ? AND name = ?", workspaceID, masID, taskName).
+		Limit(1).
+		Find(&tasks).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+	return &tasks[0], nil
 }
