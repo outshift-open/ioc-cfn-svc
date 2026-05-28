@@ -403,3 +403,140 @@ func TestCognitionEngineHeartbeatHandler_InvalidCEID(t *testing.T) {
 		})
 	}
 }
+
+func TestListCognitionEnginesHandler(t *testing.T) {
+	// Setup mock management plane server
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/cognition-engines", r.URL.Path)
+
+		// Return list response
+		resp := cognitionengine.CognitionEngineList{
+			CognitionEngines: []cognitionengine.CognitionEngineListItem{
+				{
+					ID:      "ce-123",
+					CFNID:   "test-cfn-id",
+					Name:    "Test CE",
+					Version: "1.0.0",
+					Type:    "knowledge_management",
+					URL:     "http://ce-host:9004",
+					Status:  "online",
+				},
+			},
+			Total: 1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cognition-engines", nil)
+	w := httptest.NewRecorder()
+
+	_, err := app.listCognitionEnginesHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp cognitionengine.CognitionEngineList
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, resp.Total)
+	assert.Len(t, resp.CognitionEngines, 1)
+	assert.Equal(t, "ce-123", resp.CognitionEngines[0].ID)
+}
+
+func TestGetCognitionEngineHandler(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
+	// Setup mock management plane server
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/cognition-engines/"+testCEID, r.URL.Path)
+
+		// Return detail response
+		resp := cognitionengine.CognitionEngineDetail{
+			ID:           testCEID,
+			CFNID:        "test-cfn-id",
+			Name:         "Test CE",
+			Version:      "1.0.0",
+			Type:         "knowledge_management",
+			URL:          "http://ce-host:9004",
+			Status:       "online",
+			Capabilities: []string{"ingestion"},
+			CreatedAt:    "2026-05-21T09:00:00Z",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cognition-engines/"+testCEID, nil)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getCognitionEngineHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp cognitionengine.CognitionEngineDetail
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, testCEID, resp.ID)
+	assert.Equal(t, "Test CE", resp.Name)
+	assert.Equal(t, "1.0.0", resp.Version)
+}
+
+func TestDeleteCognitionEngineHandler(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
+	// Setup mock management plane server
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodDelete, r.Method)
+		assert.Equal(t, "/api/cognition-engines/"+testCEID, r.URL.Path)
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/cognition-engines/"+testCEID, nil)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.deleteCognitionEngineHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}

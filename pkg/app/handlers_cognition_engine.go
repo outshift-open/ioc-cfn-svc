@@ -273,3 +273,268 @@ func (a *App) cognitionEngineHeartbeatHandler(w http.ResponseWriter, r *http.Req
 	// Return the successful response to the CE
 	return eh.RespondWithJSON(w, http.StatusOK, hbResp)
 }
+
+// listCognitionEnginesHandler godoc
+// @Summary		List Cognition Engines
+// @Description	List cognition engines, optionally filtered by cfn_id and/or status.
+// @Tags			cognition-engine
+// @Accept		json
+// @Produce		json
+// @Param		cfn_id	query		string								false	"Filter by CFN ID"
+// @Param		status	query		string								false	"Filter by status (online/offline)"
+// @Success		200		{object}	cognitionengine.CognitionEngineList	"List of cognition engines"
+// @Failure		502		{object}	map[string]string					"Failed to forward request to management plane"
+// @Failure		503		{object}	map[string]string					"CFN not registered with management plane"
+// @Router		/api/cognition-engines [get]
+func (a *App) listCognitionEnginesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	// Check if this CFN is registered with the management plane
+	if CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Build query string from request
+	queryParams := r.URL.Query()
+	cfnIDParam := queryParams.Get("cfn_id")
+	statusParam := queryParams.Get("status")
+
+	// Build the list URL for management plane
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+	listURL := fmt.Sprintf("%s/api/cognition-engines", mgmtURL)
+
+	// Add query parameters if provided
+	if cfnIDParam != "" || statusParam != "" {
+		listURL += "?"
+		if cfnIDParam != "" {
+			listURL += fmt.Sprintf("cfn_id=%s", url.QueryEscape(cfnIDParam))
+		}
+		if statusParam != "" {
+			if cfnIDParam != "" {
+				listURL += "&"
+			}
+			listURL += fmt.Sprintf("status=%s", url.QueryEscape(statusParam))
+		}
+	}
+
+	log.Debugf("forwarding CE list request to management plane: %s", listURL)
+
+	// Forward the request to the management plane
+	client := httpclient.New(30 * time.Second)
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	ctx := context.Background()
+	resp, err := client.Get(ctx, listURL, headers)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to forward request to management plane: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	// Read management plane response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to read management plane response: %v", err),
+		})
+	}
+
+	// If management plane returned an error status, forward it
+	if resp.StatusCode != http.StatusOK {
+		var errorResp map[string]any
+		if err := json.Unmarshal(respBody, &errorResp); err != nil {
+			errorResp = map[string]any{"raw": string(respBody)}
+		}
+		log.Errorf("management plane list failed: status=%d, body=%v", resp.StatusCode, errorResp)
+		return eh.RespondWithJSON(w, resp.StatusCode, errorResp)
+	}
+
+	// Parse successful response
+	var listResp cognitionengine.CognitionEngineList
+	if err := json.Unmarshal(respBody, &listResp); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to parse management plane response: %v", err),
+		})
+	}
+
+	log.Debugf("CE list retrieved: total=%d", listResp.Total)
+
+	// Return the successful response
+	return eh.RespondWithJSON(w, http.StatusOK, listResp)
+}
+
+// getCognitionEngineHandler godoc
+// @Summary		Get Cognition Engine
+// @Description	Get details of a specific cognition engine by ID.
+// @Tags			cognition-engine
+// @Accept		json
+// @Produce		json
+// @Param		ceId	path		string								true	"Cognition Engine ID"
+// @Success		200		{object}	cognitionengine.CognitionEngineDetail	"CE details"
+// @Failure		400		{object}	map[string]string					"Invalid CE ID format"
+// @Failure		404		{object}	map[string]string					"CE not found"
+// @Failure		502		{object}	map[string]string					"Failed to forward request to management plane"
+// @Failure		503		{object}	map[string]string					"CFN not registered with management plane"
+// @Router		/api/cognition-engines/{ceId} [get]
+func (a *App) getCognitionEngineHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	ceID := eh.PathParam(r, "ceId")
+	if ceID == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "ce_id is required",
+		})
+	}
+
+	// Validate ceID is a valid UUID
+	if _, err := uuid.Parse(ceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid ce_id format: must be a valid UUID",
+		})
+	}
+
+	// Check if this CFN is registered with the management plane
+	if CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Build the get URL for management plane
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+	getURL := fmt.Sprintf("%s/api/cognition-engines/%s", mgmtURL, ceID)
+
+	log.Debugf("forwarding CE get request to management plane: %s", getURL)
+
+	// Forward the request to the management plane
+	client := httpclient.New(30 * time.Second)
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	ctx := context.Background()
+	resp, err := client.Get(ctx, getURL, headers)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to forward request to management plane: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	// Read management plane response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to read management plane response: %v", err),
+		})
+	}
+
+	// If management plane returned an error status, forward it
+	if resp.StatusCode != http.StatusOK {
+		var errorResp map[string]any
+		if err := json.Unmarshal(respBody, &errorResp); err != nil {
+			errorResp = map[string]any{"raw": string(respBody)}
+		}
+		log.Errorf("management plane get failed: status=%d, body=%v", resp.StatusCode, errorResp)
+		return eh.RespondWithJSON(w, resp.StatusCode, errorResp)
+	}
+
+	// Parse successful response
+	var detailResp cognitionengine.CognitionEngineDetail
+	if err := json.Unmarshal(respBody, &detailResp); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to parse management plane response: %v", err),
+		})
+	}
+
+	log.Debugf("CE details retrieved: ce_id=%s, name=%s", detailResp.ID, detailResp.Name)
+
+	// Return the successful response
+	return eh.RespondWithJSON(w, http.StatusOK, detailResp)
+}
+
+// deleteCognitionEngineHandler godoc
+// @Summary		Delete Cognition Engine
+// @Description	Soft-delete (deregister) a cognition engine by ID.
+// @Tags			cognition-engine
+// @Accept		json
+// @Produce		json
+// @Param		ceId	path		string	true	"Cognition Engine ID"
+// @Success		204		"CE deleted successfully"
+// @Failure		400		{object}	map[string]string	"Invalid CE ID format"
+// @Failure		404		{object}	map[string]string	"CE not found"
+// @Failure		502		{object}	map[string]string	"Failed to forward request to management plane"
+// @Failure		503		{object}	map[string]string	"CFN not registered with management plane"
+// @Router		/api/cognition-engines/{ceId} [delete]
+func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	ceID := eh.PathParam(r, "ceId")
+	if ceID == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "ce_id is required",
+		})
+	}
+
+	// Validate ceID is a valid UUID
+	if _, err := uuid.Parse(ceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid ce_id format: must be a valid UUID",
+		})
+	}
+
+	// Check if this CFN is registered with the management plane
+	if CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Build the delete URL for management plane
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+	deleteURL := fmt.Sprintf("%s/api/cognition-engines/%s", mgmtURL, ceID)
+
+	log.Infof("forwarding CE delete request to management plane: %s (ce_id=%s)", deleteURL, ceID)
+
+	// Forward the request to the management plane
+	client := httpclient.New(30 * time.Second)
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	ctx := context.Background()
+	resp, err := client.Delete(ctx, deleteURL, nil, headers)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to forward request to management plane: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	// Management plane returns 204 No Content on success
+	if resp.StatusCode == http.StatusNoContent {
+		log.Infof("CE deleted successfully: ce_id=%s", ceID)
+		w.WriteHeader(http.StatusNoContent)
+		return http.StatusNoContent, nil
+	}
+
+	// Read error response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to read management plane response: %v", err),
+		})
+	}
+
+	var errorResp map[string]any
+	if err := json.Unmarshal(respBody, &errorResp); err != nil {
+		errorResp = map[string]any{"raw": string(respBody)}
+	}
+	log.Errorf("management plane delete failed: status=%d, body=%v", resp.StatusCode, errorResp)
+	return eh.RespondWithJSON(w, resp.StatusCode, errorResp)
+}

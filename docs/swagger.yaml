@@ -293,6 +293,77 @@ definitions:
           type: integer
         type: array
     type: object
+  cognitionengine.CognitionEngineDetail:
+    properties:
+      capabilities:
+        items:
+          type: string
+        type: array
+      cfn_id:
+        type: string
+      config:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      id:
+        type: string
+      last_seen:
+        type: string
+      mas_config:
+        additionalProperties: true
+        type: object
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+      version:
+        type: string
+    type: object
+  cognitionengine.CognitionEngineList:
+    properties:
+      cognition_engines:
+        items:
+          $ref: '#/definitions/cognitionengine.CognitionEngineListItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  cognitionengine.CognitionEngineListItem:
+    properties:
+      cfn_id:
+        type: string
+      config:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      last_seen:
+        type: string
+      mas_config:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+      version:
+        type: string
+    type: object
   cognitionengine.HeartbeatResponse:
     properties:
       last_seen:
@@ -1093,6 +1164,129 @@ paths:
               type: string
             type: object
       summary: Ingest CE infrastructure metrics
+      tags:
+      - cognition-engine
+  /api/cognition-engines:
+    get:
+      consumes:
+      - application/json
+      description: List cognition engines, optionally filtered by cfn_id and/or status.
+      parameters:
+      - description: Filter by CFN ID
+        in: query
+        name: cfn_id
+        type: string
+      - description: Filter by status (online/offline)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of cognition engines
+          schema:
+            $ref: '#/definitions/cognitionengine.CognitionEngineList'
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List Cognition Engines
+      tags:
+      - cognition-engine
+  /api/cognition-engines/{ceId}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-delete (deregister) a cognition engine by ID.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: CE deleted successfully
+        "400":
+          description: Invalid CE ID format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete Cognition Engine
+      tags:
+      - cognition-engine
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific cognition engine by ID.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CE details
+          schema:
+            $ref: '#/definitions/cognitionengine.CognitionEngineDetail'
+        "400":
+          description: Invalid CE ID format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get Cognition Engine
       tags:
       - cognition-engine
   /api/cognition-engines/{ceId}/heartbeat:
