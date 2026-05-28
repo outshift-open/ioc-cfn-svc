@@ -11,15 +11,20 @@ package cognitionengine
 //	  "name": "Knowledge Management CE",
 //	  "type": "knowledge_management",
 //	  "url": "http://ce-host:9004",
+//	  "version": "1.0.0",
 //	  "capabilities": ["ingestion", "retrieval"],
 //	  "metrics": ["kb.documents.indexed", "kb.search.latency_ms"]
 //	}
 type RegisterRequest struct {
-	Name         string   `json:"name"`
-	Type         string   `json:"type"`
-	URL          string   `json:"url"`
-	Capabilities []string `json:"capabilities,omitempty"`
-	Metrics      []string `json:"metrics,omitempty"`
+	Name         string                 `json:"name"`
+	Type         string                 `json:"type"`
+	URL          string                 `json:"url"`
+	Version      string                 `json:"version"`
+	Capabilities []string               `json:"capabilities,omitempty"`
+	Metrics      []string               `json:"metrics,omitempty"`
+	Auth         map[string]interface{} `json:"auth,omitempty"`
+	Config       map[string]interface{} `json:"config,omitempty"`
+	MASConfig    map[string]interface{} `json:"mas_config,omitempty"`
 }
 
 // RegisterResponse represents the response returned to the CE after successful registration.
@@ -30,12 +35,20 @@ type RegisterRequest struct {
 //	{
 //	  "ce_id": "ce-123",
 //	  "cfn_id": "cfn-456",
-//	  "message": "Cognition Engine registered successfully"
+//	  "name": "Knowledge Management CE",
+//	  "version": "1.0.0",
+//	  "type": "knowledge_management",
+//	  "status": "online",
+//	  "created": true
 //	}
 type RegisterResponse struct {
 	CEID    string `json:"ce_id"`
 	CFNID   string `json:"cfn_id"`
-	Message string `json:"message"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Created bool   `json:"created"`
 }
 
 // HeartbeatResponse represents the response returned to the CE after a successful heartbeat.

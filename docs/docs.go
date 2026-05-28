@@ -1953,11 +1953,23 @@ const docTemplate = `{
         "cognitionengine.RegisterRequest": {
             "type": "object",
             "properties": {
+                "auth": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "capabilities": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
                 },
                 "metrics": {
                     "type": "array",
@@ -1973,6 +1985,9 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },
@@ -1985,7 +2000,19 @@ const docTemplate = `{
                 "cfn_id": {
                     "type": "string"
                 },
-                "message": {
+                "created": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
                     "type": "string"
                 }
             }

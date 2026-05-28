@@ -30,12 +30,17 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 		assert.Equal(t, "Knowledge Management CE", payload["name"])
 		assert.Equal(t, "knowledge_management", payload["type"])
 		assert.Equal(t, "http://ce-host:9004", payload["url"])
+		assert.Equal(t, "1.0.0", payload["version"])
 
 		// Return success response
 		resp := cognitionengine.RegisterResponse{
 			CEID:    "ce-123",
 			CFNID:   "test-cfn-id",
-			Message: "Cognition Engine registered successfully",
+			Name:    "Knowledge Management CE",
+			Version: "1.0.0",
+			Type:    "knowledge_management",
+			Status:  "online",
+			Created: true,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -60,6 +65,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 		Name:         "Knowledge Management CE",
 		Type:         "knowledge_management",
 		URL:          "http://ce-host:9004",
+		Version:      "1.0.0",
 		Capabilities: []string{"ingestion", "retrieval"},
 		Metrics:      []string{"kb.documents.indexed", "kb.search.latency_ms"},
 	}
@@ -83,7 +89,11 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 
 	assert.Equal(t, "ce-123", resp.CEID)
 	assert.Equal(t, "test-cfn-id", resp.CFNID)
-	assert.Equal(t, "Cognition Engine registered successfully", resp.Message)
+	assert.Equal(t, "Knowledge Management CE", resp.Name)
+	assert.Equal(t, "1.0.0", resp.Version)
+	assert.Equal(t, "knowledge_management", resp.Type)
+	assert.Equal(t, "online", resp.Status)
+	assert.True(t, resp.Created)
 }
 
 func TestRegisterCognitionEngineHandler_MissingCFNID(t *testing.T) {
@@ -95,9 +105,10 @@ func TestRegisterCognitionEngineHandler_MissingCFNID(t *testing.T) {
 	app := &App{}
 
 	reqBody := cognitionengine.RegisterRequest{
-		Name: "Knowledge Management CE",
-		Type: "knowledge_management",
-		URL:  "http://ce-host:9004",
+		Name:    "Knowledge Management CE",
+		Type:    "knowledge_management",
+		URL:     "http://ce-host:9004",
+		Version: "1.0.0",
 	}
 	reqBytes, err := json.Marshal(reqBody)
 	require.NoError(t, err)
@@ -132,22 +143,27 @@ func TestRegisterCognitionEngineHandler_InvalidRequest(t *testing.T) {
 	}{
 		{
 			name:        "missing name",
-			reqBody:     cognitionengine.RegisterRequest{Type: "knowledge_management", URL: "http://ce-host:9004"},
+			reqBody:     cognitionengine.RegisterRequest{Type: "knowledge_management", URL: "http://ce-host:9004", Version: "1.0.0"},
 			expectedErr: "name is required",
 		},
 		{
 			name:        "missing type",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", URL: "http://ce-host:9004"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", URL: "http://ce-host:9004", Version: "1.0.0"},
 			expectedErr: "type is required",
 		},
 		{
 			name:        "missing url",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management", Version: "1.0.0"},
 			expectedErr: "url is required",
 		},
 		{
+			name:        "missing version",
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management", URL: "http://ce-host:9004"},
+			expectedErr: "version is required",
+		},
+		{
 			name:        "invalid url format",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management", URL: "not-a-valid-url:::"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management", URL: "not-a-valid-url:::", Version: "1.0.0"},
 			expectedErr: "invalid url format",
 		},
 	}
@@ -195,9 +211,10 @@ func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
 	app := &App{}
 
 	reqBody := cognitionengine.RegisterRequest{
-		Name: "Knowledge Management CE",
-		Type: "knowledge_management",
-		URL:  "http://ce-host:9004",
+		Name:    "Knowledge Management CE",
+		Type:    "knowledge_management",
+		URL:     "http://ce-host:9004",
+		Version: "1.0.0",
 	}
 	reqBytes, err := json.Marshal(reqBody)
 	require.NoError(t, err)

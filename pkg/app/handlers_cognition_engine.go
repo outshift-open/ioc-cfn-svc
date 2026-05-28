@@ -69,6 +69,11 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 			"error": "url is required",
 		})
 	}
+	if req.Version == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "version is required",
+		})
+	}
 
 	// Validate URL format
 	parsedURL, err := url.Parse(req.URL)
@@ -94,9 +99,21 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 		"name":         req.Name,
 		"type":         req.Type,
 		"url":          req.URL,
+		"version":      req.Version,
 		"cfn_id":       CfnID,
 		"capabilities": req.Capabilities,
 		"metrics":      req.Metrics,
+	}
+
+	// Add optional fields if provided
+	if req.Auth != nil {
+		payload["auth"] = req.Auth
+	}
+	if req.Config != nil {
+		payload["config"] = req.Config
+	}
+	if req.MASConfig != nil {
+		payload["mas_config"] = req.MASConfig
 	}
 
 	requestBody, err := json.Marshal(payload)

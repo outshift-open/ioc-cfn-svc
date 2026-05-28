@@ -302,10 +302,19 @@ definitions:
     type: object
   cognitionengine.RegisterRequest:
     properties:
+      auth:
+        additionalProperties: true
+        type: object
       capabilities:
         items:
           type: string
         type: array
+      config:
+        additionalProperties: true
+        type: object
+      mas_config:
+        additionalProperties: true
+        type: object
       metrics:
         items:
           type: string
@@ -316,6 +325,8 @@ definitions:
         type: string
       url:
         type: string
+      version:
+        type: string
     type: object
   cognitionengine.RegisterResponse:
     properties:
@@ -323,7 +334,15 @@ definitions:
         type: string
       cfn_id:
         type: string
-      message:
+      created:
+        type: boolean
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      version:
         type: string
     type: object
   common.ErrorDetail:
