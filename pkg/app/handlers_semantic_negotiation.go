@@ -268,11 +268,13 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		round = *cogResp.Round
 	}
 	resp := &semanticnegotiation.DecideResponse{
-		Status:      cogResp.Status,
-		SessionID:   cogResp.SessionID,
-		Round:       round,
-		Messages:    cogResp.Messages,
-		FinalResult: cogResp.FinalResult,
+		Status:       cogResp.Status,
+		SessionID:    cogResp.SessionID,
+		Round:        round,
+		Messages:     cogResp.Messages,
+		FinalResult:  cogResp.FinalResult,
+		Validation:   cogResp.Validation,
+		RetryHistory: cogResp.RetryHistory,
 	}
 
 	// Pass through token metadata from cognition agent if available
@@ -293,8 +295,19 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	// If agreement is reached, persist the final result to shared memory.
 	if cogResp.Status == "agreed" && len(cogResp.FinalResult) > 0 {
 		log.Infof("agreement has been reached, final result is being persisted to the shared memory")
-		// Wrap FinalResult in an array to match the extraction endpoint's `data: list[dict]` schema.
-		finalResultJSON, err := json.Marshal([]map[string]interface{}{cogResp.FinalResult})
+		// Merge FinalResult and Validation into a single semneg record so the
+		// ingestion pipeline stores the agreement and its SAV assessment together.
+		sharedRecord := make(map[string]interface{}, len(cogResp.FinalResult)+1)
+		for k, v := range cogResp.FinalResult {
+			sharedRecord[k] = v
+		}
+		if cogResp.Validation != nil {
+			sharedRecord["validation"] = cogResp.Validation
+		}
+		if len(cogResp.RetryHistory) > 0 {
+			sharedRecord["retry_history"] = cogResp.RetryHistory
+		}
+		finalResultJSON, err := json.Marshal([]map[string]interface{}{sharedRecord})
 		if err != nil {
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
 				workspaceID, masID, reqPayload.SessionID, err)

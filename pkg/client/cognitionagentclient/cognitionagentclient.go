@@ -328,7 +328,9 @@ type SemanticNegotiationResponse struct {
 	SessionID   string                 `json:"session_id,omitempty"`
 	Round       *int                   `json:"round,omitempty"`
 	Messages    []json.RawMessage      `json:"messages,omitempty"`
-	FinalResult map[string]interface{} `json:"final_result,omitempty"`
+	FinalResult  map[string]interface{}   `json:"final_result,omitempty"`
+	Validation   map[string]interface{}   `json:"validation,omitempty"`
+	RetryHistory []map[string]interface{} `json:"retry_history,omitempty"`
 
 	Error *common.ErrorDetail `json:"error,omitempty"`
 	Meta  *TokenUsageMeta     `json:"meta,omitempty"`
