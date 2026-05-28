@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionengine"
 	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/google/uuid"
 )
 
 // registerCognitionEngineHandler godoc
@@ -65,6 +67,14 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 	if req.URL == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "url is required",
+		})
+	}
+
+	// Validate URL format
+	parsedURL, err := url.Parse(req.URL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid url format: must be a valid URL with scheme and host (e.g., http://host:port)",
 		})
 	}
 
@@ -177,6 +187,13 @@ func (a *App) cognitionEngineHeartbeatHandler(w http.ResponseWriter, r *http.Req
 	if ceID == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "ce_id is required",
+		})
+	}
+
+	// Validate ceID is a valid UUID
+	if _, err := uuid.Parse(ceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("invalid ce_id format: must be a valid UUID"),
 		})
 	}
 

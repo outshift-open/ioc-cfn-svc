@@ -1061,6 +1061,57 @@
                 }
             }
         },
+        "cognitionengine.HeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "last_seen": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "common.ErrorDetail": {
             "type": "object",
             "properties": {

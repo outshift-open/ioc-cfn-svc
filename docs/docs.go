@@ -149,6 +149,126 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/cognition-engines/register": {
+            "post": {
+                "description": "Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),\nand forwards it to the management plane's /api/cognition-engines/register endpoint.\n\n**Request example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"name\": \"Knowledge Management CE\",\n\"type\": \"knowledge_management\",\n\"url\": \"http://ce-host:9004\",\n\"capabilities\": [\"ingestion\", \"retrieval\"],\n\"metrics\": [\"kb.documents.indexed\", \"kb.search.latency_ms\"]\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nThe CFN service validates the request, injects the CFN ID association,\nand forwards the enriched payload to the management plane.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Register a Cognition Engine with the management plane",
+                "parameters": [
+                    {
+                        "description": "CE registration request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CE registered successfully",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cognition-engines/{ceId}/heartbeat": {
+            "put": {
+                "description": "Receives heartbeat requests from a Cognition Engine and forwards them to the management plane.\nThe management plane updates the CE's last_seen timestamp and status (offline → online if applicable).\n\nCEs should call this endpoint every 30 seconds to maintain their online status.\n\n**Response example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"status\": \"online\",\n\"last_seen\": \"2026-05-21T10:30:00Z\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Proxy CE heartbeat to management plane",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Heartbeat acknowledged",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.HeartbeatResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward heartbeat to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/cognition-engine/metrics": {
             "post": {
                 "description": "Accepts batch of metrics from CE and stores in TimescaleDB asynchronously.\nAuto-detects CE metrics (ce_id) vs MAS metrics (workspace_id/mas_id/agent_id).",
@@ -1816,6 +1936,57 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "cognitionengine.HeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "last_seen": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         },

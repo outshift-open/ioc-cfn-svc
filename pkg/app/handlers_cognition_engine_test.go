@@ -145,6 +145,11 @@ func TestRegisterCognitionEngineHandler_InvalidRequest(t *testing.T) {
 			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management"},
 			expectedErr: "url is required",
 		},
+		{
+			name:        "invalid url format",
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Type: "knowledge_management", URL: "not-a-valid-url:::"},
+			expectedErr: "invalid url format",
+		},
 	}
 
 	for _, tt := range tests {
@@ -213,11 +218,13 @@ func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
 }
 
 func TestCognitionEngineHeartbeatHandler(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
 	// Setup mock management plane server
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request method and path
 		assert.Equal(t, http.MethodPut, r.Method)
-		assert.Equal(t, "/api/cognition-engines/ce-123/heartbeat", r.URL.Path)
+		assert.Equal(t, "/api/cognition-engines/"+testCEID+"/heartbeat", r.URL.Path)
 
 		// Return success response
 		resp := cognitionengine.HeartbeatResponse{
@@ -243,9 +250,9 @@ func TestCognitionEngineHeartbeatHandler(t *testing.T) {
 	app := &App{}
 
 	// Create test request (PUT with no body for heartbeat)
-	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/ce-123/heartbeat", nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/"+testCEID+"/heartbeat", nil)
 	req.Header.Set("Accept", "application/json")
-	req.SetPathValue("ceId", "ce-123")
+	req.SetPathValue("ceId", testCEID)
 
 	w := httptest.NewRecorder()
 
@@ -265,6 +272,8 @@ func TestCognitionEngineHeartbeatHandler(t *testing.T) {
 }
 
 func TestCognitionEngineHeartbeatHandler_MissingCFNID(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
 	// Clear CFN ID to simulate unregistered CFN
 	originalCfnID := CfnID
 	CfnID = ""
@@ -272,9 +281,9 @@ func TestCognitionEngineHeartbeatHandler_MissingCFNID(t *testing.T) {
 
 	app := &App{}
 
-	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/ce-123/heartbeat", nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/"+testCEID+"/heartbeat", nil)
 	req.Header.Set("Accept", "application/json")
-	req.SetPathValue("ceId", "ce-123")
+	req.SetPathValue("ceId", testCEID)
 
 	w := httptest.NewRecorder()
 
@@ -290,6 +299,8 @@ func TestCognitionEngineHeartbeatHandler_MissingCFNID(t *testing.T) {
 }
 
 func TestCognitionEngineHeartbeatHandler_CENotFound(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440001"
+
 	// Setup mock management plane server that returns 404
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -309,9 +320,9 @@ func TestCognitionEngineHeartbeatHandler_CENotFound(t *testing.T) {
 
 	app := &App{}
 
-	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/ce-999/heartbeat", nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/"+testCEID+"/heartbeat", nil)
 	req.Header.Set("Accept", "application/json")
-	req.SetPathValue("ceId", "ce-999")
+	req.SetPathValue("ceId", testCEID)
 
 	w := httptest.NewRecorder()
 
@@ -324,4 +335,54 @@ func TestCognitionEngineHeartbeatHandler_CENotFound(t *testing.T) {
 	err = json.NewDecoder(w.Body).Decode(&resp)
 	require.NoError(t, err)
 	assert.Contains(t, resp["error"], "not found")
+}
+
+func TestCognitionEngineHeartbeatHandler_InvalidCEID(t *testing.T) {
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	tests := []struct {
+		name   string
+		ceID   string
+		errMsg string
+	}{
+		{
+			name:   "invalid uuid format",
+			ceID:   "not-a-uuid",
+			errMsg: "invalid ce_id format",
+		},
+		{
+			name:   "empty string uuid",
+			ceID:   "",
+			errMsg: "ce_id is required",
+		},
+		{
+			name:   "malformed uuid",
+			ceID:   "12345",
+			errMsg: "invalid ce_id format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "/api/cognition-engines/"+tt.ceID+"/heartbeat", nil)
+			req.Header.Set("Accept", "application/json")
+			req.SetPathValue("ceId", tt.ceID)
+
+			w := httptest.NewRecorder()
+
+			_, err := app.cognitionEngineHeartbeatHandler(w, req)
+			require.NoError(t, err)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+
+			var resp map[string]string
+			err = json.NewDecoder(w.Body).Decode(&resp)
+			require.NoError(t, err)
+			assert.Contains(t, resp["error"], tt.errMsg)
+		})
+	}
 }

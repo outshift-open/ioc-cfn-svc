@@ -293,6 +293,39 @@ definitions:
           type: integer
         type: array
     type: object
+  cognitionengine.HeartbeatResponse:
+    properties:
+      last_seen:
+        type: string
+      status:
+        type: string
+    type: object
+  cognitionengine.RegisterRequest:
+    properties:
+      capabilities:
+        items:
+          type: string
+        type: array
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    type: object
+  cognitionengine.RegisterResponse:
+    properties:
+      ce_id:
+        type: string
+      cfn_id:
+        type: string
+      message:
+        type: string
+    type: object
   common.ErrorDetail:
     properties:
       detail:
@@ -1041,6 +1074,113 @@ paths:
               type: string
             type: object
       summary: Ingest CE infrastructure metrics
+      tags:
+      - cognition-engine
+  /api/cognition-engines/{ceId}/heartbeat:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Receives heartbeat requests from a Cognition Engine and forwards them to the management plane.
+        The management plane updates the CE's last_seen timestamp and status (offline → online if applicable).
+
+        CEs should call this endpoint every 30 seconds to maintain their online status.
+
+        **Response example**:
+        ```json
+        {
+        "status": "online",
+        "last_seen": "2026-05-21T10:30:00Z"
+        }
+        ```
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Heartbeat acknowledged
+          schema:
+            $ref: '#/definitions/cognitionengine.HeartbeatResponse'
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward heartbeat to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Proxy CE heartbeat to management plane
+      tags:
+      - cognition-engine
+  /api/cognition-engines/register:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),
+        and forwards it to the management plane's /api/cognition-engines/register endpoint.
+
+        **Request example**:
+        ```json
+        {
+        "name": "Knowledge Management CE",
+        "type": "knowledge_management",
+        "url": "http://ce-host:9004",
+        "capabilities": ["ingestion", "retrieval"],
+        "metrics": ["kb.documents.indexed", "kb.search.latency_ms"]
+        }
+        ```
+
+        The CFN service validates the request, injects the CFN ID association,
+        and forwards the enriched payload to the management plane.
+      parameters:
+      - description: CE registration request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionengine.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CE registered successfully
+          schema:
+            $ref: '#/definitions/cognitionengine.RegisterResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a Cognition Engine with the management plane
       tags:
       - cognition-engine
   /api/internal/cognition-engine/metrics:
