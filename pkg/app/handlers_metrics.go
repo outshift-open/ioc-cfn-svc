@@ -650,6 +650,22 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 	agentID := r.URL.Query().Get("agent_id")
 	metricName := r.URL.Query().Get("metric_name")
 
+	// Validate optional UUID filters before hitting database
+	if workspaceIDStr != "" {
+		if _, err := uuid.Parse(workspaceIDStr); err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "workspace_id must be a valid UUID",
+			})
+		}
+	}
+	if masIDStr != "" {
+		if _, err := uuid.Parse(masIDStr); err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "mas_id must be a valid UUID",
+			})
+		}
+	}
+
 	// Get database
 	db, ok := a.db.(*database.Database)
 	if !ok {

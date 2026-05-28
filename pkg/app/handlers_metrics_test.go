@@ -490,8 +490,6 @@ func TestGetMetricsHandler_FlexibleTimeFormats(t *testing.T) {
 }
 
 func TestGetMetricsHandler_InvalidUUIDs(t *testing.T) {
-	t.Skip("Skipping - requires real database for GORM operations")
-
 	app := newTestApp()
 
 	ceID := uuid.New()
@@ -506,13 +504,13 @@ func TestGetMetricsHandler_InvalidUUIDs(t *testing.T) {
 			name:        "invalid workspace_id",
 			queryParam:  "workspace_id",
 			value:       "not-a-uuid",
-			expectedErr: "workspace_id must be valid UUID",
+			expectedErr: "workspace_id must be a valid UUID",
 		},
 		{
 			name:        "invalid mas_id",
 			queryParam:  "mas_id",
 			value:       "not-a-uuid",
-			expectedErr: "mas_id must be valid UUID",
+			expectedErr: "mas_id must be a valid UUID",
 		},
 	}
 
