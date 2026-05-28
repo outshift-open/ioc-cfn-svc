@@ -91,6 +91,10 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/cognition-engines/{ceId}/metrics", a.ingestCEMetricsHandler)
 	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/metrics", a.getMetricsHandler)
 
+	// Cognition Engine registration and heartbeat proxy
+	rtr.Post(apiPrefix+"/cognition-engines/register", a.registerCognitionEngineHandler)
+	rtr.Put(apiPrefix+"/cognition-engines/{ceId}/heartbeat", a.cognitionEngineHeartbeatHandler)
+
 	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
 	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))
 	rtr.HandleHTTP("/docs/", httpSwagger.Handler(
