@@ -191,12 +191,12 @@ func TestRegisterCognitionEngineHandler_InvalidRequest(t *testing.T) {
 }
 
 func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
-	// Setup mock management plane server that returns an error
+	// Setup mock management plane server that returns a 404 (CFN not found)
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "CE with this name already exists",
+			"error": "CFN not found",
 		})
 	}))
 	defer mgmtServer.Close()
@@ -226,12 +226,12 @@ func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
 	_, err = app.registerCognitionEngineHandler(w, req)
 	require.NoError(t, err)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var resp map[string]string
 	err = json.NewDecoder(w.Body).Decode(&resp)
 	require.NoError(t, err)
-	assert.Contains(t, resp["error"], "already exists")
+	assert.Contains(t, resp["error"], "not found")
 }
 
 func TestCognitionEngineHeartbeatHandler(t *testing.T) {
