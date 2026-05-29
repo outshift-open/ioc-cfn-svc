@@ -48,9 +48,9 @@ require (
 	go.opentelemetry.io/collector/pdata/xpdata v0.145.0 // indirect
 	go.opentelemetry.io/collector/pipeline v1.51.0 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
-	golang.org/x/oauth2 v0.32.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
-	google.golang.org/grpc v1.78.0 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	gorm.io/driver/mysql v1.5.6 // indirect
 )
 
