@@ -10,7 +10,7 @@
     "paths": {
         "/api/internal/cognition-engine/metrics": {
             "post": {
-                "description": "Accepts batch of metrics from CE and stores in TimescaleDB asynchronously",
+                "description": "Accepts batch of metrics from CE and stores in TimescaleDB asynchronously.\nAuto-detects CE metrics (ce_id) vs MAS metrics (workspace_id/mas_id/agent_id).",
                 "consumes": [
                     "application/json"
                 ],
@@ -20,7 +20,7 @@
                 "tags": [
                     "internal"
                 ],
-                "summary": "Ingest metrics batch from Cognition Engine",
+                "summary": "Ingest metrics batch (CE or MAS)",
                 "parameters": [
                     {
                         "description": "Metrics batch",
@@ -653,20 +653,18 @@
         }
     },
     "definitions": {
-        "app.Filters": {
+        "app.IngestCEMetricsRequest": {
             "type": "object",
             "properties": {
-                "agent_id": {
-                    "type": "string"
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
                 },
-                "mas_id": {
-                    "type": "string"
-                },
-                "metric_name": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricDataPoint"
+                    }
                 }
             }
         },
@@ -677,8 +675,13 @@
                     "type": "string"
                 },
                 "attributes": {
+                    "description": "Common fields",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "ce_id": {
+                    "description": "CE metrics fields (mutually exclusive with MAS fields)",
+                    "type": "string"
                 },
                 "mas_id": {
                     "type": "string"
@@ -690,6 +693,7 @@
                     }
                 },
                 "workspace_id": {
+                    "description": "MAS metrics fields (mutually exclusive with CE fields)",
                     "type": "string"
                 }
             }
@@ -712,15 +716,35 @@
                 }
             }
         },
-        "app.MetricRecord": {
+        "app.MetricResultSet": {
+            "type": "object",
+            "properties": {
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MetricSeries"
+                    }
+                }
+            }
+        },
+        "app.MetricSeries": {
             "type": "object",
             "properties": {
                 "agent_id": {
                     "type": "string"
                 },
                 "attributes": {
+                    "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "datapoints": {
+                    "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
                 },
                 "mas_id": {
                     "type": "string"
@@ -728,13 +752,8 @@
                 "metric_name": {
                     "type": "string"
                 },
-                "timestamp": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "number"
-                },
                 "workspace_id": {
+                    "description": "MAS fields (populated for MAS metrics)",
                     "type": "string"
                 }
             }
@@ -742,45 +761,14 @@
         "app.MetricsQueryResponse": {
             "type": "object",
             "properties": {
-                "filters": {
-                    "$ref": "#/definitions/app.Filters"
-                },
-                "metrics": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/app.MetricRecord"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/app.Pagination"
-                },
-                "period": {
-                    "$ref": "#/definitions/app.Period"
-                }
-            }
-        },
-        "app.Pagination": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "app.Period": {
-            "type": "object",
-            "properties": {
-                "end": {
+                "ce_id": {
                     "type": "string"
                 },
-                "start": {
-                    "type": "string"
+                "ce_metrics": {
+                    "$ref": "#/definitions/app.MetricResultSet"
+                },
+                "mas_metrics": {
+                    "$ref": "#/definitions/app.MetricResultSet"
                 }
             }
         },

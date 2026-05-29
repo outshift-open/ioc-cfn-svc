@@ -73,6 +73,123 @@ curl http://localhost:9002/api/internal/diagnostics/info
 
 **POST /v1/traces** — Accepts OpenTelemetry spans (protobuf or JSON).
 
+### Metrics APIs
+
+Time-series metrics storage and querying for CE infrastructure and MAS operations.
+
+#### Push Metrics
+
+**POST /api/cognition-engines/{ceId}/metrics** — Ingest CE infrastructure metrics
+
+CE services push their own infrastructure metrics (queue depth, memory, CPU, active requests).
+
+```bash
+# CE infrastructure metrics
+curl -X POST http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attributes": {"hostname": "ce-prod-01", "region": "us-west-2"},
+    "metrics": [
+      {"name": "ce.queue.depth", "value": 12},
+      {"name": "ce.memory.usage_pct", "value": 67.5},
+      {"name": "ce.cpu.usage_pct", "value": 45.2},
+      {"name": "ce.active_requests", "value": 8}
+    ]
+  }'
+```
+
+**Note:** MAS operation metrics (token usage, latency, cost) are stored internally by CFN after calling CE — no HTTP endpoint needed.
+
+#### Query Metrics
+
+**GET /api/cognition-engines/{ceId}/metrics** — Query metrics for a specific Cognition Engine
+
+Returns both CE infrastructure metrics and MAS operation metrics processed by that CE. This enables complete observability: see what the CE is doing (infrastructure) and what work it's processing (operations).
+
+```bash
+# Query all metrics for a CE
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
+start_time=2026-05-27T00:00:00Z&\
+end_time=2026-05-27T23:59:59Z"
+
+# Filter MAS metrics to specific workspace
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
+workspace_id=770fa621-04bd-42f6-a938-668877662222&\
+start_time=2026-05-27&\
+end_time=2026-05-28"
+
+# Filter to specific metric names
+curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
+metric_name=llm.token.*&\
+start_time=2026-05-27&\
+end_time=2026-05-28"
+```
+
+**Response structure (grouped format for size reduction):**
+```json
+{
+  "ce_id": "550e8400-e29b-41d4-a716-446655440000",
+  "ce_metrics": {
+    "series": [
+      {
+        "metric_name": "ce.queue.depth",
+        "attributes": {"hostname": "ce-prod-01"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 12.0],
+          ["2026-05-27T10:01:00Z", 15.0],
+          ["2026-05-27T10:02:00Z", 11.0]
+        ]
+      },
+      {
+        "metric_name": "ce.memory.usage_pct",
+        "attributes": {"hostname": "ce-prod-01"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 67.5],
+          ["2026-05-27T10:01:00Z", 68.2]
+        ]
+      }
+    ]
+  },
+  "mas_metrics": {
+    "series": [
+      {
+        "metric_name": "llm.token.input",
+        "workspace_id": "770fa621-04bd-42f6-a938-668877662222",
+        "mas_id": "880fb732-d9e4-53c6-af56-445566778899",
+        "agent_id": "agent-1",
+        "attributes": {"model": "gpt-4o"},
+        "datapoints": [
+          ["2026-05-27T10:00:00Z", 1500.0],
+          ["2026-05-27T10:01:00Z", 2000.0]
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Benefits of grouped format:**
+- 60-70% size reduction (metadata not repeated per datapoint)
+- No duplication (ce_id at top level, not repeated per series)
+- Natural for charting (series = metric + labels)
+- Industry standard (Prometheus, InfluxDB, Grafana)
+
+**Query Parameters:**
+- `start_time`, `end_time` (required): Unix timestamp, RFC3339, or date
+- `workspace_id` (optional): Filter MAS metrics to specific workspace
+- `mas_id` (optional): Filter MAS metrics to specific MAS
+- `agent_id` (optional): Filter MAS metrics to specific agent
+- `metric_name` (optional): Filter by name (supports `*` wildcard, e.g., `llm.token.*`)
+
+**No Pagination:**  
+Time-series queries return all matching datapoints (up to 100K safety limit). If you hit the limit, narrow your time range or add more filters. This is the standard approach for time-series databases (Prometheus, InfluxDB, Grafana).
+
+**Storage:**
+- **TimescaleDB** hypertables (`ce_metrics`, `mas_metrics`)
+- **Retention**: 90 days
+- **Compression**: After 7 days
+- **Indexing**: Optimized for time-range + entity ID queries
+
 ### Shared Memory APIs
 
 See [shared-memory-operations](./docs/shared-memory-operations.md)

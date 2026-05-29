@@ -86,10 +86,10 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post("/v1/traces", a.otelReceiver.HandleTraces)
 
 	// metrics API - Cognition Engine integration
-	// POST: internal (only for CE service-to-service)
-	// GET: public (for dashboards and monitoring tools)
-	rtr.Post(internalPrefix+"/cognition-engine/metrics", a.ingestMetricsHandler)
-	rtr.Get(apiPrefix+"/cognition-engine/metrics", a.getMetricsHandler)
+	// POST: CE pushes infrastructure metrics (queue depth, memory, CPU, etc.)
+	// GET: Query CE infrastructure + MAS operations for a specific CE
+	rtr.Post(apiPrefix+"/cognition-engines/{ceId}/metrics", a.ingestCEMetricsHandler)
+	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/metrics", a.getMetricsHandler)
 
 	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
 	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))
