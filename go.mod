@@ -30,13 +30,15 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
-	github.com/google/jsonschema-go v0.3.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/collector/client v1.51.0 // indirect
@@ -70,7 +72,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
-	github.com/modelcontextprotocol/go-sdk v1.2.0
+	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
