@@ -18,7 +18,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request method and path
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/cognition-engines/register", r.URL.Path)
+		assert.Equal(t, "/api/cognition-engines", r.URL.Path)
 
 		// Parse the forwarded request
 		var payload map[string]any
@@ -34,13 +34,15 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 
 		// Return success response
 		resp := cognitionengine.RegisterResponse{
-			CEID:    "ce-123",
-			CFNID:   "test-cfn-id",
-			Name:    "Knowledge Management CE",
-			Version: "1.0.0",
-			Type:    "knowledge_management",
-			Status:  "online",
-			Created: true,
+			CEID:       "ce-123",
+			CFNID:      "test-cfn-id",
+			Name:       "Knowledge Management CE",
+			Version:    "1.0.0",
+			Type:       "knowledge_management",
+			Enabled:    true,
+			AutoAttach: false,
+			Status:     "online",
+			Created:    true,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -72,7 +74,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	reqBytes, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines/register", bytes.NewReader(reqBytes))
+	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines", bytes.NewReader(reqBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -92,6 +94,8 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	assert.Equal(t, "Knowledge Management CE", resp.Name)
 	assert.Equal(t, "1.0.0", resp.Version)
 	assert.Equal(t, "knowledge_management", resp.Type)
+	assert.True(t, resp.Enabled)
+	assert.False(t, resp.AutoAttach)
 	assert.Equal(t, "online", resp.Status)
 	assert.True(t, resp.Created)
 }
@@ -113,7 +117,7 @@ func TestRegisterCognitionEngineHandler_MissingCFNID(t *testing.T) {
 	reqBytes, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines/register", bytes.NewReader(reqBytes))
+	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines", bytes.NewReader(reqBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -173,7 +177,7 @@ func TestRegisterCognitionEngineHandler_InvalidRequest(t *testing.T) {
 			reqBytes, err := json.Marshal(tt.reqBody)
 			require.NoError(t, err)
 
-			req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines/register", bytes.NewReader(reqBytes))
+			req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines", bytes.NewReader(reqBytes))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -219,7 +223,7 @@ func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
 	reqBytes, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines/register", bytes.NewReader(reqBytes))
+	req := httptest.NewRequest(http.MethodPost, "/api/cognition-engines", bytes.NewReader(reqBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -414,13 +418,15 @@ func TestListCognitionEnginesHandler(t *testing.T) {
 		resp := cognitionengine.CognitionEngineList{
 			CognitionEngines: []cognitionengine.CognitionEngineListItem{
 				{
-					ID:      "ce-123",
-					CFNID:   "test-cfn-id",
-					Name:    "Test CE",
-					Version: "1.0.0",
-					Type:    "knowledge_management",
-					URL:     "http://ce-host:9004",
-					Status:  "online",
+					ID:         "ce-123",
+					CFNID:      "test-cfn-id",
+					Name:       "Test CE",
+					Version:    "1.0.0",
+					Type:       "knowledge_management",
+					URL:        "http://ce-host:9004",
+					Enabled:    true,
+					AutoAttach: false,
+					Status:     "online",
 				},
 			},
 			Total: 1,
@@ -473,6 +479,8 @@ func TestGetCognitionEngineHandler(t *testing.T) {
 			Version:      "1.0.0",
 			Type:         "knowledge_management",
 			URL:          "http://ce-host:9004",
+			Enabled:      true,
+			AutoAttach:   false,
 			Status:       "online",
 			Capabilities: []string{"ingestion"},
 			CreatedAt:    "2026-05-21T09:00:00Z",

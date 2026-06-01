@@ -1064,6 +1064,9 @@
         "cognitionengine.CognitionEngineDetail": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -1079,6 +1082,9 @@
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -1133,12 +1139,18 @@
         "cognitionengine.CognitionEngineListItem": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "cfn_id": {
                     "type": "string"
                 },
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "enabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -1178,12 +1190,90 @@
                 }
             }
         },
+        "cognitionengine.MASCEAssociateRequest": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.MASCEAssociateResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.PatchRequest": {
+            "type": "object",
+            "properties": {
+                "auth": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "auto_attach": {
+                    "type": "boolean"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "enabled": {
+                    "description": "Mutable fields",
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "Immutable fields - included to trigger validation error if provided",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "cognitionengine.RegisterRequest": {
             "type": "object",
             "properties": {
                 "auth": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "auto_attach": {
+                    "description": "No omitempty - always send (defaults to false)",
+                    "type": "boolean"
                 },
                 "capabilities": {
                     "type": "array",
@@ -1222,6 +1312,9 @@
         "cognitionengine.RegisterResponse": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "ce_id": {
                     "type": "string"
                 },
@@ -1229,6 +1322,9 @@
                     "type": "string"
                 },
                 "created": {
+                    "type": "boolean"
+                },
+                "enabled": {
                     "type": "boolean"
                 },
                 "name": {

@@ -202,11 +202,9 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/api/cognition-engines/register": {
+            },
             "post": {
-                "description": "Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),\nand forwards it to the management plane's /api/cognition-engines/register endpoint.\n\n**Request example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"name\": \"Knowledge Management CE\",\n\"type\": \"knowledge_management\",\n\"url\": \"http://ce-host:9004\",\n\"capabilities\": [\"ingestion\", \"retrieval\"],\n\"metrics\": [\"kb.documents.indexed\", \"kb.search.latency_ms\"]\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nThe CFN service validates the request, injects the CFN ID association,\nand forwards the enriched payload to the management plane.",
+                "description": "Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),\nand forwards it to the management plane's /api/cognition-engines endpoint.\n\n**Request example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"name\": \"Knowledge Management CE\",\n\"type\": \"knowledge_management\",\n\"url\": \"http://ce-host:9004\",\n\"capabilities\": [\"ingestion\", \"retrieval\"],\n\"metrics\": [\"kb.documents.indexed\", \"kb.search.latency_ms\"]\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nThe CFN service validates the request, injects the CFN ID association,\nand forwards the enriched payload to the management plane.",
                 "consumes": [
                     "application/json"
                 ],
@@ -359,6 +357,81 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid CE ID format",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update mutable fields of a CE: enabled, capabilities, metrics, config, mas_config, auth.\nImmutable fields (url, cfn_id, version, name, type, auto_attach) cannot be updated and will return 400.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Partially update a Cognition Engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "CE patch request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.PatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CE updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.CognitionEngineDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or attempted to update immutable field",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1443,6 +1516,169 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines": {
+            "post": {
+                "description": "Add a Cognition Engine to a Multi-Agentic System. The CE's CFN must match the workspace's CFN.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "multi-agentic-systems"
+                ],
+                "summary": "Associate a CE with a MAS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "MAS ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "CE association request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.MASCEAssociateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "CE associated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.MASCEAssociateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "MAS or CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}": {
+            "delete": {
+                "description": "Remove a Cognition Engine from a Multi-Agentic System.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "multi-agentic-systems"
+                ],
+                "summary": "Disassociate a CE from a MAS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "MAS ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "CE disassociated successfully"
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "MAS, CE, or association not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide": {
             "post": {
                 "description": "Advances an existing semantic negotiation session with agent replies.",
@@ -2128,6 +2364,9 @@ const docTemplate = `{
         "cognitionengine.CognitionEngineDetail": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -2143,6 +2382,9 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -2197,12 +2439,18 @@ const docTemplate = `{
         "cognitionengine.CognitionEngineListItem": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "cfn_id": {
                     "type": "string"
                 },
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "enabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -2242,12 +2490,90 @@ const docTemplate = `{
                 }
             }
         },
+        "cognitionengine.MASCEAssociateRequest": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.MASCEAssociateResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.PatchRequest": {
+            "type": "object",
+            "properties": {
+                "auth": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "auto_attach": {
+                    "type": "boolean"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "enabled": {
+                    "description": "Mutable fields",
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "Immutable fields - included to trigger validation error if provided",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "cognitionengine.RegisterRequest": {
             "type": "object",
             "properties": {
                 "auth": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "auto_attach": {
+                    "description": "No omitempty - always send (defaults to false)",
+                    "type": "boolean"
                 },
                 "capabilities": {
                     "type": "array",
@@ -2286,6 +2612,9 @@ const docTemplate = `{
         "cognitionengine.RegisterResponse": {
             "type": "object",
             "properties": {
+                "auto_attach": {
+                    "type": "boolean"
+                },
                 "ce_id": {
                     "type": "string"
                 },
@@ -2293,6 +2622,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created": {
+                    "type": "boolean"
+                },
+                "enabled": {
                     "type": "boolean"
                 },
                 "name": {
