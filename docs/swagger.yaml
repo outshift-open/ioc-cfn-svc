@@ -1136,101 +1136,6 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
-  /api/cognition-engines/{ceId}/metrics:
-    get:
-      description: |-
-        Returns grouped time-series data filtered by time and entity dimensions.
-        Returns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.
-        Response format groups datapoints by metric name to reduce verbosity (60-70% size reduction).
-        No pagination - queries return all matching datapoints up to safety limit (100K max).
-      parameters:
-      - description: Cognition Engine UUID
-        in: path
-        name: ceId
-        required: true
-        type: string
-      - description: Start time (Unix timestamp, RFC3339, or date)
-        in: query
-        name: start_time
-        required: true
-        type: string
-      - description: End time (Unix timestamp, RFC3339, or date)
-        in: query
-        name: end_time
-        required: true
-        type: string
-      - description: Filter MAS metrics by workspace UUID
-        in: query
-        name: workspace_id
-        type: string
-      - description: Filter MAS metrics by MAS UUID
-        in: query
-        name: mas_id
-        type: string
-      - description: Filter MAS metrics by agent ID
-        in: query
-        name: agent_id
-        type: string
-      - description: Filter by metric name (supports * wildcard)
-        in: query
-        name: metric_name
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/app.MetricsQueryResponse'
-        "400":
-          description: Invalid parameters
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "413":
-          description: Too many datapoints (exceeds 100K limit)
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Query metrics within time range (CE and/or MAS)
-      tags:
-      - cognition-engine
-    post:
-      consumes:
-      - application/json
-      description: Accepts batch of CE infrastructure metrics (queue depth, memory,
-        CPU, active requests) and stores in TimescaleDB asynchronously.
-      parameters:
-      - description: Cognition Engine ID
-        in: path
-        name: ceId
-        required: true
-        type: string
-      - description: Metrics batch
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/app.IngestCEMetricsRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Metrics accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Validation error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Ingest CE infrastructure metrics
-      tags:
-      - cognition-engine
   /api/cognition-engines:
     get:
       consumes:
@@ -1510,6 +1415,101 @@ paths:
               type: string
             type: object
       summary: Proxy CE heartbeat to management plane
+      tags:
+      - cognition-engine
+  /api/cognition-engines/{ceId}/metrics:
+    get:
+      description: |-
+        Returns grouped time-series data filtered by time and entity dimensions.
+        Returns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.
+        Response format groups datapoints by metric name to reduce verbosity (60-70% size reduction).
+        No pagination - queries return all matching datapoints up to safety limit (100K max).
+      parameters:
+      - description: Cognition Engine UUID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      - description: Start time (Unix timestamp, RFC3339, or date)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: End time (Unix timestamp, RFC3339, or date)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      - description: Filter MAS metrics by workspace UUID
+        in: query
+        name: workspace_id
+        type: string
+      - description: Filter MAS metrics by MAS UUID
+        in: query
+        name: mas_id
+        type: string
+      - description: Filter MAS metrics by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter by metric name (supports * wildcard)
+        in: query
+        name: metric_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.MetricsQueryResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Too many datapoints (exceeds 100K limit)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query metrics within time range (CE and/or MAS)
+      tags:
+      - cognition-engine
+    post:
+      consumes:
+      - application/json
+      description: Accepts batch of CE infrastructure metrics (queue depth, memory,
+        CPU, active requests) and stores in TimescaleDB asynchronously.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      - description: Metrics batch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.IngestCEMetricsRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Metrics accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Ingest CE infrastructure metrics
       tags:
       - cognition-engine
   /api/internal/cognition-engine/metrics:
