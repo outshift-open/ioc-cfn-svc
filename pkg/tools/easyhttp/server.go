@@ -12,7 +12,7 @@ import (
 func serverTimeoutDuration() time.Duration {
 	sec, _ := strconv.Atoi(os.Getenv("SERVER_TIMEOUT_SECONDS"))
 	if sec <= 0 {
-		sec = 600
+		sec = 120
 	}
 	return time.Duration(sec) * time.Second
 }

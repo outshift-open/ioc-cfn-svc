@@ -50,7 +50,7 @@ func NewClient(baseURL string) (*Client, error) {
 	config := httpclient.DefaultConfig()
 	memTimeoutSec, _ := strconv.Atoi(os.Getenv("MEMORY_CLIENT_TIMEOUT_SECONDS"))
 	if memTimeoutSec <= 0 {
-		memTimeoutSec = 300
+		memTimeoutSec = 30
 	}
 	config.Timeout = time.Duration(memTimeoutSec) * time.Second
 	config.MaxRetries = 3
