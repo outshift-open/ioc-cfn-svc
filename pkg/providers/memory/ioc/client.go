@@ -46,7 +46,7 @@ func NewClient(baseURL string) (*Client, error) {
 	}
 	// Create HTTP client with required configuration
 	config := httpclient.DefaultConfig()
-	config.Timeout = 30 * time.Second
+	config.Timeout = 300 * time.Second
 	config.MaxRetries = 3
 
 	client := &Client{

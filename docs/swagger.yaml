@@ -472,6 +472,13 @@ definitions:
         allOf:
         - $ref: '#/definitions/common.TokenUsageMeta'
         description: Meta contains LLM token usage metadata
+      retry_history:
+        description: RetryHistory contains per-attempt records from prior retry rounds,
+          when retries occurred.
+        items:
+          additionalProperties: true
+          type: object
+        type: array
       round:
         description: Round is the round number that was just evaluated.
         type: integer
@@ -487,6 +494,10 @@ definitions:
       status:
         description: Status is "ongoing", "agreed", "broken", or "timeout".
         type: string
+      validation:
+        additionalProperties: true
+        description: Validation contains the SAV result for terminal responses (agreed/broken/timeout).
+        type: object
     type: object
   semanticnegotiation.NegotiationOutcome:
     properties:

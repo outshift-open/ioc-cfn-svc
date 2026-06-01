@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var serverTimeout = 120 * time.Second
+var serverTimeout = 600 * time.Second
 
 type EasyServer struct {
 	*http.Server
