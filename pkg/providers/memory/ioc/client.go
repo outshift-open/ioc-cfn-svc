@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -46,7 +48,11 @@ func NewClient(baseURL string) (*Client, error) {
 	}
 	// Create HTTP client with required configuration
 	config := httpclient.DefaultConfig()
-	config.Timeout = 300 * time.Second
+	memTimeoutSec, _ := strconv.Atoi(os.Getenv("MEMORY_CLIENT_TIMEOUT_SECONDS"))
+	if memTimeoutSec <= 0 {
+		memTimeoutSec = 300
+	}
+	config.Timeout = time.Duration(memTimeoutSec) * time.Second
 	config.MaxRetries = 3
 
 	client := &Client{
