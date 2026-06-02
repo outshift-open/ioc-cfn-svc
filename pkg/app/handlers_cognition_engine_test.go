@@ -13,6 +13,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setupCETestConfig sets up ParsedConfig with a test CE for testing CE operations
+func setupCETestConfig(ceID string) func() {
+	originalParsedConfig := ParsedConfig
+	ParsedConfig = &CfnConfigPayload{
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      ceID,
+				Name:    "Test CE",
+				URL:     "http://test-ce:9004",
+				Enabled: true,
+			},
+		},
+	}
+	return func() { ParsedConfig = originalParsedConfig }
+}
+
 func TestRegisterCognitionEngineHandler(t *testing.T) {
 	// Setup mock management plane server
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -267,6 +283,10 @@ func TestCognitionEngineHeartbeatHandler(t *testing.T) {
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig("550e8400-e29b-41d4-a716-446655440000")
+	defer cleanup()
+
 	// Create test app
 	app := &App{}
 
@@ -299,6 +319,10 @@ func TestCognitionEngineHeartbeatHandler_MissingCFNID(t *testing.T) {
 	originalCfnID := CfnID
 	CfnID = ""
 	defer func() { CfnID = originalCfnID }()
+
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig("550e8400-e29b-41d4-a716-446655440000")
+	defer cleanup()
 
 	app := &App{}
 
@@ -338,6 +362,10 @@ func TestCognitionEngineHeartbeatHandler_CENotFound(t *testing.T) {
 	originalCfnID := CfnID
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
+
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig("550e8400-e29b-41d4-a716-446655440001")
+	defer cleanup()
 
 	app := &App{}
 
@@ -498,6 +526,10 @@ func TestGetCognitionEngineHandler(t *testing.T) {
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig(testCEID)
+	defer cleanup()
+
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/cognition-engines/"+testCEID, nil)
@@ -536,6 +568,10 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 	originalCfnID := CfnID
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
+
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig("550e8400-e29b-41d4-a716-446655440000")
+	defer cleanup()
 
 	app := &App{}
 

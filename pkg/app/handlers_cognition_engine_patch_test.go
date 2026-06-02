@@ -55,6 +55,10 @@ func TestPatchCognitionEngineHandler(t *testing.T) {
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
+	// Set up ParsedConfig with CE data
+	cleanup := setupCETestConfig(testCEID)
+	defer cleanup()
+
 	app := &App{}
 
 	// Create test request

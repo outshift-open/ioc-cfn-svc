@@ -186,6 +186,18 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 
 	log.Infof("CE registered successfully: ce_id=%s, cfn_id=%s", mgmtResp.CEID, mgmtResp.CFNID)
 
+	// Trigger immediate config refresh to include the newly registered CE
+	// This minimizes the timing gap before the CE can send operations
+	go func() {
+		time.Sleep(500 * time.Millisecond) // Brief delay for mgmt plane to propagate
+		mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+		if err := a.RefreshConfig(mgmtURL); err != nil {
+			log.Errorf("failed to refresh config after CE registration: %v", err)
+		} else {
+			log.Infof("config refreshed after CE registration: ce_id=%s", mgmtResp.CEID)
+		}
+	}()
+
 	// Return the successful response to the CE
 	return eh.RespondWithJSON(w, http.StatusOK, mgmtResp)
 }
@@ -234,6 +246,23 @@ func (a *App) cognitionEngineHeartbeatHandler(w http.ResponseWriter, r *http.Req
 	if CfnID == "" {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Validate CE exists in CFN config
+	cfnConfigMutex.RLock()
+	if ParsedConfig == nil {
+		cfnConfigMutex.RUnlock()
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN config not yet loaded",
+		})
+	}
+	ce := ParsedConfig.FindCE(ceID)
+	cfnConfigMutex.RUnlock()
+
+	if ce == nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("cognition engine %s not found in this CFN - it may take up to 30s after registration for operations to be available", ceID),
 		})
 	}
 
@@ -421,6 +450,23 @@ func (a *App) getCognitionEngineHandler(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
+	// Validate CE exists in CFN config
+	cfnConfigMutex.RLock()
+	if ParsedConfig == nil {
+		cfnConfigMutex.RUnlock()
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN config not yet loaded",
+		})
+	}
+	ce := ParsedConfig.FindCE(ceID)
+	cfnConfigMutex.RUnlock()
+
+	if ce == nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("cognition engine %s not found in this CFN", ceID),
+		})
+	}
+
 	// Build the get URL for management plane
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 	getURL := fmt.Sprintf("%s/api/cognition-engines/%s", mgmtURL, ceID)
@@ -508,6 +554,23 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 	if CfnID == "" {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Validate CE exists in CFN config
+	cfnConfigMutex.RLock()
+	if ParsedConfig == nil {
+		cfnConfigMutex.RUnlock()
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN config not yet loaded",
+		})
+	}
+	ce := ParsedConfig.FindCE(ceID)
+	cfnConfigMutex.RUnlock()
+
+	if ce == nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("cognition engine %s not found in this CFN", ceID),
 		})
 	}
 
@@ -599,6 +662,23 @@ func (a *App) patchCognitionEngineHandler(w http.ResponseWriter, r *http.Request
 	if CfnID == "" {
 		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Validate CE exists in CFN config
+	cfnConfigMutex.RLock()
+	if ParsedConfig == nil {
+		cfnConfigMutex.RUnlock()
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN config not yet loaded",
+		})
+	}
+	ce := ParsedConfig.FindCE(ceID)
+	cfnConfigMutex.RUnlock()
+
+	if ce == nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("cognition engine %s not found in this CFN", ceID),
 		})
 	}
 
