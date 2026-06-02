@@ -141,7 +141,7 @@ type App struct {
 	memoryProxyClient *httpclient.Client
 
 	knowledgeMemSvcClient *iocmemoryprovider.Client
-	cognitionEngineClient *cognitionagentclient.Client
+	cognitionAgentsClient *cognitionagentclient.Client
 
 	otelReceiver *otelreceiver.OTLPReceiver
 }
@@ -191,10 +191,10 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		log.Fatalf("Failed to create knowledge memory client: %v", err)
 	}
 
-	cognitionEngineURL := getEnvOrDefault("COGNITION_ENGINE_SVC_URL", "http://localhost:9004")
-	log.Infof("cognition agents service URL: %s", cognitionEngineURL)
-	cognitionEngineTimeoutSec, _ := strconv.Atoi(getEnvOrDefault("COGNITION_ENGINE_TIMEOUT_SECONDS", "120"))
-	cognitionEngineClient := cognitionagentclient.New(cognitionEngineURL, time.Duration(cognitionEngineTimeoutSec)*time.Second)
+	cognitionAgentsURL := getEnvOrDefault("COGNITION_ENGINE_SVC_URL", "http://localhost:9004")
+	log.Infof("cognition agents service URL: %s", cognitionAgentsURL)
+	cognitionAgentsTimeoutSec, _ := strconv.Atoi(getEnvOrDefault("COGNITION_ENGINE_TIMEOUT_SECONDS", "120"))
+	cognitionAgentsClient := cognitionagentclient.New(cognitionAgentsURL, time.Duration(cognitionAgentsTimeoutSec)*time.Second)
 
 	// Build OTel receiver — batch and flush spans to cfn_cp otel_spans table.
 	otelBatchSize := cfg.OTel.BatchSize
@@ -252,7 +252,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		s3:                    s3,
 		memoryProxyClient:     memoryProxyClient,
 		knowledgeMemSvcClient: knowledgeMemClient,
-		cognitionEngineClient: cognitionEngineClient,
+		cognitionAgentsClient: cognitionAgentsClient,
 		otelReceiver:          otelRcvr,
 	}
 
