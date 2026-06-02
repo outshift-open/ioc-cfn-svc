@@ -228,7 +228,7 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 		extractionReq.Header.AgentID = *req.Header.AgentID
 	}
 
-	extractionResp, err := a.cognitionAgentsClient.SendExtraction(ctx, extractionReq)
+	extractionResp, err := a.cognitionEngineClient.SendExtraction(ctx, extractionReq)
 	if err != nil {
 		log.Errorf("failed to send extraction call, error: %s", err.Error())
 
@@ -453,7 +453,7 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 	// (e.g. trace ID or correlation ID from the incoming request) once available.
 	operationID := uuid.New().String()
 
-	reasonerResp, err := a.cognitionAgentsClient.SendReasoningEvidence(ctx, &reasoningRequest)
+	reasonerResp, err := a.cognitionEngineClient.SendReasoningEvidence(ctx, &reasoningRequest)
 	if err != nil {
 		log.Errorf(
 			"Failed to process evidence | workspace=%s mas=%s operation_id=%s err=%v",

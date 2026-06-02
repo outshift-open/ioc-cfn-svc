@@ -107,7 +107,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		NSteps:      reqPayload.NSteps,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationStart(r.Context(), cogReq, workspaceID, masID)
+	cogResp, err := a.cognitionEngineClient.SendSemanticNegotiationStart(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to start semantic negotiation, error: %s", err.Error())
 
@@ -243,7 +243,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		AgentReplies: agentReplies,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
+	cogResp, err := a.cognitionEngineClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
 		log.Errorf("failed to advance semantic negotiation, error: %s", err.Error())
 		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(err.Error()))

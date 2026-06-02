@@ -63,7 +63,7 @@ func newSharedMemoryTestApp(
 
 	return &App{
 		db:                    db,
-		cognitionAgentsClient: cognitionClient,
+		cognitionEngineClient: cognitionClient,
 		knowledgeMemSvcClient: knowledgeMemClient,
 	}
 }
@@ -81,7 +81,7 @@ func newSharedMemoryTestAppNoRetry(
 
 	return &App{
 		db:                    db,
-		cognitionAgentsClient: noRetryCognitionClient(cognitionServer.URL),
+		cognitionEngineClient: noRetryCognitionClient(cognitionServer.URL),
 		knowledgeMemSvcClient: knowledgeMemClient,
 	}
 }

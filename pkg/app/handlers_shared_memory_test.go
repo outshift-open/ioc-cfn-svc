@@ -20,14 +20,14 @@ import (
 func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *testing.T) {
 	// --- setup ---
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
-	cognitionAgentsClient := cognitionagentclient.New(
+	cognitionEngineClient := cognitionagentclient.New(
 		"http://localhost:9004",
 		120*time.Second,
 	)
 
 	app := &App{
 		knowledgeMemSvcClient: knowledgeMemClient,
-		cognitionAgentsClient: cognitionAgentsClient,
+		cognitionEngineClient: cognitionEngineClient,
 	}
 
 	mux := http.NewServeMux()
@@ -84,14 +84,14 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integratio
 func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integration(t *testing.T) {
 	// --- setup ---
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
-	cognitionAgentsClient := cognitionagentclient.New(
+	cognitionEngineClient := cognitionagentclient.New(
 		"http://localhost:9004",
 		120*time.Second,
 	)
 
 	app := &App{
 		knowledgeMemSvcClient: knowledgeMemClient,
-		cognitionAgentsClient: cognitionAgentsClient,
+		cognitionEngineClient: cognitionEngineClient,
 	}
 
 	mux := http.NewServeMux()
@@ -148,14 +148,14 @@ func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_OpenClaw_Integr
 func TestFetchSharedMemoriesHandler_EvidenceAndReasoning_Integration(t *testing.T) {
 	// --- setup ---
 	knowledgeMemClient, _ := iocmemoryprovider.NewClient("http://localhost:9003")
-	cognitionAgentsClient := cognitionagentclient.New(
+	cognitionEngineClient := cognitionagentclient.New(
 		"http://localhost:9004",
 		30*time.Second,
 	)
 
 	app := &App{
 		knowledgeMemSvcClient: knowledgeMemClient,
-		cognitionAgentsClient: cognitionAgentsClient,
+		cognitionEngineClient: cognitionEngineClient,
 	}
 
 	mux := http.NewServeMux()
