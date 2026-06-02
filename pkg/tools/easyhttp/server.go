@@ -9,10 +9,12 @@ import (
 	"time"
 )
 
+const defaultServerTimeoutSec = 120
+
 func serverTimeoutDuration() time.Duration {
 	sec, _ := strconv.Atoi(os.Getenv("SERVER_TIMEOUT_SECONDS"))
 	if sec <= 0 {
-		sec = 120
+		sec = defaultServerTimeoutSec
 	}
 	return time.Duration(sec) * time.Second
 }
