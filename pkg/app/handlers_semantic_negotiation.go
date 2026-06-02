@@ -295,9 +295,9 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 
 	// If agreement is reached, persist the final result to shared memory.
 	if cogResp.Status == "agreed" && len(cogResp.FinalResult) > 0 {
-		// SEMNEG_PERSIST_VALIDATION=false disables writing validation/retry_history
+		// COGNITION_ENGINE_PERSIST_VALIDATION=false disables writing validation/retry_history
 		// to shared memory (used for regression testing).  Default is true.
-		persistValidation := os.Getenv("SEMNEG_PERSIST_VALIDATION") != "false"
+		persistValidation := os.Getenv("COGNITION_ENGINE_PERSIST_VALIDATION") != "false"
 		log.Infof("agreement has been reached, final result is being persisted to the shared memory (persist_validation=%v)", persistValidation)
 		// Merge FinalResult and optionally Validation/RetryHistory into a single
 		// semneg record so the ingestion pipeline can store them together.
