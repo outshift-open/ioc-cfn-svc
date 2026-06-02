@@ -116,20 +116,16 @@ func (a *App) diagnosticsHealthHandler(w http.ResponseWriter, r *http.Request) (
 
 	cognitionEngines := map[string]bool{}
 	if cfg != nil {
-		for _, ws := range cfg.Workspaces {
-			for _, engine := range ws.CognitionEngines {
-				if engine.Name == "" {
-					continue
-				}
-				var engineURL string
-				if engine.Config != nil {
-					engineURL = engine.Config.URL
-				}
-				healthy := engineURL != "" && probe(engineURL)
-				cognitionEngines[engine.Name] = healthy
-				if !healthy && status == "UP" {
-					status = "DEGRADED"
-				}
+		// CEs are now at the top level, not per workspace
+		for _, engine := range cfg.CognitionEngines {
+			if engine.Name == "" {
+				continue
+			}
+			engineURL := engine.URL
+			healthy := engineURL != "" && probe(engineURL)
+			cognitionEngines[engine.Name] = healthy
+			if !healthy && status == "UP" {
+				status = "DEGRADED"
 			}
 		}
 	}
