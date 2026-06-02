@@ -142,18 +142,20 @@ type CognitionEngineList struct {
 }
 
 // PatchRequest represents a partial update request for a CE.
-// Only mutable fields (enabled, capabilities, metrics, config, mas_config, auth) can be updated.
+// Only mutable fields (enabled, auto_attach, capabilities, metrics, config, mas_config, auth) can be updated.
 // Attempting to update immutable fields will result in a 400 error from the management plane.
 //
 // Example JSON:
 //
 //	{
 //	  "enabled": false,
+//	  "auto_attach": true,
 //	  "capabilities": ["ingestion", "retrieval", "search"]
 //	}
 type PatchRequest struct {
 	// Mutable fields
 	Enabled      *bool                  `json:"enabled,omitempty"`
+	AutoAttach   *bool                  `json:"auto_attach,omitempty"`
 	Capabilities []string               `json:"capabilities,omitempty"`
 	Metrics      []string               `json:"metrics,omitempty"`
 	Config       map[string]interface{} `json:"config,omitempty"`
@@ -161,10 +163,9 @@ type PatchRequest struct {
 	Auth         map[string]interface{} `json:"auth,omitempty"`
 
 	// Immutable fields - included to trigger validation error if provided
-	URL        *string `json:"url,omitempty"`
-	CFNID      *string `json:"cfn_id,omitempty"`
-	Version    *string `json:"version,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	Type       *string `json:"type,omitempty"`
-	AutoAttach *bool   `json:"auto_attach,omitempty"`
+	URL     *string `json:"url,omitempty"`
+	CFNID   *string `json:"cfn_id,omitempty"`
+	Version *string `json:"version,omitempty"`
+	Name    *string `json:"name,omitempty"`
+	Type    *string `json:"type,omitempty"`
 }
