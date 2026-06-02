@@ -293,6 +293,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	// If agreement is reached, persist the final result to shared memory.
 	if cogResp.Status == "agreed" && len(cogResp.FinalResult) > 0 {
 		log.Infof("agreement has been reached, final result is being persisted to the shared memory")
+		// Wrap FinalResult in an array to match the extraction endpoint's `data: list[dict]` schema.
 		finalResultJSON, err := json.Marshal([]map[string]interface{}{cogResp.FinalResult})
 		if err != nil {
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
