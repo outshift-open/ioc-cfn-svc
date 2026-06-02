@@ -1190,28 +1190,6 @@
                 }
             }
         },
-        "cognitionengine.MASCEAssociateRequest": {
-            "type": "object",
-            "properties": {
-                "ce_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "cognitionengine.MASCEAssociateResponse": {
-            "type": "object",
-            "properties": {
-                "ce_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "mas_id": {
-                    "type": "string"
-                }
-            }
-        },
         "cognitionengine.PatchRequest": {
             "type": "object",
             "properties": {

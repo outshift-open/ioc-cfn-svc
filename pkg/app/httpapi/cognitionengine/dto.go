@@ -168,29 +168,3 @@ type PatchRequest struct {
 	Type       *string `json:"type,omitempty"`
 	AutoAttach *bool   `json:"auto_attach,omitempty"`
 }
-
-// MASCEAssociateRequest represents a request to associate a CE with a MAS.
-//
-// Example JSON:
-//
-//	{
-//	  "ce_id": "550e8400-e29b-41d4-a716-446655440000"
-//	}
-type MASCEAssociateRequest struct {
-	CEID string `json:"ce_id"`
-}
-
-// MASCEAssociateResponse represents the response after associating a CE with a MAS.
-//
-// Example JSON:
-//
-//	{
-//	  "ce_id": "550e8400-e29b-41d4-a716-446655440000",
-//	  "mas_id": "e9b5592f-326d-42e3-8bbe-29cf876ebc7c",
-//	  "created_at": "2026-06-01T15:30:00Z"
-//	}
-type MASCEAssociateResponse struct {
-	CEID      string `json:"ce_id"`
-	MASID     string `json:"mas_id"`
-	CreatedAt string `json:"created_at"`
-}
