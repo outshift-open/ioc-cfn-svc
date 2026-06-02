@@ -18,6 +18,7 @@ import (
 
 const (
 	DefaultKnowledgeMemorySvcRestEndpoint = "http://localhost:9003"
+	defaultMemoryClientTimeoutSec         = 30
 )
 
 var (
@@ -50,7 +51,7 @@ func NewClient(baseURL string) (*Client, error) {
 	config := httpclient.DefaultConfig()
 	memTimeoutSec, _ := strconv.Atoi(os.Getenv("MEMORY_CLIENT_TIMEOUT_SECONDS"))
 	if memTimeoutSec <= 0 {
-		memTimeoutSec = 30
+		memTimeoutSec = defaultMemoryClientTimeoutSec
 	}
 	config.Timeout = time.Duration(memTimeoutSec) * time.Second
 	config.MaxRetries = 3
