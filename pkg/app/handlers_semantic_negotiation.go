@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/semanticnegotiation"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
@@ -269,13 +268,11 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		round = *cogResp.Round
 	}
 	resp := &semanticnegotiation.DecideResponse{
-		Status:       cogResp.Status,
-		SessionID:    cogResp.SessionID,
-		Round:        round,
-		Messages:     cogResp.Messages,
-		FinalResult:  cogResp.FinalResult,
-		Validation:   cogResp.Validation,
-		RetryHistory: cogResp.RetryHistory,
+		Status:      cogResp.Status,
+		SessionID:   cogResp.SessionID,
+		Round:       round,
+		Messages:    cogResp.Messages,
+		FinalResult: cogResp.FinalResult,
 	}
 
 	// Pass through token metadata from cognition agent if available
@@ -295,25 +292,8 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 
 	// If agreement is reached, persist the final result to shared memory.
 	if cogResp.Status == "agreed" && len(cogResp.FinalResult) > 0 {
-		// COGNITION_ENGINE_PERSIST_VALIDATION=false disables writing validation/retry_history
-		// to shared memory (used for regression testing).  Default is true.
-		persistValidation := os.Getenv("COGNITION_ENGINE_PERSIST_VALIDATION") != "false"
-		log.Infof("agreement has been reached, final result is being persisted to the shared memory (persist_validation=%v)", persistValidation)
-		// Merge FinalResult and optionally Validation/RetryHistory into a single
-		// semneg record so the ingestion pipeline can store them together.
-		sharedRecord := make(map[string]interface{}, len(cogResp.FinalResult)+2)
-		for k, v := range cogResp.FinalResult {
-			sharedRecord[k] = v
-		}
-		if persistValidation {
-			if cogResp.Validation != nil {
-				sharedRecord["validation"] = cogResp.Validation
-			}
-			if len(cogResp.RetryHistory) > 0 {
-				sharedRecord["retry_history"] = cogResp.RetryHistory
-			}
-		}
-		finalResultJSON, err := json.Marshal([]map[string]interface{}{sharedRecord})
+		log.Infof("agreement has been reached, final result is being persisted to the shared memory")
+		finalResultJSON, err := json.Marshal([]map[string]interface{}{cogResp.FinalResult})
 		if err != nil {
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
 				workspaceID, masID, reqPayload.SessionID, err)

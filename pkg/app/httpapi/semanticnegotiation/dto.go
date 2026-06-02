@@ -177,12 +177,6 @@ type DecideResponse struct {
 	// memory. Only present when Status is "agreed".
 	SharedMemory *SharedMemoryResult `json:"shared_memory,omitempty"`
 
-	// Validation contains the SAV result for terminal responses (agreed/broken/timeout).
-	Validation map[string]interface{} `json:"validation,omitempty"`
-
-	// RetryHistory contains per-attempt records from prior retry rounds, when retries occurred.
-	RetryHistory []map[string]interface{} `json:"retry_history,omitempty"`
-
 	// Meta contains LLM token usage metadata
 	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
