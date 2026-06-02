@@ -2025,14 +2025,6 @@ const docTemplate = `{
                         }
                     ]
                 },
-                "retry_history": {
-                    "description": "RetryHistory contains per-attempt records from prior retry rounds, when retries occurred.",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                    }
-                },
                 "round": {
                     "description": "Round is the round number that was just evaluated.",
                     "type": "integer"
@@ -2052,11 +2044,6 @@ const docTemplate = `{
                 "status": {
                     "description": "Status is \"ongoing\", \"agreed\", \"broken\", or \"timeout\".",
                     "type": "string"
-                },
-                "validation": {
-                    "description": "Validation contains the SAV result for terminal responses (agreed/broken/timeout).",
-                    "type": "object",
-                    "additionalProperties": true
                 }
             }
         },
