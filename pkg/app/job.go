@@ -60,26 +60,14 @@ func (a *App) runSchedulerTick() {
 	}
 }
 
-// dispatchTask looks up the CE definition, derives the endpoint from its kind/subkind,
-// marks the task as running, creates an execution history record, and dispatches to CE.
+// dispatchTask looks up the endpoint for the CE and dispatches the task.
+// Task name is the CE name (e.g., "Memory Distillation CE") from config.
 func (a *App) dispatchTask(t model.Task) {
 	log := getLogger()
 
-	cfnConfigMutex.RLock()
-	ceConfig := ParsedConfig.FindCE(t.CEID)
-	cfnConfigMutex.RUnlock()
-
-	if ceConfig == nil {
-		log.Errorf("task %s: CE %s not found in config, skipping", t.ID, t.CEID)
-		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
-			"callback_deadline": nil,
-		})
-		return
-	}
-
-	endpointPath := task.GetEndpointForCE(ceConfig.Kind, ceConfig.Subkind)
+	endpointPath := task.GetEndpointForCE(t.Name)
 	if endpointPath == "" {
-		log.Errorf("task %s: no endpoint mapping for CE kind=%s subkind=%s, skipping", t.ID, ceConfig.Kind, ceConfig.Subkind)
+		log.Errorf("task %s: no endpoint mapping for CE %q, skipping", t.ID, t.Name)
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
 			"callback_deadline": nil,
 		})
@@ -191,21 +179,20 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 					continue
 				}
 
-				// Look up the CE definition to get its name and verify kind/subkind has an endpoint
+				// Look up the CE definition to get its name for task creation
 				ceConfig := cfg.FindCE(ce.ID)
 				if ceConfig == nil {
 					log.Warnf("workspace %s MAS %s: CE %s not found in top-level cognition_engines, skipping", ws.ID, mas.ID, ce.ID)
 					continue
 				}
 
-				// Verify that this CE type has an endpoint mapping
-				endpointPath := task.GetEndpointForCE(ceConfig.Kind, ceConfig.Subkind)
-				if endpointPath == "" {
-					log.Warnf("workspace %s MAS %s CE %s: no endpoint mapping for kind=%s subkind=%s, skipping", ws.ID, mas.ID, ce.ID, ceConfig.Kind, ceConfig.Subkind)
+				// Verify this CE name has an endpoint mapping
+				if task.GetEndpointForCE(ceConfig.Name) == "" {
+					log.Warnf("workspace %s MAS %s CE %s: no endpoint mapping for CE name %q, skipping", ws.ID, mas.ID, ce.ID, ceConfig.Name)
 					continue
 				}
 
-				// Use CE name as task name for better logging
+				// Task name = CE name
 				a.syncSingleTask(ws.ID, mas.ID, ce.ID, ceConfig.Name, cronExpr, seenKeys)
 			}
 		}
@@ -223,7 +210,8 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 }
 
 // syncSingleTask handles the upsert logic for a single CE task.
-func (a *App) syncSingleTask(workspaceID, masID, ceID, ceName, cronExpr string, seenKeys map[string]bool) {
+// taskName is the CE name from config (e.g., "Memory Distillation CE").
+func (a *App) syncSingleTask(workspaceID, masID, ceID, taskName, cronExpr string, seenKeys map[string]bool) {
 	log := getLogger()
 
 	seenKeys[workspaceID+"|"+masID+"|"+ceID] = true
@@ -242,7 +230,7 @@ func (a *App) syncSingleTask(workspaceID, masID, ceID, ceName, cronExpr string, 
 			WorkspaceID: workspaceID,
 			MASID:       masID,
 			CEID:        ceID,
-			Name:        ceName,
+			Name:        taskName,
 			Schedule:    cronExpr,
 			Status:      "scheduled",
 			NextRunTime: now,
@@ -250,15 +238,15 @@ func (a *App) syncSingleTask(workspaceID, masID, ceID, ceName, cronExpr string, 
 		if err := a.db.UpsertTask(newTask); err != nil {
 			log.Errorf("failed to create task for ws=%s mas=%s ce=%s: %s", workspaceID, masID, ceID, err)
 		} else {
-			log.Infof("task added | ws=%s mas=%s ce=%s name=%s schedule=%s", workspaceID, masID, ceID, ceName, cronExpr)
+			log.Infof("task added | ws=%s mas=%s ce=%s name=%s schedule=%s", workspaceID, masID, ceID, taskName, cronExpr)
 		}
 	} else {
 		// Update task if name or schedule changed
-		nameChanged := existing.Name != ceName
+		nameChanged := existing.Name != taskName
 		scheduleChanged := existing.Schedule != cronExpr
 
 		if nameChanged || scheduleChanged {
-			existing.Name = ceName
+			existing.Name = taskName
 			existing.Schedule = cronExpr
 
 			if scheduleChanged {

@@ -244,10 +244,12 @@ func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields m
 // DeleteTasksNotInSet hard-deletes tasks whose (workspace_id, mas_id, ce_id) is not in activeKeys.
 // Called during config sync to clean up tasks for deleted CE schedule entries.
 // activeKeys format: "workspace_id|mas_id|ce_id"
+// Only deletes tasks in 'scheduled' or 'failed' status to avoid breaking in-flight executions.
+// Tasks in 'running' status are skipped and will be cleaned up on their next status transition.
 // Execution history is preserved in task_execution_history table for audit.
 func (db *Database) DeleteTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error) {
 	var allTasks []model.Task
-	if err := db.DB.Find(&allTasks).Error; err != nil {
+	if err := db.DB.Where("status IN ?", []string{"scheduled", "failed"}).Find(&allTasks).Error; err != nil {
 		return nil, err
 	}
 	var deleted []model.Task
