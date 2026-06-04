@@ -19,29 +19,23 @@ type WorkspaceConfig struct {
 }
 
 type MASCfg struct {
-	ID               string           `json:"id"`
-	WorkspaceID      string           `json:"workspace_id,omitempty"`
-	Name             string           `json:"name,omitempty"`
-	Description      string           `json:"description,omitempty"`
-	SharedMemory     *MemoryCfg       `json:"shared_memory"`
-	Agents           []AgentCfg       `json:"agents"`
-	Config           map[string]any   `json:"config,omitempty"`
-	TaskSchedule     *TaskScheduleCfg `json:"task_schedule"`
-	CognitionEngines []MASEngineCfg   `json:"cognition_engines"` // CEs associated with this MAS
+	ID               string         `json:"id"`
+	WorkspaceID      string         `json:"workspace_id,omitempty"`
+	Name             string         `json:"name,omitempty"`
+	Description      string         `json:"description,omitempty"`
+	SharedMemory     *MemoryCfg     `json:"shared_memory"`
+	Agents           []AgentCfg     `json:"agents"`
+	Config           map[string]any `json:"config,omitempty"`
+	CognitionEngines []MASEngineCfg `json:"cognition_engines"` // CEs associated with this MAS
 }
 
 // MASEngineCfg represents a CE's association with a MAS, including per-MAS config overrides.
+// The MASConfig map can contain a "schedule" field (cron expression) to enable scheduled tasks
+// for this CE within this MAS. If no schedule is present, no task is created.
 type MASEngineCfg struct {
 	ID        string         `json:"id"`
 	Name      string         `json:"name,omitempty"`
-	MASConfig map[string]any `json:"mas_config,omitempty"` // Per-MAS config overrides
-}
-
-// TaskScheduleCfg holds the per-MAS task scheduling configuration propagated from the management plane.
-type TaskScheduleCfg struct {
-	TaskName string `json:"task_name"`
-	Enabled  bool   `json:"enabled"`
-	Schedule string `json:"schedule"`
+	MASConfig map[string]any `json:"mas_config,omitempty"` // Per-MAS config overrides (can include "schedule")
 }
 
 type AgentIdentityCfg struct {
@@ -95,11 +89,11 @@ type EngineCfg struct {
 	ID               string                 `json:"id"`
 	Name             string                 `json:"name"`
 	URL              string                 `json:"url"`
-	Kind             string                 `json:"kind"`                         // New: CE kind (e.g., "knowledge", "contingency")
-	Subkind          string                 `json:"subkind"`                      // New: CE subkind (e.g., "distillation", "query", "negotiation")
+	Kind             string                 `json:"kind"`    // New: CE kind (e.g., "knowledge", "contingency")
+	Subkind          string                 `json:"subkind"` // New: CE subkind (e.g., "distillation", "query", "negotiation")
 	Enabled          bool                   `json:"enabled"`
 	Status           string                 `json:"status,omitempty"`
-	LastSeen         string                 `json:"last_seen,omitempty"`          // New: ISO 8601 timestamp
+	LastSeen         string                 `json:"last_seen,omitempty"` // New: ISO 8601 timestamp
 	Capabilities     []string               `json:"capabilities,omitempty"`
 	Metrics          []string               `json:"metrics,omitempty"`
 	Config           map[string]interface{} `json:"config,omitempty"`

@@ -2,22 +2,24 @@ package model
 
 import "time"
 
-// Task represents a scheduled task bound to a specific MAS within a workspace.
-// The composite unique index (workspace_id, mas_id, name) ensures one task definition per MAS.
+// Task represents a scheduled task for a specific CE within a MAS.
+// Each CE with a schedule gets exactly one task row.
+// The composite unique index (workspace_id, mas_id, ce_id) ensures one task per CE per MAS.
+// Name is descriptive only (typically the CE name) - not part of the unique key.
 // Status transitions: scheduled → running → scheduled (on success) or failed (on error/timeout).
 type Task struct {
 	ID               string     `gorm:"primaryKey;type:uuid"`
-	Name             string     `gorm:"not null;uniqueIndex:idx_task_ws_mas_name"`
-	Schedule         string     `gorm:"not null"`
-	Enabled          bool       `gorm:"not null;default:true"`
-	Status           string     `gorm:"not null;default:'scheduled'"`
-	WorkspaceID      string     `gorm:"type:text;uniqueIndex:idx_task_ws_mas_name"`
-	MASID            string     `gorm:"column:mas_id;type:text;uniqueIndex:idx_task_ws_mas_name"`
-	NextRunTime      time.Time  `gorm:"not null"`
-	LastRunTime      *time.Time
-	LastStatus       *string
-	CallbackDeadline *time.Time `gorm:"type:timestamptz"`
-	UpdatedAt        time.Time  `gorm:"not null;autoUpdateTime"`
+	Name             string     `gorm:"not null"`                                                // CE name (descriptive only)
+	Schedule         string     `gorm:"not null"`                                                // Cron expression
+	Status           string     `gorm:"not null;default:'scheduled'"`                            // scheduled, running, or failed
+	WorkspaceID      string     `gorm:"type:text;uniqueIndex:idx_task_ws_mas_ce"`               // Workspace this task belongs to
+	MASID            string     `gorm:"column:mas_id;type:text;uniqueIndex:idx_task_ws_mas_ce"` // MAS this task belongs to
+	CEID             string     `gorm:"column:ce_id;type:text;uniqueIndex:idx_task_ws_mas_ce"`  // CE this task executes
+	NextRunTime      time.Time  `gorm:"not null"`                                                // Next scheduled execution
+	LastRunTime      *time.Time                                                                  // Most recent execution start
+	LastStatus       *string                                                                     // Most recent execution result
+	CallbackDeadline *time.Time `gorm:"type:timestamptz"`                                        // Timeout deadline for current execution
+	UpdatedAt        time.Time  `gorm:"not null;autoUpdateTime"`                                 // Last modification time
 }
 
 func (Task) TableName() string {
