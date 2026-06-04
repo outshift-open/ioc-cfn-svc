@@ -2,25 +2,30 @@
 // including CE name to endpoint mapping and cron expression parsing.
 package task
 
-// ceNameToEndpoint maps CE names to their corresponding endpoint paths.
-// The CE name comes from the top-level cognition_engines config.
-// When adding support for a new CE type, add its endpoint mapping here.
-//
-// Implementation Status:
-//   - Knowledge Extraction CE:   ✅ Implemented (POST /api/knowledge-mgmt/extraction)
-//   - Memory Distillation CE:     ⏳ TODO: CE must implement this endpoint before scheduling works
-var ceNameToEndpoint = map[string]string{
-	// TODO: CE must implement /api/knowledge-mgmt/runDistillation endpoint
-	// This endpoint should accept a TaskExecutionRequest and return 202 Accepted with a TaskExecutionResponse.
-	// Until implemented, Memory Distillation CEs with schedules will fail to dispatch.
-	"Memory Distillation CE": "/api/knowledge-mgmt/runDistillation",
-
-	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
-	"Knowledge Extraction CE": "/api/knowledge-mgmt/extraction",
-}
+import "strings"
 
 // GetEndpointForCE returns the endpoint path for a given CE name.
 // Returns empty string if no endpoint mapping exists.
+//
+// TODO: This is a temporary hack using pattern matching on CE names.
+// Replace with proper CE type/capability-based routing once CE metadata is standardized.
+// Current patterns:
+//   - Name contains "distillation" → /api/knowledge-mgmt/runDistillation (⏳ Not implemented yet)
+//   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction (✅ Implemented)
 func GetEndpointForCE(ceName string) string {
-	return ceNameToEndpoint[ceName]
+	nameLower := strings.ToLower(ceName)
+
+	// TODO: CE must implement /api/knowledge-mgmt/runDistillation endpoint
+	// This endpoint should accept a TaskExecutionRequest and return 202 Accepted with a TaskExecutionResponse.
+	if strings.Contains(nameLower, "distillation") {
+		return "/api/knowledge-mgmt/runDistillation"
+	}
+
+	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
+	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {
+		return "/api/knowledge-mgmt/extraction"
+	}
+
+	// No matching pattern found
+	return ""
 }
