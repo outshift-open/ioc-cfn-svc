@@ -565,7 +565,7 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Handle RefreshConfig GET request
 		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
-			// Return config with CE but no MAS associations to allow delete to proceed
+			// Return config with CE disabled and no MAS associations to allow delete to proceed
 			resp := CfnConfigPayload{
 				Workspaces: []WorkspaceConfig{},
 				CognitionEngines: []EngineCfg{
@@ -573,7 +573,7 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 						ID:      testCEID,
 						Name:    "Test CE",
 						URL:     "http://ce-host:9004",
-						Enabled: true,
+						Enabled: false, // Must be disabled to allow delete
 					},
 				},
 			}
@@ -598,9 +598,26 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
-	// Set up ParsedConfig with CE data
-	cleanup := setupCETestConfig("550e8400-e29b-41d4-a716-446655440000")
-	defer cleanup()
+	// Set up ParsedConfig with disabled CE and no MAS associations
+	cfnConfigMutex.Lock()
+	oldConfig := ParsedConfig
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      testCEID,
+				Name:    "Test CE",
+				URL:     "http://ce-host:9004",
+				Enabled: false, // Must be disabled to allow delete
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+	defer func() {
+		cfnConfigMutex.Lock()
+		ParsedConfig = oldConfig
+		cfnConfigMutex.Unlock()
+	}()
 
 	app := &App{}
 
@@ -612,6 +629,52 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestDeleteCognitionEngineHandler_EnabledCE(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	// Set up ParsedConfig with enabled CE
+	cfnConfigMutex.Lock()
+	oldConfig := ParsedConfig
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      testCEID,
+				Name:    "Test CE",
+				URL:     "http://ce-host:9004",
+				Enabled: true, // CE is enabled - should block delete
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+	defer func() {
+		cfnConfigMutex.Lock()
+		ParsedConfig = oldConfig
+		cfnConfigMutex.Unlock()
+	}()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/cognition-engines/"+testCEID, nil)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.deleteCognitionEngineHandler(w, req)
+	require.NoError(t, err)
+
+	// Should return 409 Conflict when CE is enabled
+	assert.Equal(t, http.StatusConflict, w.Code)
+
+	var respBody map[string]string
+	err = json.NewDecoder(w.Body).Decode(&respBody)
+	require.NoError(t, err)
+	assert.Contains(t, respBody["error"], "must be disabled before it can be deleted")
 }
 
 func TestDeleteCognitionEngineHandler_WithMASAssociation(t *testing.T) {
@@ -648,7 +711,7 @@ func TestDeleteCognitionEngineHandler_WithMASAssociation(t *testing.T) {
 				ID:      testCEID,
 				Name:    "Test CE",
 				URL:     "http://ce-host:9004",
-				Enabled: true,
+				Enabled: false, // CE is disabled but has MAS association
 			},
 		},
 	}
@@ -668,13 +731,13 @@ func TestDeleteCognitionEngineHandler_WithMASAssociation(t *testing.T) {
 	_, err := app.deleteCognitionEngineHandler(w, req)
 	require.NoError(t, err)
 
-	// Should return 409 Conflict when CE is associated with MAS
+	// Should return 409 Conflict when CE has active MAS associations
 	assert.Equal(t, http.StatusConflict, w.Code)
 
 	var respBody map[string]string
 	err = json.NewDecoder(w.Body).Decode(&respBody)
 	require.NoError(t, err)
-	assert.Contains(t, respBody["error"], "still associated with one or more MAS")
+	assert.Contains(t, respBody["error"], "active MAS associations")
 }
 
 func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) {
@@ -716,9 +779,26 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
-	// Set up ParsedConfig with disabled CE
-	cleanup := setupCETestConfig(testCEID)
-	defer cleanup()
+	// Set up ParsedConfig with disabled CE and no MAS associations
+	cfnConfigMutex.Lock()
+	oldConfig := ParsedConfig
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      testCEID,
+				Name:    "Test CE",
+				URL:     "http://ce-host:9004",
+				Enabled: false, // CE is disabled - allows delete
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+	defer func() {
+		cfnConfigMutex.Lock()
+		ParsedConfig = oldConfig
+		cfnConfigMutex.Unlock()
+	}()
 
 	app := &App{}
 
@@ -729,6 +809,6 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 	_, err := app.deleteCognitionEngineHandler(w, req)
 	require.NoError(t, err)
 
-	// Should return 204 No Content - delete succeeds even though CE is disabled (no MAS association)
+	// Should return 204 No Content - delete succeeds when CE is disabled and has no MAS association
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }

@@ -587,10 +587,17 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	// Block delete if CE is still associated with any MAS
+	// Precondition 1: CE must be disabled (enabled=false) before it can be deleted
+	if ce.Enabled {
+		return eh.RespondWithJSON(w, http.StatusConflict, map[string]string{
+			"error": fmt.Sprintf("CE must be disabled before it can be deleted"),
+		})
+	}
+
+	// Precondition 2: CE must have no active MAS associations
 	if hasAssociation {
 		return eh.RespondWithJSON(w, http.StatusConflict, map[string]string{
-			"error": fmt.Sprintf("cannot delete CE %s: still associated with one or more MAS", ceID),
+			"error": fmt.Sprintf("CE cannot be deleted while it has active MAS associations"),
 		})
 	}
 
