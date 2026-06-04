@@ -146,6 +146,13 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 // recompute next_run_time; unknown task names are logged and skipped.
 func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 	log := getLogger()
+
+	// Skip sync if database is not initialized (e.g., in tests)
+	if a.db == nil {
+		log.Debug("skipping task sync: database not initialized")
+		return
+	}
+
 	log.Info("syncing tasks from config")
 
 	seenKeys := make(map[string]bool)

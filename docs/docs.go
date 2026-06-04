@@ -15,6 +15,385 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/cognition-engines": {
+            "get": {
+                "description": "List cognition engines, optionally filtered by cfn_id and/or status.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "List Cognition Engines",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by CFN ID",
+                        "name": "cfn_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (online/offline)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of cognition engines",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.CognitionEngineList"
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),\nand forwards it to the management plane's /api/cognition-engines endpoint.\n\n**Request example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"name\": \"Knowledge Management CE\",\n\"type\": \"knowledge_management\",\n\"url\": \"http://ce-host:9004\",\n\"capabilities\": [\"ingestion\", \"retrieval\"],\n\"metrics\": [\"kb.documents.indexed\", \"kb.search.latency_ms\"]\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nThe CFN service validates the request, injects the CFN ID association,\nand forwards the enriched payload to the management plane.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Register a Cognition Engine with the management plane",
+                "parameters": [
+                    {
+                        "description": "CE registration request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CE registered successfully",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cognition-engines/{ceId}": {
+            "get": {
+                "description": "Get details of a specific cognition engine by ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Get Cognition Engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CE details",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.CognitionEngineDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid CE ID format",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Soft-delete (deregister) a cognition engine by ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Delete Cognition Engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "CE deleted successfully"
+                    },
+                    "400": {
+                        "description": "Invalid CE ID format",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update mutable fields of a CE: url, enabled, capabilities, metrics, config, mas_config, auth, kind, subkind.\nImmutable fields (cfn_id, version, name, auto_attach) cannot be updated and will return 400.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Partially update a Cognition Engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "CE patch request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.PatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CE updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.CognitionEngineDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or attempted to update immutable field",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cognition-engines/{ceId}/heartbeat": {
+            "put": {
+                "description": "Receives heartbeat requests from a Cognition Engine and forwards them to the management plane.\nThe management plane updates the CE's last_seen timestamp and status (offline → online if applicable).\n\nCEs should call this endpoint every 30 seconds to maintain their online status.\n\n**Response example**:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"status\": \"online\",\n\"last_seen\": \"2026-05-21T10:30:00Z\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Proxy CE heartbeat to management plane",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Heartbeat acknowledged",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.HeartbeatResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "CE not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward heartbeat to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/cognition-engines/{ceId}/metrics": {
             "get": {
                 "description": "Returns grouped time-series data filtered by time and entity dimensions.\nReturns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.\nResponse format groups datapoints by metric name to reduce verbosity (60-70% size reduction).\nNo pagination - queries return all matching datapoints up to safety limit (100K max).",
@@ -1816,6 +2195,281 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "cognitionengine.CognitionEngineDetail": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subkind": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.CognitionEngineList": {
+            "type": "object",
+            "properties": {
+                "cognition_engines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cognitionengine.CognitionEngineListItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cognitionengine.CognitionEngineListItem": {
+            "type": "object",
+            "properties": {
+                "cfn_id": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subkind": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.HeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "last_seen": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.PatchRequest": {
+            "type": "object",
+            "properties": {
+                "auth": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cfn_id": {
+                    "description": "Immutable fields - included to trigger validation error if provided",
+                    "type": "string"
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subkind": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "Mutable fields",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "auth": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "kind": {
+                    "description": "CE kind (e.g., \"knowledge\", \"contingency\")",
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "description": "No omitempty - always send (defaults to false)",
+                    "type": "boolean"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subkind": {
+                    "description": "CE subkind (e.g., \"distillation\", \"query\", \"negotiation\")",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "cognitionengine.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "cfn_id": {
+                    "type": "string"
+                },
+                "created": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subkind": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },

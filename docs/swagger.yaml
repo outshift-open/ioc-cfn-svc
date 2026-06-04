@@ -293,6 +293,192 @@ definitions:
           type: integer
         type: array
     type: object
+  cognitionengine.CognitionEngineDetail:
+    properties:
+      capabilities:
+        items:
+          type: string
+        type: array
+      cfn_id:
+        type: string
+      config:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      kind:
+        type: string
+      last_seen:
+        type: string
+      mas_auto_associate:
+        type: boolean
+      mas_config:
+        additionalProperties: true
+        type: object
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      subkind:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+      version:
+        type: string
+    type: object
+  cognitionengine.CognitionEngineList:
+    properties:
+      cognition_engines:
+        items:
+          $ref: '#/definitions/cognitionengine.CognitionEngineListItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  cognitionengine.CognitionEngineListItem:
+    properties:
+      cfn_id:
+        type: string
+      config:
+        additionalProperties: true
+        type: object
+      enabled:
+        type: boolean
+      id:
+        type: string
+      kind:
+        type: string
+      last_seen:
+        type: string
+      mas_auto_associate:
+        type: boolean
+      mas_config:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      status:
+        type: string
+      subkind:
+        type: string
+      url:
+        type: string
+      version:
+        type: string
+    type: object
+  cognitionengine.HeartbeatResponse:
+    properties:
+      last_seen:
+        type: string
+      status:
+        type: string
+    type: object
+  cognitionengine.PatchRequest:
+    properties:
+      auth:
+        additionalProperties: true
+        type: object
+      capabilities:
+        items:
+          type: string
+        type: array
+      cfn_id:
+        description: Immutable fields - included to trigger validation error if provided
+        type: string
+      config:
+        additionalProperties: true
+        type: object
+      enabled:
+        type: boolean
+      kind:
+        type: string
+      mas_auto_associate:
+        type: boolean
+      mas_config:
+        additionalProperties: true
+        type: object
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      subkind:
+        type: string
+      url:
+        description: Mutable fields
+        type: string
+      version:
+        type: string
+    type: object
+  cognitionengine.RegisterRequest:
+    properties:
+      auth:
+        additionalProperties: true
+        type: object
+      capabilities:
+        items:
+          type: string
+        type: array
+      config:
+        additionalProperties: true
+        type: object
+      kind:
+        description: CE kind (e.g., "knowledge", "contingency")
+        type: string
+      mas_auto_associate:
+        description: No omitempty - always send (defaults to false)
+        type: boolean
+      mas_config:
+        additionalProperties: true
+        type: object
+      metrics:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      subkind:
+        description: CE subkind (e.g., "distillation", "query", "negotiation")
+        type: string
+      url:
+        type: string
+      version:
+        type: string
+    type: object
+  cognitionengine.RegisterResponse:
+    properties:
+      ce_id:
+        type: string
+      cfn_id:
+        type: string
+      created:
+        type: boolean
+      enabled:
+        type: boolean
+      kind:
+        type: string
+      mas_auto_associate:
+        type: boolean
+      name:
+        type: string
+      status:
+        type: string
+      subkind:
+        type: string
+      version:
+        type: string
+    type: object
   common.ErrorDetail:
     properties:
       detail:
@@ -948,6 +1134,287 @@ info:
   title: CFN Service API
   version: "1.0"
 paths:
+  /api/cognition-engines:
+    get:
+      consumes:
+      - application/json
+      description: List cognition engines, optionally filtered by cfn_id and/or status.
+      parameters:
+      - description: Filter by CFN ID
+        in: query
+        name: cfn_id
+        type: string
+      - description: Filter by status (online/offline)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of cognition engines
+          schema:
+            $ref: '#/definitions/cognitionengine.CognitionEngineList'
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List Cognition Engines
+      tags:
+      - cognition-engine
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Receives a registration request from a Cognition Engine, adds CFN context (cfn_id),
+        and forwards it to the management plane's /api/cognition-engines endpoint.
+
+        **Request example**:
+        ```json
+        {
+        "name": "Knowledge Management CE",
+        "type": "knowledge_management",
+        "url": "http://ce-host:9004",
+        "capabilities": ["ingestion", "retrieval"],
+        "metrics": ["kb.documents.indexed", "kb.search.latency_ms"]
+        }
+        ```
+
+        The CFN service validates the request, injects the CFN ID association,
+        and forwards the enriched payload to the management plane.
+      parameters:
+      - description: CE registration request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionengine.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CE registered successfully
+          schema:
+            $ref: '#/definitions/cognitionengine.RegisterResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a Cognition Engine with the management plane
+      tags:
+      - cognition-engine
+  /api/cognition-engines/{ceId}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-delete (deregister) a cognition engine by ID.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: CE deleted successfully
+        "400":
+          description: Invalid CE ID format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete Cognition Engine
+      tags:
+      - cognition-engine
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific cognition engine by ID.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CE details
+          schema:
+            $ref: '#/definitions/cognitionengine.CognitionEngineDetail'
+        "400":
+          description: Invalid CE ID format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get Cognition Engine
+      tags:
+      - cognition-engine
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Update mutable fields of a CE: url, enabled, capabilities, metrics, config, mas_config, auth, kind, subkind.
+        Immutable fields (cfn_id, version, name, auto_attach) cannot be updated and will return 400.
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      - description: CE patch request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cognitionengine.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CE updated successfully
+          schema:
+            $ref: '#/definitions/cognitionengine.CognitionEngineDetail'
+        "400":
+          description: Invalid request or attempted to update immutable field
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward request to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Partially update a Cognition Engine
+      tags:
+      - cognition-engine
+  /api/cognition-engines/{ceId}/heartbeat:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Receives heartbeat requests from a Cognition Engine and forwards them to the management plane.
+        The management plane updates the CE's last_seen timestamp and status (offline → online if applicable).
+
+        CEs should call this endpoint every 30 seconds to maintain their online status.
+
+        **Response example**:
+        ```json
+        {
+        "status": "online",
+        "last_seen": "2026-05-21T10:30:00Z"
+        }
+        ```
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Heartbeat acknowledged
+          schema:
+            $ref: '#/definitions/cognitionengine.HeartbeatResponse'
+        "404":
+          description: CE not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Failed to forward heartbeat to management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CFN not registered with management plane
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Proxy CE heartbeat to management plane
+      tags:
+      - cognition-engine
   /api/cognition-engines/{ceId}/metrics:
     get:
       description: |-

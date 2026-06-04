@@ -104,10 +104,11 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			MemoryProviders: []MemProviderCfg{
 				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
+			CognitionEngines: []EngineCfg{
+				{ID: "ce-1", Name: "CE1", URL: cog.URL},
+			},
 			Workspaces: []WorkspaceConfig{
-				{CognitionEngines: []EngineCfg{
-					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
-				}},
+				{ID: "ws-1"},
 			},
 		})
 
@@ -142,10 +143,11 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			MemoryProviders: []MemProviderCfg{
 				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
+			CognitionEngines: []EngineCfg{
+				{ID: "ce-1", Name: "CE1", URL: cog.URL},
+			},
 			Workspaces: []WorkspaceConfig{
-				{CognitionEngines: []EngineCfg{
-					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
-				}},
+				{ID: "ws-1"},
 			},
 		})
 
@@ -179,10 +181,11 @@ func TestDiagnosticsHealthHandlerWithDependencies(t *testing.T) {
 			MemoryProviders: []MemProviderCfg{
 				{Name: "mem-svc", Config: &MemConnConfig{URL: mem.URL}},
 			},
+			CognitionEngines: []EngineCfg{
+				{ID: "ce-1", Name: "CE1", URL: cog.URL},
+			},
 			Workspaces: []WorkspaceConfig{
-				{CognitionEngines: []EngineCfg{
-					{Name: "CE1", Config: &MemConnConfig{URL: cog.URL}},
-				}},
+				{ID: "ws-1"},
 			},
 		})
 

@@ -5,22 +5,36 @@ import "strings"
 // CfnConfigPayload is the typed representation of the config blob received from the management plane.
 // Only fields that cfn-svc actually reads are declared; json.Unmarshal ignores the rest.
 type CfnConfigPayload struct {
-	ConfigVersion   int64              `json:"config_version"`
-	Workspaces      []WorkspaceConfig  `json:"workspaces"`
-	MemoryProviders []MemProviderCfg   `json:"memory_providers"`
+	ConfigVersion    int64             `json:"config_version"`
+	CfnConfig        map[string]any    `json:"cfn_config,omitempty"`
+	Workspaces       []WorkspaceConfig `json:"workspaces"`
+	MemoryProviders  []MemProviderCfg  `json:"memory_providers"`
+	CognitionEngines []EngineCfg       `json:"cognition_engines"` // Top-level CE list
 }
 
 type WorkspaceConfig struct {
-	ID                  string      `json:"workspace_id"`
-	MultiAgenticSystems []MASCfg    `json:"multi_agentic_systems"`
-	CognitionEngines    []EngineCfg `json:"cognition_engines"`
+	ID                  string   `json:"workspace_id"`
+	WorkspaceName       string   `json:"workspace_name,omitempty"`
+	MultiAgenticSystems []MASCfg `json:"multi_agentic_systems"`
 }
 
 type MASCfg struct {
-	ID           string          `json:"id"`
-	SharedMemory *MemoryCfg      `json:"shared_memory"`
-	Agents       []AgentCfg      `json:"agents"`
-	TaskSchedule *TaskScheduleCfg `json:"task_schedule"`
+	ID               string           `json:"id"`
+	WorkspaceID      string           `json:"workspace_id,omitempty"`
+	Name             string           `json:"name,omitempty"`
+	Description      string           `json:"description,omitempty"`
+	SharedMemory     *MemoryCfg       `json:"shared_memory"`
+	Agents           []AgentCfg       `json:"agents"`
+	Config           map[string]any   `json:"config,omitempty"`
+	TaskSchedule     *TaskScheduleCfg `json:"task_schedule"`
+	CognitionEngines []MASEngineCfg   `json:"cognition_engines"` // CEs associated with this MAS
+}
+
+// MASEngineCfg represents a CE's association with a MAS, including per-MAS config overrides.
+type MASEngineCfg struct {
+	ID        string         `json:"id"`
+	Name      string         `json:"name,omitempty"`
+	MASConfig map[string]any `json:"mas_config,omitempty"` // Per-MAS config overrides
 }
 
 // TaskScheduleCfg holds the per-MAS task scheduling configuration propagated from the management plane.
@@ -70,13 +84,68 @@ type AuthCreds struct {
 }
 
 type MemProviderCfg struct {
-	Name   string         `json:"name"`
-	Config *MemConnConfig `json:"config"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Enabled     bool           `json:"enabled"`
+	Config      *MemConnConfig `json:"config"`
 }
 
 type EngineCfg struct {
-	Name   string         `json:"name"`
-	Config *MemConnConfig `json:"config"`
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	URL              string                 `json:"url"`
+	Kind             string                 `json:"kind"`                         // New: CE kind (e.g., "knowledge", "contingency")
+	Subkind          string                 `json:"subkind"`                      // New: CE subkind (e.g., "distillation", "query", "negotiation")
+	Enabled          bool                   `json:"enabled"`
+	Status           string                 `json:"status,omitempty"`
+	LastSeen         string                 `json:"last_seen,omitempty"`          // New: ISO 8601 timestamp
+	Capabilities     []string               `json:"capabilities,omitempty"`
+	Metrics          []string               `json:"metrics,omitempty"`
+	Config           map[string]interface{} `json:"config,omitempty"`
+	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`         // Default MAS config template
+	MASAutoAssociate bool                   `json:"mas_auto_associate,omitempty"` // New: auto-associate with new MAS
+	Auth             *AuthConfig            `json:"auth,omitempty"`               // Decrypted auth from mgmt plane
+}
+
+// FindCE locates a Cognition Engine by CE ID in the top-level cognition_engines list.
+func (c *CfnConfigPayload) FindCE(ceID string) *EngineCfg {
+	for i := range c.CognitionEngines {
+		if c.CognitionEngines[i].ID == ceID {
+			return &c.CognitionEngines[i]
+		}
+	}
+	return nil
+}
+
+// IsCEAssociatedWithMAS checks if a CE is associated with any MAS.
+// Returns true if at least one MAS has this CE in its cognition_engines list.
+func (c *CfnConfigPayload) IsCEAssociatedWithMAS(ceID string) bool {
+	for _, ws := range c.Workspaces {
+		for _, mas := range ws.MultiAgenticSystems {
+			for _, ce := range mas.CognitionEngines {
+				if ce.ID == ceID {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// FindMASConfigForCE returns the MAS-specific config for a CE within a given MAS.
+// Returns nil if the CE is not associated with the MAS or if no MAS config exists.
+func (c *CfnConfigPayload) FindMASConfigForCE(workspaceID, masID, ceID string) map[string]any {
+	mas := c.FindMAS(workspaceID, masID)
+	if mas == nil {
+		return nil
+	}
+	for _, ce := range mas.CognitionEngines {
+		if ce.ID == ceID {
+			return ce.MASConfig
+		}
+	}
+	return nil
 }
 
 // FindMAS locates a MAS by workspace and MAS ID.
