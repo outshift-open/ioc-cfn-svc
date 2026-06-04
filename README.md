@@ -120,7 +120,7 @@ end_time=2026-05-28"
 
 # Filter to specific metric names
 curl "http://localhost:9002/api/cognition-engines/550e8400-e29b-41d4-a716-446655440000/metrics?\
-metric_name=llm.token.*&\
+metric_name=llm.tokens.*&\
 start_time=2026-05-27&\
 end_time=2026-05-28"
 ```
@@ -153,7 +153,7 @@ end_time=2026-05-28"
   "mas_metrics": {
     "series": [
       {
-        "metric_name": "llm.token.input",
+        "metric_name": "llm.tokens.prompt",
         "workspace_id": "770fa621-04bd-42f6-a938-668877662222",
         "mas_id": "880fb732-d9e4-53c6-af56-445566778899",
         "agent_id": "agent-1",
