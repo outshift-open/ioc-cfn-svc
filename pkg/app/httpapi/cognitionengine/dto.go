@@ -9,24 +9,26 @@ package cognitionengine
 //
 //	{
 //	  "name": "Knowledge Management CE",
-//	  "type": "knowledge_management",
+//	  "kind": "knowledge",
+//	  "subkind": "query",
 //	  "url": "http://ce-host:9004",
 //	  "version": "1.0.0",
-//	  "auto_attach": true,
+//	  "mas_auto_associate": true,
 //	  "capabilities": ["ingestion", "retrieval"],
 //	  "metrics": ["kb.documents.indexed", "kb.search.latency_ms"]
 //	}
 type RegisterRequest struct {
-	Name         string                 `json:"name"`
-	Type         string                 `json:"type"`
-	URL          string                 `json:"url"`
-	Version      string                 `json:"version"`
-	AutoAttach   bool                   `json:"auto_attach"` // No omitempty - always send (defaults to false)
-	Capabilities []string               `json:"capabilities,omitempty"`
-	Metrics      []string               `json:"metrics,omitempty"`
-	Auth         map[string]interface{} `json:"auth,omitempty"`
-	Config       map[string]interface{} `json:"config,omitempty"`
-	MASConfig    map[string]interface{} `json:"mas_config,omitempty"`
+	Name             string                 `json:"name"`
+	Kind             string                 `json:"kind"`                       // CE kind (e.g., "knowledge", "contingency")
+	Subkind          string                 `json:"subkind"`                    // CE subkind (e.g., "distillation", "query", "negotiation")
+	URL              string                 `json:"url"`
+	Version          string                 `json:"version"`
+	MASAutoAssociate bool                   `json:"mas_auto_associate"` // No omitempty - always send (defaults to false)
+	Capabilities     []string               `json:"capabilities,omitempty"`
+	Metrics          []string               `json:"metrics,omitempty"`
+	Auth             map[string]interface{} `json:"auth,omitempty"`
+	Config           map[string]interface{} `json:"config,omitempty"`
+	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`
 }
 
 // RegisterResponse represents the response returned to the CE after successful registration.
@@ -39,22 +41,24 @@ type RegisterRequest struct {
 //	  "cfn_id": "cfn-456",
 //	  "name": "Knowledge Management CE",
 //	  "version": "1.0.0",
-//	  "type": "knowledge_management",
+//	  "kind": "knowledge",
+//	  "subkind": "query",
 //	  "enabled": true,
-//	  "auto_attach": false,
+//	  "mas_auto_associate": false,
 //	  "status": "online",
 //	  "created": true
 //	}
 type RegisterResponse struct {
-	CEID       string `json:"ce_id"`
-	CFNID      string `json:"cfn_id"`
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	Type       string `json:"type"`
-	Enabled    bool   `json:"enabled"`
-	AutoAttach bool   `json:"auto_attach"`
-	Status     string `json:"status"`
-	Created    bool   `json:"created"`
+	CEID             string `json:"ce_id"`
+	CFNID            string `json:"cfn_id"`
+	Name             string `json:"name"`
+	Version          string `json:"version"`
+	Kind             string `json:"kind"`
+	Subkind          string `json:"subkind"`
+	Enabled          bool   `json:"enabled"`
+	MASAutoAssociate bool   `json:"mas_auto_associate"`
+	Status           string `json:"status"`
+	Created          bool   `json:"created"`
 }
 
 // HeartbeatResponse represents the response returned to the CE after a successful heartbeat.
@@ -80,10 +84,11 @@ type HeartbeatResponse struct {
 //	  "cfn_id": "cfn-456",
 //	  "name": "Knowledge Management CE",
 //	  "version": "1.0.0",
-//	  "type": "knowledge_management",
+//	  "kind": "knowledge",
+//	  "subkind": "query",
 //	  "url": "http://ce-host:9004",
 //	  "enabled": true,
-//	  "auto_attach": false,
+//	  "mas_auto_associate": false,
 //	  "capabilities": ["ingestion", "retrieval"],
 //	  "metrics": ["kb.documents.indexed"],
 //	  "status": "online",
@@ -94,38 +99,40 @@ type HeartbeatResponse struct {
 //	  "updated_at": "2026-05-21T10:30:00Z"
 //	}
 type CognitionEngineDetail struct {
-	ID           string                 `json:"id"`
-	CFNID        string                 `json:"cfn_id"`
-	Name         string                 `json:"name"`
-	Version      string                 `json:"version"`
-	Type         string                 `json:"type"`
-	URL          string                 `json:"url"`
-	Enabled      bool                   `json:"enabled"`
-	AutoAttach   bool                   `json:"auto_attach"`
-	Capabilities []string               `json:"capabilities,omitempty"`
-	Metrics      []string               `json:"metrics,omitempty"`
-	Status       string                 `json:"status"`
-	LastSeen     *string                `json:"last_seen,omitempty"`
-	Config       map[string]interface{} `json:"config,omitempty"`
-	MASConfig    map[string]interface{} `json:"mas_config,omitempty"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    *string                `json:"updated_at,omitempty"`
+	ID               string                 `json:"id"`
+	CFNID            string                 `json:"cfn_id"`
+	Name             string                 `json:"name"`
+	Version          string                 `json:"version"`
+	Kind             string                 `json:"kind"`
+	Subkind          string                 `json:"subkind"`
+	URL              string                 `json:"url"`
+	Enabled          bool                   `json:"enabled"`
+	MASAutoAssociate bool                   `json:"mas_auto_associate"`
+	Capabilities     []string               `json:"capabilities,omitempty"`
+	Metrics          []string               `json:"metrics,omitempty"`
+	Status           string                 `json:"status"`
+	LastSeen         *string                `json:"last_seen,omitempty"`
+	Config           map[string]interface{} `json:"config,omitempty"`
+	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`
+	CreatedAt        string                 `json:"created_at"`
+	UpdatedAt        *string                `json:"updated_at,omitempty"`
 }
 
 // CognitionEngineListItem represents a CE in the list response.
 type CognitionEngineListItem struct {
-	ID         string                 `json:"id"`
-	CFNID      string                 `json:"cfn_id"`
-	Name       string                 `json:"name"`
-	Version    string                 `json:"version"`
-	Type       string                 `json:"type"`
-	URL        string                 `json:"url"`
-	Enabled    bool                   `json:"enabled"`
-	AutoAttach bool                   `json:"auto_attach"`
-	Status     string                 `json:"status"`
-	LastSeen   *string                `json:"last_seen,omitempty"`
-	Config     map[string]interface{} `json:"config,omitempty"`
-	MASConfig  map[string]interface{} `json:"mas_config,omitempty"`
+	ID               string                 `json:"id"`
+	CFNID            string                 `json:"cfn_id"`
+	Name             string                 `json:"name"`
+	Version          string                 `json:"version"`
+	Kind             string                 `json:"kind"`
+	Subkind          string                 `json:"subkind"`
+	URL              string                 `json:"url"`
+	Enabled          bool                   `json:"enabled"`
+	MASAutoAssociate bool                   `json:"mas_auto_associate"`
+	Status           string                 `json:"status"`
+	LastSeen         *string                `json:"last_seen,omitempty"`
+	Config           map[string]interface{} `json:"config,omitempty"`
+	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`
 }
 
 // CognitionEngineList represents a list of CEs.
@@ -142,30 +149,32 @@ type CognitionEngineList struct {
 }
 
 // PatchRequest represents a partial update request for a CE.
-// Only mutable fields (enabled, auto_attach, capabilities, metrics, config, mas_config, auth) can be updated.
-// Attempting to update immutable fields will result in a 400 error from the management plane.
+// Mutable fields: url, enabled, mas_auto_associate, capabilities, metrics, config, mas_config, auth, kind, subkind.
+// Immutable fields: cfn_id, version, name. Attempting to update immutable fields will result in a 400 error.
 //
 // Example JSON:
 //
 //	{
 //	  "enabled": false,
-//	  "auto_attach": true,
+//	  "url": "http://new-host:9004",
+//	  "mas_auto_associate": true,
 //	  "capabilities": ["ingestion", "retrieval", "search"]
 //	}
 type PatchRequest struct {
 	// Mutable fields
-	Enabled      *bool                  `json:"enabled,omitempty"`
-	AutoAttach   *bool                  `json:"auto_attach,omitempty"`
-	Capabilities []string               `json:"capabilities,omitempty"`
-	Metrics      []string               `json:"metrics,omitempty"`
-	Config       map[string]interface{} `json:"config,omitempty"`
-	MASConfig    map[string]interface{} `json:"mas_config,omitempty"`
-	Auth         map[string]interface{} `json:"auth,omitempty"`
+	URL              *string                `json:"url,omitempty"`
+	Enabled          *bool                  `json:"enabled,omitempty"`
+	MASAutoAssociate *bool                  `json:"mas_auto_associate,omitempty"`
+	Kind             *string                `json:"kind,omitempty"`
+	Subkind          *string                `json:"subkind,omitempty"`
+	Capabilities     []string               `json:"capabilities,omitempty"`
+	Metrics          []string               `json:"metrics,omitempty"`
+	Config           map[string]interface{} `json:"config,omitempty"`
+	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`
+	Auth             map[string]interface{} `json:"auth,omitempty"`
 
 	// Immutable fields - included to trigger validation error if provided
-	URL     *string `json:"url,omitempty"`
 	CFNID   *string `json:"cfn_id,omitempty"`
 	Version *string `json:"version,omitempty"`
 	Name    *string `json:"name,omitempty"`
-	Type    *string `json:"type,omitempty"`
 }

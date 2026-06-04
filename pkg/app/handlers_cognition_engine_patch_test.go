@@ -31,16 +31,17 @@ func TestPatchCognitionEngineHandler(t *testing.T) {
 
 		// Return success response
 		resp := cognitionengine.CognitionEngineDetail{
-			ID:         testCEID,
-			CFNID:      "test-cfn-id",
-			Name:       "Test CE",
-			Version:    "1.0.0",
-			Type:       "knowledge_management",
-			URL:        "http://ce-host:9004",
-			Enabled:    false, // Updated
-			AutoAttach: false,
-			Status:     "online",
-			CreatedAt:  "2026-05-21T09:00:00Z",
+			ID:               testCEID,
+			CFNID:            "test-cfn-id",
+			Name:             "Test CE",
+			Version:          "1.0.0",
+			Kind:             "knowledge",
+			Subkind:          "query",
+			URL:              "http://ce-host:9004",
+			Enabled:          false, // Updated
+			MASAutoAssociate: false,
+			Status:           "online",
+			CreatedAt:        "2026-05-21T09:00:00Z",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

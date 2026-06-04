@@ -260,7 +260,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Update mutable fields of a CE: enabled, capabilities, metrics, config, mas_config, auth.\nImmutable fields (url, cfn_id, version, name, type, auto_attach) cannot be updated and will return 400.",
+                "description": "Update mutable fields of a CE: url, enabled, capabilities, metrics, config, mas_config, auth, kind, subkind.\nImmutable fields (cfn_id, version, name, auto_attach) cannot be updated and will return 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2201,9 +2201,6 @@ const docTemplate = `{
         "cognitionengine.CognitionEngineDetail": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -2226,8 +2223,14 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "kind": {
+                    "type": "string"
+                },
                 "last_seen": {
                     "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -2245,7 +2248,7 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -2276,9 +2279,6 @@ const docTemplate = `{
         "cognitionengine.CognitionEngineListItem": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "cfn_id": {
                     "type": "string"
                 },
@@ -2292,8 +2292,14 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "kind": {
+                    "type": "string"
+                },
                 "last_seen": {
                     "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -2305,7 +2311,7 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "url": {
@@ -2334,9 +2340,6 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -2344,6 +2347,7 @@ const docTemplate = `{
                     }
                 },
                 "cfn_id": {
+                    "description": "Immutable fields - included to trigger validation error if provided",
                     "type": "string"
                 },
                 "config": {
@@ -2351,7 +2355,12 @@ const docTemplate = `{
                     "additionalProperties": true
                 },
                 "enabled": {
-                    "description": "Mutable fields",
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
                     "type": "boolean"
                 },
                 "mas_config": {
@@ -2367,11 +2376,11 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "url": {
-                    "description": "Immutable fields - included to trigger validation error if provided",
+                    "description": "Mutable fields",
                     "type": "string"
                 },
                 "version": {
@@ -2386,10 +2395,6 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
-                "auto_attach": {
-                    "description": "No omitempty - always send (defaults to false)",
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -2399,6 +2404,14 @@ const docTemplate = `{
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "kind": {
+                    "description": "CE kind (e.g., \"knowledge\", \"contingency\")",
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "description": "No omitempty - always send (defaults to false)",
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -2413,7 +2426,8 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
+                    "description": "CE subkind (e.g., \"distillation\", \"query\", \"negotiation\")",
                     "type": "string"
                 },
                 "url": {
@@ -2427,9 +2441,6 @@ const docTemplate = `{
         "cognitionengine.RegisterResponse": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "ce_id": {
                     "type": "string"
                 },
@@ -2442,13 +2453,19 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "version": {

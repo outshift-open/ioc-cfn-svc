@@ -253,7 +253,7 @@
                 }
             },
             "patch": {
-                "description": "Update mutable fields of a CE: enabled, capabilities, metrics, config, mas_config, auth.\nImmutable fields (url, cfn_id, version, name, type, auto_attach) cannot be updated and will return 400.",
+                "description": "Update mutable fields of a CE: url, enabled, capabilities, metrics, config, mas_config, auth, kind, subkind.\nImmutable fields (cfn_id, version, name, auto_attach) cannot be updated and will return 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1551,9 +1551,6 @@
         "cognitionengine.CognitionEngineDetail": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -1576,8 +1573,14 @@
                 "id": {
                     "type": "string"
                 },
+                "kind": {
+                    "type": "string"
+                },
                 "last_seen": {
                     "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -1595,7 +1598,7 @@
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -1626,9 +1629,6 @@
         "cognitionengine.CognitionEngineListItem": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "cfn_id": {
                     "type": "string"
                 },
@@ -1642,8 +1642,14 @@
                 "id": {
                     "type": "string"
                 },
+                "kind": {
+                    "type": "string"
+                },
                 "last_seen": {
                     "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -1655,7 +1661,7 @@
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "url": {
@@ -1684,9 +1690,6 @@
                     "type": "object",
                     "additionalProperties": true
                 },
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -1694,6 +1697,7 @@
                     }
                 },
                 "cfn_id": {
+                    "description": "Immutable fields - included to trigger validation error if provided",
                     "type": "string"
                 },
                 "config": {
@@ -1701,7 +1705,12 @@
                     "additionalProperties": true
                 },
                 "enabled": {
-                    "description": "Mutable fields",
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
                     "type": "boolean"
                 },
                 "mas_config": {
@@ -1717,11 +1726,11 @@
                 "name": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "url": {
-                    "description": "Immutable fields - included to trigger validation error if provided",
+                    "description": "Mutable fields",
                     "type": "string"
                 },
                 "version": {
@@ -1736,10 +1745,6 @@
                     "type": "object",
                     "additionalProperties": true
                 },
-                "auto_attach": {
-                    "description": "No omitempty - always send (defaults to false)",
-                    "type": "boolean"
-                },
                 "capabilities": {
                     "type": "array",
                     "items": {
@@ -1749,6 +1754,14 @@
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "kind": {
+                    "description": "CE kind (e.g., \"knowledge\", \"contingency\")",
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "description": "No omitempty - always send (defaults to false)",
+                    "type": "boolean"
                 },
                 "mas_config": {
                     "type": "object",
@@ -1763,7 +1776,8 @@
                 "name": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
+                    "description": "CE subkind (e.g., \"distillation\", \"query\", \"negotiation\")",
                     "type": "string"
                 },
                 "url": {
@@ -1777,9 +1791,6 @@
         "cognitionengine.RegisterResponse": {
             "type": "object",
             "properties": {
-                "auto_attach": {
-                    "type": "boolean"
-                },
                 "ce_id": {
                     "type": "string"
                 },
@@ -1792,13 +1803,19 @@
                 "enabled": {
                     "type": "boolean"
                 },
+                "kind": {
+                    "type": "string"
+                },
+                "mas_auto_associate": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
                 },
-                "type": {
+                "subkind": {
                     "type": "string"
                 },
                 "version": {

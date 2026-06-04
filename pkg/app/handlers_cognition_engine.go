@@ -59,9 +59,9 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 			"error": "name is required",
 		})
 	}
-	if req.Type == "" {
+	if req.Kind == "" {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "type is required",
+			"error": "kind is required",
 		})
 	}
 	if req.URL == "" {
@@ -106,14 +106,15 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	payload := map[string]any{
-		"name":         req.Name,
-		"type":         req.Type,
-		"url":          req.URL,
-		"version":      req.Version,
-		"cfn_id":       CfnID,
-		"auto_attach":  req.AutoAttach,
-		"capabilities": capabilities,
-		"metrics":      metrics,
+		"name":               req.Name,
+		"kind":               req.Kind,
+		"subkind":            req.Subkind,
+		"url":                req.URL,
+		"version":            req.Version,
+		"cfn_id":             CfnID,
+		"mas_auto_associate": req.MASAutoAssociate,
+		"capabilities":       capabilities,
+		"metrics":            metrics,
 	}
 
 	// Add optional fields (use empty dict if nil to match Pydantic default_factory)
@@ -139,8 +140,8 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
-	log.Infof("forwarding CE registration to management plane: %s (ce_name=%s, ce_type=%s, cfn_id=%s)",
-		registerURL, req.Name, req.Type, CfnID)
+	log.Infof("forwarding CE registration to management plane: %s (ce_name=%s, ce_kind=%s, ce_subkind=%s, cfn_id=%s)",
+		registerURL, req.Name, req.Kind, req.Subkind, CfnID)
 
 	// Forward the request to the management plane
 	client := httpclient.New(30 * time.Second)
@@ -557,6 +558,15 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+
+	// Refresh config to get latest MAS-CE associations before delete
+	log.Debugf("refreshing config before delete to ensure fresh MAS-CE associations")
+	if err := a.RefreshConfig(mgmtURL); err != nil {
+		log.Warnf("failed to refresh config before delete: %v - proceeding with cached config", err)
+		// Continue with cached config rather than failing the delete
+	}
+
 	// Validate CE exists in CFN config
 	cfnConfigMutex.RLock()
 	if ParsedConfig == nil {
@@ -566,6 +576,9 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 		})
 	}
 	ce := ParsedConfig.FindCE(ceID)
+
+	// Check if CE is associated with any MAS
+	hasAssociation := ParsedConfig.IsCEAssociatedWithMAS(ceID)
 	cfnConfigMutex.RUnlock()
 
 	if ce == nil {
@@ -574,8 +587,14 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
+	// Block delete if CE is still associated with any MAS
+	if hasAssociation {
+		return eh.RespondWithJSON(w, http.StatusConflict, map[string]string{
+			"error": fmt.Sprintf("cannot delete CE %s: still associated with one or more MAS", ceID),
+		})
+	}
+
 	// Build the delete URL for management plane
-	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 	deleteURL := fmt.Sprintf("%s/api/cognition-engines/%s", mgmtURL, ceID)
 
 	log.Infof("forwarding CE delete request to management plane: %s (ce_id=%s)", deleteURL, ceID)
@@ -620,8 +639,8 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 
 // patchCognitionEngineHandler godoc
 // @Summary		Partially update a Cognition Engine
-// @Description	Update mutable fields of a CE: enabled, capabilities, metrics, config, mas_config, auth.
-// @Description	Immutable fields (url, cfn_id, version, name, type, auto_attach) cannot be updated and will return 400.
+// @Description	Update mutable fields of a CE: url, enabled, capabilities, metrics, config, mas_config, auth, kind, subkind.
+// @Description	Immutable fields (cfn_id, version, name, auto_attach) cannot be updated and will return 400.
 // @Tags			cognition-engine
 // @Accept		json
 // @Produce		json
