@@ -566,7 +566,7 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 		// Handle RefreshConfig GET request
 		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
 			// Return config with CE disabled and no MAS associations to allow delete to proceed
-			resp := CfnConfigPayload{
+			config := CfnConfigPayload{
 				Workspaces: []WorkspaceConfig{},
 				CognitionEngines: []EngineCfg{
 					{
@@ -576,6 +576,9 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 						Enabled: false, // Must be disabled to allow delete
 					},
 				},
+			}
+			resp := map[string]interface{}{
+				"config": config,
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -598,18 +601,12 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
 
-	// Set up ParsedConfig with disabled CE and no MAS associations
+	// Set up initial ParsedConfig to avoid nil during CE existence check
 	cfnConfigMutex.Lock()
 	oldConfig := ParsedConfig
 	ParsedConfig = &CfnConfigPayload{
-		Workspaces: []WorkspaceConfig{},
 		CognitionEngines: []EngineCfg{
-			{
-				ID:      testCEID,
-				Name:    "Test CE",
-				URL:     "http://ce-host:9004",
-				Enabled: false, // Must be disabled to allow delete
-			},
+			{ID: testCEID, Name: "Test CE", Enabled: false},
 		},
 	}
 	cfnConfigMutex.Unlock()
@@ -634,30 +631,37 @@ func TestDeleteCognitionEngineHandler(t *testing.T) {
 func TestDeleteCognitionEngineHandler_EnabledCE(t *testing.T) {
 	testCEID := "550e8400-e29b-41d4-a716-446655440000"
 
+	// Setup mock management plane server for RefreshConfig
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
+			config := CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{},
+				CognitionEngines: []EngineCfg{
+					{
+						ID:      testCEID,
+						Name:    "Test CE",
+						URL:     "http://ce-host:9004",
+						Enabled: true, // CE is enabled - should block delete
+					},
+				},
+			}
+			resp := map[string]interface{}{
+				"config": config,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
 	originalCfnID := CfnID
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
-
-	// Set up ParsedConfig with enabled CE
-	cfnConfigMutex.Lock()
-	oldConfig := ParsedConfig
-	ParsedConfig = &CfnConfigPayload{
-		Workspaces: []WorkspaceConfig{},
-		CognitionEngines: []EngineCfg{
-			{
-				ID:      testCEID,
-				Name:    "Test CE",
-				URL:     "http://ce-host:9004",
-				Enabled: true, // CE is enabled - should block delete
-			},
-		},
-	}
-	cfnConfigMutex.Unlock()
-	defer func() {
-		cfnConfigMutex.Lock()
-		ParsedConfig = oldConfig
-		cfnConfigMutex.Unlock()
-	}()
 
 	app := &App{}
 
@@ -680,47 +684,54 @@ func TestDeleteCognitionEngineHandler_EnabledCE(t *testing.T) {
 func TestDeleteCognitionEngineHandler_WithMASAssociation(t *testing.T) {
 	testCEID := "550e8400-e29b-41d4-a716-446655440000"
 
-	originalCfnID := CfnID
-	CfnID = "test-cfn-id"
-	defer func() { CfnID = originalCfnID }()
-
-	// Set up ParsedConfig with CE associated to a MAS - directly without RefreshConfig
-	cfnConfigMutex.Lock()
-	oldConfig := ParsedConfig
-	ParsedConfig = &CfnConfigPayload{
-		Workspaces: []WorkspaceConfig{
-			{
-				ID:            "ws-1",
-				WorkspaceName: "Test Workspace",
-				MultiAgenticSystems: []MASCfg{
+	// Setup mock management plane server for RefreshConfig
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
+			config := CfnConfigPayload{
+				Workspaces: []WorkspaceConfig{
 					{
-						ID:   "mas-1",
-						Name: "Test MAS",
-						CognitionEngines: []MASEngineCfg{
+						ID:            "ws-1",
+						WorkspaceName: "Test Workspace",
+						MultiAgenticSystems: []MASCfg{
 							{
-								ID:   testCEID,
-								Name: "Test CE",
+								ID:   "mas-1",
+								Name: "Test MAS",
+								CognitionEngines: []MASEngineCfg{
+									{
+										ID:   testCEID,
+										Name: "Test CE",
+									},
+								},
 							},
 						},
 					},
 				},
-			},
-		},
-		CognitionEngines: []EngineCfg{
-			{
-				ID:      testCEID,
-				Name:    "Test CE",
-				URL:     "http://ce-host:9004",
-				Enabled: false, // CE is disabled but has MAS association
-			},
-		},
-	}
-	cfnConfigMutex.Unlock()
-	defer func() {
-		cfnConfigMutex.Lock()
-		ParsedConfig = oldConfig
-		cfnConfigMutex.Unlock()
-	}()
+				CognitionEngines: []EngineCfg{
+					{
+						ID:      testCEID,
+						Name:    "Test CE",
+						URL:     "http://ce-host:9004",
+						Enabled: false, // CE is disabled but has MAS association
+					},
+				},
+			}
+			resp := map[string]interface{}{
+				"config": config,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
 
 	app := &App{}
 
@@ -740,6 +751,68 @@ func TestDeleteCognitionEngineHandler_WithMASAssociation(t *testing.T) {
 	assert.Contains(t, respBody["error"], "active MAS associations")
 }
 
+func TestDeleteCognitionEngineHandler_RefreshConfigFails(t *testing.T) {
+	testCEID := "550e8400-e29b-41d4-a716-446655440000"
+
+	// Setup mock management plane server that returns error on refresh
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handle RefreshConfig GET request - return error
+		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "internal server error",
+			})
+			return
+		}
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	// Set up ParsedConfig with disabled CE
+	cfnConfigMutex.Lock()
+	oldConfig := ParsedConfig
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      testCEID,
+				Name:    "Test CE",
+				URL:     "http://ce-host:9004",
+				Enabled: false,
+			},
+		},
+	}
+	cfnConfigMutex.Unlock()
+	defer func() {
+		cfnConfigMutex.Lock()
+		ParsedConfig = oldConfig
+		cfnConfigMutex.Unlock()
+	}()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/cognition-engines/"+testCEID, nil)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.deleteCognitionEngineHandler(w, req)
+	require.NoError(t, err)
+
+	// Should return 503 Service Unavailable when RefreshConfig fails
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	var respBody map[string]string
+	err = json.NewDecoder(w.Body).Decode(&respBody)
+	require.NoError(t, err)
+	assert.Contains(t, respBody["error"], "config refresh failed")
+}
+
 func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) {
 	testCEID := "550e8400-e29b-41d4-a716-446655440000"
 
@@ -748,7 +821,7 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 		// Handle RefreshConfig GET request
 		if r.Method == http.MethodGet && r.URL.Path == "/api/cognition-fabric-nodes/test-cfn-id" {
 			// Return config with disabled CE but no MAS associations
-			resp := CfnConfigPayload{
+			config := CfnConfigPayload{
 				Workspaces: []WorkspaceConfig{},
 				CognitionEngines: []EngineCfg{
 					{
@@ -758,6 +831,9 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 						Enabled: false, // CE is disabled
 					},
 				},
+			}
+			resp := map[string]interface{}{
+				"config": config,
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)

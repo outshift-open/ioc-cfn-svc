@@ -561,10 +561,13 @@ func (a *App) deleteCognitionEngineHandler(w http.ResponseWriter, r *http.Reques
 	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
 
 	// Refresh config to get latest MAS-CE associations before delete
+	// This is critical to ensure we have the most up-to-date association state
 	log.Debugf("refreshing config before delete to ensure fresh MAS-CE associations")
 	if err := a.RefreshConfig(mgmtURL); err != nil {
-		log.Warnf("failed to refresh config before delete: %v - proceeding with cached config", err)
-		// Continue with cached config rather than failing the delete
+		log.Errorf("failed to refresh config before delete: %v", err)
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "unable to verify MAS associations: config refresh failed",
+		})
 	}
 
 	// Validate CE exists in CFN config
