@@ -60,14 +60,14 @@ func (a *App) runSchedulerTick() {
 	}
 }
 
-// dispatchTask looks up the CE endpoint for a task, marks it as running with a 30-minute
-// callback deadline, creates an execution history record, and sends the request to CE in a goroutine.
+// dispatchTask looks up the endpoint for the CE and dispatches the task.
+// Task name is the CE name (e.g., "Memory Distillation CE") from config.
 func (a *App) dispatchTask(t model.Task) {
 	log := getLogger()
 
-	endpointPath, ok := task.LookupEndpoint(t.Name)
-	if !ok {
-		log.Errorf("task %s has unknown task_name %q, skipping", t.ID, t.Name)
+	endpointPath := task.GetEndpointForCE(t.Name)
+	if endpointPath == "" {
+		log.Errorf("task %s: no endpoint mapping for CE %q, skipping", t.ID, t.Name)
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", map[string]interface{}{
 			"callback_deadline": nil,
 		})
@@ -91,6 +91,7 @@ func (a *App) dispatchTask(t model.Task) {
 		TaskName:    t.Name,
 		WorkspaceID: &t.WorkspaceID,
 		MasID:       &t.MASID,
+		CeID:        &t.CEID,
 		Status:      "running",
 		StartedAt:   now,
 	}
@@ -112,13 +113,13 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 	req := cognitionagentclient.TaskExecutionRequest{
 		WorkspaceID: t.WorkspaceID,
 		MASID:       t.MASID,
-		TaskName:    t.Name,
+		CEID:        t.CEID,
 		CallbackURL: callbackURL,
 	}
 
 	_, err := a.cognitionAgentsClient.SendTaskExecution(endpointPath, req)
 	if err != nil {
-		log.Errorf("failed to dispatch task %s to CE | workspace=%s mas=%s task_name=%s: %s", t.ID, t.WorkspaceID, t.MASID, t.Name, err)
+		log.Errorf("failed to dispatch task %s to CE %s | workspace=%s mas=%s: %s", t.ID, t.CEID, t.WorkspaceID, t.MASID, err)
 		now := time.Now()
 		errStr := err.Error()
 
@@ -159,72 +160,109 @@ func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {
 
 	for _, ws := range cfg.Workspaces {
 		for _, mas := range ws.MultiAgenticSystems {
-			if mas.TaskSchedule == nil {
-				continue
-			}
-			ts := mas.TaskSchedule
-			if !task.IsRegistered(ts.TaskName) {
-				log.Warnf("workspace %s MAS %s: unknown task_name %q, skipping", ws.ID, mas.ID, ts.TaskName)
-				continue
-			}
-
-			seenKeys[ws.ID+"|"+mas.ID] = true
-
-			existing, err := a.db.FindTaskByKey(ws.ID, mas.ID, ts.TaskName)
-			if err != nil {
-				log.Errorf("error looking up task for ws=%s mas=%s name=%s: %s", ws.ID, mas.ID, ts.TaskName, err)
-				continue
-			}
-
-			now := time.Now()
-			if existing == nil {
-				newTask := &model.Task{
-					ID:          uuid.New().String(),
-					WorkspaceID: ws.ID,
-					MASID:       mas.ID,
-					Name:        ts.TaskName,
-					Schedule:    ts.Schedule,
-					Enabled:     ts.Enabled,
-					Status:      "scheduled",
-					NextRunTime: now,
+			// Sync CE-scoped tasks (extract schedule from CE's MASConfig)
+			for _, ce := range mas.CognitionEngines {
+				if ce.MASConfig == nil {
+					continue
 				}
-				if err := a.db.UpsertTask(newTask); err != nil {
-					log.Errorf("failed to create task for ws=%s mas=%s: %s", ws.ID, mas.ID, err)
-				} else {
-					log.Infof("task added | ws=%s mas=%s task_name=%s schedule=%s", ws.ID, mas.ID, ts.TaskName, ts.Schedule)
+				// Extract schedule from MASConfig["schedule"]
+				// Expected format: "0 */12 * * *" (cron expression string)
+				scheduleVal, hasSchedule := ce.MASConfig["schedule"]
+				if !hasSchedule {
+					// No schedule configured for this CE in this MAS - skip
+					continue
 				}
-			} else {
-				scheduleChanged := existing.Schedule != ts.Schedule
-				enabledChanged := existing.Enabled != ts.Enabled
 
-				if scheduleChanged || enabledChanged {
-					existing.Schedule = ts.Schedule
-					existing.Enabled = ts.Enabled
-
-					if scheduleChanged {
-						nextRun, err := task.NextRunTime(ts.Schedule, now)
-						if err != nil {
-							log.Errorf("invalid cron expression %q for ws=%s mas=%s: %s", ts.Schedule, ws.ID, mas.ID, err)
-							continue
-						}
-						existing.NextRunTime = nextRun
-					}
-
-					if err := a.db.UpsertTask(existing); err != nil {
-						log.Errorf("failed to update task for ws=%s mas=%s: %s", ws.ID, mas.ID, err)
-					}
+				cronExpr, ok := scheduleVal.(string)
+				if !ok || cronExpr == "" {
+					log.Warnf("workspace %s MAS %s CE %s: MASConfig.schedule is not a string or is empty, skipping", ws.ID, mas.ID, ce.ID)
+					continue
 				}
+
+				// Look up the CE definition to get its name for task creation
+				ceConfig := cfg.FindCE(ce.ID)
+				if ceConfig == nil {
+					log.Warnf("workspace %s MAS %s: CE %s not found in top-level cognition_engines, skipping", ws.ID, mas.ID, ce.ID)
+					continue
+				}
+
+				// Verify this CE name has an endpoint mapping
+				if task.GetEndpointForCE(ceConfig.Name) == "" {
+					log.Warnf("workspace %s MAS %s CE %s: no endpoint mapping for CE name %q, skipping", ws.ID, mas.ID, ce.ID, ceConfig.Name)
+					continue
+				}
+
+				// Task name = CE name
+				a.syncSingleTask(ws.ID, mas.ID, ce.ID, ceConfig.Name, cronExpr, seenKeys)
 			}
 		}
 	}
 
-	// Disable tasks whose MAS no longer exists in config (e.g. MAS was deleted).
-	// Soft-disables by setting enabled=false — preserves execution history for audit.
-	disabled, err := a.db.DisableTasksNotInSet(seenKeys)
+	// Delete tasks whose CE schedule was removed from config.
+	// Execution history is preserved in task_execution_history for audit.
+	deleted, err := a.db.DeleteTasksNotInSet(seenKeys)
 	if err != nil {
-		log.Warnf("error disabling orphaned tasks: %s", err)
+		log.Warnf("error deleting orphaned tasks: %s", err)
 	}
-	for _, dt := range disabled {
-		log.Infof("task removed | ws=%s mas=%s task_name=%s", dt.WorkspaceID, dt.MASID, dt.Name)
+	for _, dt := range deleted {
+		log.Infof("task deleted | ws=%s mas=%s ce=%s name=%s", dt.WorkspaceID, dt.MASID, dt.CEID, dt.Name)
+	}
+}
+
+// syncSingleTask handles the upsert logic for a single CE task.
+// taskName is the CE name from config (e.g., "Memory Distillation CE").
+func (a *App) syncSingleTask(workspaceID, masID, ceID, taskName, cronExpr string, seenKeys map[string]bool) {
+	log := getLogger()
+
+	seenKeys[workspaceID+"|"+masID+"|"+ceID] = true
+
+	existing, err := a.db.FindTaskByKey(workspaceID, masID, ceID)
+	if err != nil {
+		log.Errorf("error looking up task for ws=%s mas=%s ce=%s: %s", workspaceID, masID, ceID, err)
+		return
+	}
+
+	now := time.Now()
+
+	if existing == nil {
+		newTask := &model.Task{
+			ID:          uuid.New().String(),
+			WorkspaceID: workspaceID,
+			MASID:       masID,
+			CEID:        ceID,
+			Name:        taskName,
+			Schedule:    cronExpr,
+			Status:      "scheduled",
+			NextRunTime: now,
+		}
+		if err := a.db.UpsertTask(newTask); err != nil {
+			log.Errorf("failed to create task for ws=%s mas=%s ce=%s: %s", workspaceID, masID, ceID, err)
+		} else {
+			log.Infof("task added | ws=%s mas=%s ce=%s name=%s schedule=%s", workspaceID, masID, ceID, taskName, cronExpr)
+		}
+	} else {
+		// Update task if name or schedule changed
+		nameChanged := existing.Name != taskName
+		scheduleChanged := existing.Schedule != cronExpr
+
+		if nameChanged || scheduleChanged {
+			existing.Name = taskName
+			existing.Schedule = cronExpr
+
+			if scheduleChanged {
+				nextRun, err := task.NextRunTime(cronExpr, now)
+				if err != nil {
+					log.Errorf("invalid cron expression %q for ws=%s mas=%s ce=%s: %s", cronExpr, workspaceID, masID, ceID, err)
+					return
+				}
+				existing.NextRunTime = nextRun
+			}
+
+			if err := a.db.UpsertTask(existing); err != nil {
+				log.Errorf("failed to update task for ws=%s mas=%s ce=%s: %s", workspaceID, masID, ceID, err)
+			} else if scheduleChanged {
+				log.Infof("task updated | ws=%s mas=%s ce=%s schedule changed to %s", workspaceID, masID, ceID, cronExpr)
+			}
+		}
 	}
 }

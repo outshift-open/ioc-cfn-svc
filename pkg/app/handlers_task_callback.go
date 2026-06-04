@@ -12,7 +12,7 @@ import (
 type taskCallbackRequest struct {
 	WorkspaceID string `json:"workspace_id"`
 	MASID       string `json:"mas_id"`
-	TaskName    string `json:"task_name"`
+	CEID        string `json:"ce_id"`
 	Status      string `json:"status"`
 	Error       string `json:"error,omitempty"`
 	Result      string `json:"result,omitempty"`
@@ -30,14 +30,14 @@ func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, e
 		return http.StatusBadRequest, nil
 	}
 
-	if req.WorkspaceID == "" || req.MASID == "" || req.TaskName == "" || req.Status == "" {
-		http.Error(w, "workspace_id, mas_id, task_name, and status are required", http.StatusBadRequest)
+	if req.WorkspaceID == "" || req.MASID == "" || req.CEID == "" || req.Status == "" {
+		http.Error(w, "workspace_id, mas_id, ce_id, and status are required", http.StatusBadRequest)
 		return http.StatusBadRequest, nil
 	}
 
-	t, err := a.db.FindTaskByKey(req.WorkspaceID, req.MASID, req.TaskName)
+	t, err := a.db.FindTaskByKey(req.WorkspaceID, req.MASID, req.CEID)
 	if err != nil {
-		log.Errorf("callback: error finding task ws=%s mas=%s name=%s: %s", req.WorkspaceID, req.MASID, req.TaskName, err)
+		log.Errorf("callback: error finding task ws=%s mas=%s ce=%s: %s", req.WorkspaceID, req.MASID, req.CEID, err)
 		return http.StatusInternalServerError, err
 	}
 	if t == nil {

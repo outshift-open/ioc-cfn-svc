@@ -89,7 +89,7 @@ func (db *Database) MigrateUp() error {
 	// Partial index for efficient due-task polling — only indexes rows the scheduler queries.
 	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_next_run_time
 		ON tasks (next_run_time)
-		WHERE enabled = TRUE AND status = 'scheduled'`)
+		WHERE status = 'scheduled'`)
 
 	// Composite index for looking up execution history by task ordered by recency.
 	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_execution_history_task_id
@@ -161,20 +161,20 @@ func (db *Database) DeleteAuditEventByID(id uuid.UUID) error {
 	return audit.DeleteAuditEventByID(db.DB, id)
 }
 
-// FindDueTasks returns enabled tasks in 'scheduled' or 'failed' status whose next_run_time has passed.
+// FindDueTasks returns tasks in 'scheduled' or 'failed' status whose next_run_time has passed.
 func (db *Database) FindDueTasks() ([]model.Task, error) {
 	var tasks []model.Task
 	err := db.DB.
-		Where("enabled = ? AND status IN ? AND next_run_time <= ?", true, []string{"scheduled", "failed"}, time.Now()).
+		Where("status IN ? AND next_run_time <= ?", []string{"scheduled", "failed"}, time.Now()).
 		Find(&tasks).Error
 	return tasks, err
 }
 
-// UpsertTask creates or updates a task based on the unique (workspace_id, mas_id, name) key.
+// UpsertTask creates or updates a task based on the unique (workspace_id, mas_id, ce_id) key.
 func (db *Database) UpsertTask(task *model.Task) error {
 	return db.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "workspace_id"}, {Name: "mas_id"}, {Name: "name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"schedule", "enabled", "next_run_time", "updated_at"}),
+		Columns:   []clause.Column{{Name: "workspace_id"}, {Name: "mas_id"}, {Name: "ce_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"name", "schedule", "next_run_time", "updated_at"}),
 	}).Create(task).Error
 }
 
@@ -241,37 +241,40 @@ func (db *Database) UpdateLatestExecutionHistoryByTaskID(taskID string, fields m
 	return db.DB.Model(&hist).Updates(fields).Error
 }
 
-// DisableTasksNotInSet soft-disables tasks whose (workspace_id, mas_id) is not in activeKeys.
-// Called during config sync to clean up tasks for deleted MAS entries.
-// Sets enabled=false so FindDueTasks() skips them; preserves rows for audit history.
-func (db *Database) DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error) {
+// DeleteTasksNotInSet hard-deletes tasks whose (workspace_id, mas_id, ce_id) is not in activeKeys.
+// Called during config sync to clean up tasks for deleted CE schedule entries.
+// activeKeys format: "workspace_id|mas_id|ce_id"
+// Only deletes tasks in 'scheduled' or 'failed' status to avoid breaking in-flight executions.
+// Tasks in 'running' status are skipped and will be cleaned up on their next status transition.
+// Execution history is preserved in task_execution_history table for audit.
+func (db *Database) DeleteTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error) {
 	var allTasks []model.Task
-	if err := db.DB.Where("enabled = ?", true).Find(&allTasks).Error; err != nil {
+	if err := db.DB.Where("status IN ?", []string{"scheduled", "failed"}).Find(&allTasks).Error; err != nil {
 		return nil, err
 	}
-	var disabled []model.Task
+	var deleted []model.Task
 	for _, t := range allTasks {
-		key := t.WorkspaceID + "|" + t.MASID
+		key := t.WorkspaceID + "|" + t.MASID + "|" + t.CEID
 		if !activeKeys[key] {
-			db.DB.Model(&t).Updates(map[string]interface{}{"enabled": false})
-			disabled = append(disabled, t)
+			if err := db.DB.Delete(&t).Error; err == nil {
+				deleted = append(deleted, t)
+			}
 		}
 	}
-	return disabled, nil
+	return deleted, nil
 }
 
-// FindTaskByKey looks up a task by its unique key.
-func (db *Database) FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error) {
-	var tasks []model.Task
+// FindTaskByKey looks up a task by its unique key (workspace_id, mas_id, ce_id).
+func (db *Database) FindTaskByKey(workspaceID, masID, ceID string) (*model.Task, error) {
+	var task model.Task
 	err := db.DB.
-		Where("workspace_id = ? AND mas_id = ? AND name = ?", workspaceID, masID, taskName).
-		Limit(1).
-		Find(&tasks).Error
+		Where("workspace_id = ? AND mas_id = ? AND ce_id = ?", workspaceID, masID, ceID).
+		First(&task).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
-	if len(tasks) == 0 {
-		return nil, nil
-	}
-	return &tasks[0], nil
+	return &task, nil
 }

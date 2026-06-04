@@ -51,9 +51,10 @@ type Database interface {
 	InsertTaskExecutionHistory(h *model.TaskExecutionHistory) error
 	UpdateTaskExecutionHistory(id string, fields map[string]interface{}) error
 	UpdateLatestExecutionHistoryByTaskID(taskID string, fields map[string]interface{}) error
-	FindTaskByKey(workspaceID, masID, taskName string) (*model.Task, error)
-	// DisableTasksNotInSet disables orphaned tasks when their MAS is deleted from config.
-	DisableTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error)
+	FindTaskByKey(workspaceID, masID, ceID string) (*model.Task, error)
+	// DeleteTasksNotInSet deletes orphaned tasks when their CE schedule is removed from config.
+	// activeKeys format: "workspace_id|mas_id|ce_id"
+	DeleteTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error)
 }
 
 // ensure at build time that this mock type fulfills the interface
@@ -250,6 +251,6 @@ func (m *MockDatabase) FindTaskByKey(_, _, _ string) (*model.Task, error) {
 	return nil, nil
 }
 
-func (m *MockDatabase) DisableTasksNotInSet(_ map[string]bool) ([]model.Task, error) {
+func (m *MockDatabase) DeleteTasksNotInSet(_ map[string]bool) ([]model.Task, error) {
 	return nil, nil
 }

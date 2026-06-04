@@ -526,7 +526,7 @@ func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *Semanti
 type TaskExecutionRequest struct {
 	WorkspaceID string `json:"workspace_id"`
 	MASID       string `json:"mas_id"`
-	TaskName    string `json:"task_name"`
+	CEID        string `json:"ce_id"`
 	CallbackURL string `json:"callback_url"`
 }
 
