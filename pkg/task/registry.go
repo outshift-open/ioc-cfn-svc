@@ -21,11 +21,11 @@ func GetEndpointForCE(ceName string) string {
 		return "/api/knowledge-mgmt/runDistillation"
 	}
 
-	// TODO: Not implemented - placeholder for future negotiation endpoint.
-	// CE must implement /api/knowledge-mgmt/runNegotiation endpoint.
-	if strings.Contains(nameLower, "negotiation") {
-		return "/api/knowledge-mgmt/runNegotiation"
-	}
+	// Not implemented - placeholder for future foobar endpoint.
+	// CE must implement /api/knowledge-mgmt/runFoobar endpoint.
+	// if strings.Contains(nameLower, "foobar") {
+	// 	return "/api/knowledge-mgmt/runFoobar"
+	// }
 
 	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
 	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {
