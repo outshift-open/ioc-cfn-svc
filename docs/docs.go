@@ -2522,6 +2522,10 @@ const docTemplate = `{
         "common.TokenUsageMeta": {
             "type": "object",
             "properties": {
+                "ce_id": {
+                    "description": "CE that performed the operation (for metrics attribution)",
+                    "type": "string"
+                },
                 "cost_usd": {
                     "type": "number"
                 },
