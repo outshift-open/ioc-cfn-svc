@@ -104,7 +104,10 @@ func (a *App) dispatchTask(t model.Task) {
 }
 
 // sendTaskExecution sends the task execution request to CE and handles dispatch failures
-// by marking both the task and execution history as failed.
+// by marking both the task and execution history as failed. On failure, next_run_time is
+// recomputed from cron (if schedule is set) or set to now+1hr as a fallback retry.
+// For externally scheduled tasks (schedule=nil), developers can override next_run_time
+// via their own function or API to suit their use case.
 func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID string) {
 	log := getLogger()
 
@@ -123,8 +126,14 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 		now := time.Now()
 		errStr := err.Error()
 
-		nextRun, cronErr := task.NextRunTime(t.Schedule, now)
-		if cronErr != nil {
+		var nextRun time.Time
+		if t.Schedule != nil {
+			var cronErr error
+			nextRun, cronErr = task.NextRunTime(*t.Schedule, now)
+			if cronErr != nil {
+				nextRun = now.Add(time.Hour)
+			}
+		} else {
 			nextRun = now.Add(time.Hour)
 		}
 
@@ -231,7 +240,7 @@ func (a *App) syncSingleTask(workspaceID, masID, ceID, taskName, cronExpr string
 			MASID:       masID,
 			CEID:        ceID,
 			Name:        taskName,
-			Schedule:    cronExpr,
+			Schedule:    &cronExpr,
 			Status:      "scheduled",
 			NextRunTime: now,
 		}
@@ -243,11 +252,11 @@ func (a *App) syncSingleTask(workspaceID, masID, ceID, taskName, cronExpr string
 	} else {
 		// Update task if name or schedule changed
 		nameChanged := existing.Name != taskName
-		scheduleChanged := existing.Schedule != cronExpr
+		scheduleChanged := existing.Schedule == nil || *existing.Schedule != cronExpr
 
 		if nameChanged || scheduleChanged {
 			existing.Name = taskName
-			existing.Schedule = cronExpr
+			existing.Schedule = &cronExpr
 
 			if scheduleChanged {
 				nextRun, err := task.NextRunTime(cronExpr, now)
