@@ -21,6 +21,10 @@ func GetEndpointForCE(ceName string) string {
 		return "/api/knowledge-mgmt/runDistillation"
 	}
 
+	if strings.Contains(nameLower, "negotiation") {
+		return "/api/knowledge-mgmt/runNegotiation"
+	}
+
 	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
 	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {
 		return "/api/knowledge-mgmt/extraction"
