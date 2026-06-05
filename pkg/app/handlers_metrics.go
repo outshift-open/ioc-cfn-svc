@@ -36,6 +36,37 @@ func (a *App) getDefaultCEID() *uuid.UUID {
 	return &defaultCEID
 }
 
+// isMetricRegisteredForCE checks if a metric name is registered in the CE's metrics list from ParsedConfig.
+// Returns true if validation passes or cannot be performed (graceful degradation).
+func (a *App) isMetricRegisteredForCE(ceID uuid.UUID, metricName string) bool {
+	cfnConfigMutex.RLock()
+	defer cfnConfigMutex.RUnlock()
+
+	// Allow all metrics if config is not loaded yet (graceful degradation)
+	if ParsedConfig == nil {
+		return true
+	}
+
+	ce := ParsedConfig.FindCE(ceID.String())
+	if ce == nil {
+		// Allow all metrics if CE not found (may not be registered yet)
+		return true
+	}
+
+	// If metrics array is empty, allow all (no restrictions configured)
+	if len(ce.Metrics) == 0 {
+		return true
+	}
+
+	// Check if metric is in CE's registered metrics array
+	for _, registeredMetric := range ce.Metrics {
+		if registeredMetric == metricName {
+			return true
+		}
+	}
+	return false
+}
+
 // MetricDataPoint represents a single metric in the batch
 type MetricDataPoint struct {
 	Timestamp  *time.Time             `json:"timestamp"`
@@ -107,6 +138,16 @@ func (a *App) ingestCEMetricsHandler(w http.ResponseWriter, r *http.Request) (in
 			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "validation_failed",
 				"details": fmt.Sprintf("metric %d (%s): value must be finite (NaN and Infinity not allowed)", i, m.Name),
+			})
+		}
+	}
+
+	// Validate metric names are registered for this CE
+	for i, m := range req.Metrics {
+		if !a.isMetricRegisteredForCE(ceID, m.Name) {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "validation_failed",
+				"details": fmt.Sprintf("metric %d (%s): not registered for CE %s", i, m.Name, ceID),
 			})
 		}
 	}
