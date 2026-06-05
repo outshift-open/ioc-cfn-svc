@@ -304,15 +304,22 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 		if req.Header != nil && req.Header.AgentID != nil {
 			agentID = *req.Header.AgentID
 		}
-		// TODO: Extract CE ID from cognition agent client configuration
-		// Passing nil to use default placeholder CE ID (00000000-0000-0000-0000-000000000001)
+		// Extract CE ID from response metadata
+		var ceID *uuid.UUID
+		if extractionResp.Meta.CEID != "" {
+			if parsed, err := uuid.Parse(extractionResp.Meta.CEID); err == nil {
+				ceID = &parsed
+			} else {
+				log.Warnf("Invalid CE ID in response metadata: %s", extractionResp.Meta.CEID)
+			}
+		}
 		a.storeTokenMetricsAsync(
 			workspaceUUID,
 			masUUID,
 			agentID,
 			"ingestion",
 			*requestId,
-			nil, // Uses default CE ID
+			ceID, // Now passes actual CE ID from response
 			&common.TokenUsageMeta{
 				Tokens: common.TokenUsage{
 					Prompt:     extractionResp.Meta.Tokens.Prompt,
@@ -528,15 +535,22 @@ func (a *App) fetchSharedMemoriesCore(ctx context.Context, workspaceID, masID st
 		// Store token metrics to TimescaleDB (fire-and-forget)
 		workspaceUUID, _ := uuid.Parse(workspaceID)
 		masUUID, _ := uuid.Parse(masID)
-		// TODO: Extract CE ID from cognition agent client configuration
-		// Passing nil to use default placeholder CE ID (00000000-0000-0000-0000-000000000001)
+		// Extract CE ID from response metadata
+		var ceID *uuid.UUID
+		if reasonerResp.Meta.CEID != "" {
+			if parsed, err := uuid.Parse(reasonerResp.Meta.CEID); err == nil {
+				ceID = &parsed
+			} else {
+				log.Warnf("Invalid CE ID in response metadata: %s", reasonerResp.Meta.CEID)
+			}
+		}
 		a.storeTokenMetricsAsync(
 			workspaceUUID,
 			masUUID,
 			agentID,
 			"evidence",
 			*requestId,
-			nil, // Uses default CE ID
+			ceID, // Now passes actual CE ID from response
 			&common.TokenUsageMeta{
 				Tokens: common.TokenUsage{
 					Prompt:     reasonerResp.Meta.Tokens.Prompt,

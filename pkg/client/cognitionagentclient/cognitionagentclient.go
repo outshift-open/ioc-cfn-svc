@@ -291,12 +291,13 @@ type TokenUsage struct {
 	Model      string `json:"model"`
 }
 
-// TokenUsageMeta contains LLM call metadata including token usage.
+// TokenUsageMeta contains LLM call metadata including token usage and CE attribution.
 type TokenUsageMeta struct {
 	Tokens    TokenUsage `json:"tokens"`
 	LatencyMs float64    `json:"latency_ms"`
 	CostUsd   *float64   `json:"cost_usd,omitempty"`
 	Timestamp string     `json:"timestamp"`
+	CEID      string     `json:"ce_id,omitempty"` // CE that performed the operation (for metrics attribution)
 }
 
 // ReasonerCognitionResponse is the response from POST /api/knowledge-mgmt/reasoning/evidence.
