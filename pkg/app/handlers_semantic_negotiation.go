@@ -138,15 +138,22 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		if len(reqPayload.Agents) > 0 {
 			agentID = reqPayload.Agents[0].ID
 		}
-		// TODO: Extract CE ID from cognition agent client configuration
-		// Passing nil to use default placeholder CE ID (00000000-0000-0000-0000-000000000001)
+		// Extract CE ID from response metadata
+		var ceID *uuid.UUID
+		if cogResp.Meta.CEID != "" {
+			if parsed, err := uuid.Parse(cogResp.Meta.CEID); err == nil {
+				ceID = &parsed
+			} else {
+				log.Warnf("Invalid CE ID in response metadata: %s", cogResp.Meta.CEID)
+			}
+		}
 		a.storeTokenMetricsAsync(
 			workspaceUUID,
 			masUUID,
 			agentID,
 			"semantic_negotiation",
 			reqPayload.SessionID,
-			nil, // Uses default CE ID
+			ceID, // Now passes actual CE ID from response
 			&common.TokenUsageMeta{
 				Tokens: common.TokenUsage{
 					Prompt:     cogResp.Meta.Tokens.Prompt,
