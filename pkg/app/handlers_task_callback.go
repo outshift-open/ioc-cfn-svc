@@ -19,8 +19,10 @@ type taskCallbackRequest struct {
 }
 
 // handleTaskCallback processes CE completion callbacks for async task executions.
-// On success it resets the task to scheduled with a new next_run_time; on failure it marks the task as failed.
-// Late callbacks for already-finalized tasks are ignored.
+// On success it resets the task to scheduled (recomputing next_run_time from cron if schedule is set);
+// on failure it marks the task as failed. Late callbacks for already-finalized tasks are ignored.
+// For externally scheduled tasks (schedule=nil), next_run_time is left unchanged on success —
+// developers can override it via their own function or API for their use case.
 func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
@@ -75,14 +77,16 @@ func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, e
 	}
 
 	if req.Status == "success" {
-		nextRun, err := task.NextRunTime(t.Schedule, now)
-		if err != nil {
-			log.Errorf("callback: failed to compute next run time for task %s: %s", t.ID, err)
-			_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
-			w.WriteHeader(http.StatusOK)
-			return http.StatusOK, nil
+		if t.Schedule != nil {
+			nextRun, err := task.NextRunTime(*t.Schedule, now)
+			if err != nil {
+				log.Errorf("callback: failed to compute next run time for task %s: %s", t.ID, err)
+				_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
+				w.WriteHeader(http.StatusOK)
+				return http.StatusOK, nil
+			}
+			taskFields["next_run_time"] = nextRun
 		}
-		taskFields["next_run_time"] = nextRun
 		_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
 	} else {
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
