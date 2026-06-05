@@ -31,5 +31,5 @@ type Task struct {
 }
 
 func (Task) TableName() string {
-	return "tasks"
+	return "task"
 }

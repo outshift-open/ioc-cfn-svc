@@ -151,7 +151,7 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 	}
 }
 
-// syncTasksFromConfig reconciles the tasks table with the latest config from the management plane.
+// syncTasksFromConfig reconciles the task table with the latest config from the management plane.
 // New tasks are created with next_run_time=now for immediate first execution; changed schedules
 // recompute next_run_time; unknown task names are logged and skipped.
 func (a *App) syncTasksFromConfig(cfg *CfnConfigPayload) {

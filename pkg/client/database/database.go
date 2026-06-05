@@ -87,8 +87,8 @@ func (db *Database) MigrateUp() error {
 	}
 
 	// Partial index for efficient due-task polling — only indexes rows the scheduler queries.
-	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_next_run_time
-		ON tasks (next_run_time)
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_next_run_time
+		ON task (next_run_time)
 		WHERE status = 'scheduled'`)
 
 	// Composite index for looking up execution history by task ordered by recency.
