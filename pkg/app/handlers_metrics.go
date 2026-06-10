@@ -1194,7 +1194,17 @@ func (a *App) queryMASMetricsData(
 		series = append(series, *s)
 	}
 	sort.Slice(series, func(i, j int) bool {
-		return series[i].MetricName < series[j].MetricName
+		a, b := series[i], series[j]
+		if a.MetricName != b.MetricName {
+			return a.MetricName < b.MetricName
+		}
+		if a.CEID != b.CEID {
+			return a.CEID < b.CEID
+		}
+		if a.AgentID != b.AgentID {
+			return a.AgentID < b.AgentID
+		}
+		return a.WorkspaceID < b.WorkspaceID
 	})
 
 	return &MetricResultSet{

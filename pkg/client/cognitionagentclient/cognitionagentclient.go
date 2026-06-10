@@ -589,9 +589,6 @@ var jsonHeaders = map[string]string{
 	"Accept":       "application/json",
 }
 
-// ExtractMetaFromPayload pulls a TokenUsageMeta out of the SSTP payload map.
-// The semantic negotiation CE places meta at payload["meta"] (one level inside
-// the SSTP envelope's payload field) rather than at the top-level envelope field.
 func ExtractMetaFromPayload(payload map[string]interface{}) *TokenUsageMeta {
 	if payload == nil {
 		return nil
