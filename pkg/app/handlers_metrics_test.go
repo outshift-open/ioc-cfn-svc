@@ -718,5 +718,180 @@ func TestIngestCEMetricsHandler_EmptyMetrics(t *testing.T) {
 	assert.Contains(t, resp["details"], "metrics array must contain at least one metric")
 }
 
+func TestGetMASMetricsHandler_MissingTimeParams(t *testing.T) {
+	app := newTestApp()
+
+	workspaceID := uuid.New()
+	masID := uuid.New()
+
+	tests := []struct {
+		name        string
+		startTime   string
+		endTime     string
+		expectedErr string
+	}{
+		{
+			name:        "missing both",
+			startTime:   "",
+			endTime:     "",
+			expectedErr: "start_time and end_time are required",
+		},
+		{
+			name:        "missing start_time",
+			startTime:   "",
+			endTime:     "2026-05-20T00:00:00Z",
+			expectedErr: "start_time and end_time are required",
+		},
+		{
+			name:        "missing end_time",
+			startTime:   "2026-05-19T00:00:00Z",
+			endTime:     "",
+			expectedErr: "start_time and end_time are required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := fmt.Sprintf("/api/workspaces/%s/multi-agentic-systems/%s/metrics?", workspaceID, masID)
+			if tt.startTime != "" {
+				url += "start_time=" + tt.startTime + "&"
+			}
+			if tt.endTime != "" {
+				url += "end_time=" + tt.endTime
+			}
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("workspaceId", workspaceID.String())
+			req.SetPathValue("masId", masID.String())
+			rr := httptest.NewRecorder()
+
+			code, err := app.getMASMetricsHandler(rr, req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, code)
+
+			var resp map[string]string
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
+func TestGetMASMetricsHandler_InvalidPathParams(t *testing.T) {
+	app := newTestApp()
+
+	workspaceID := uuid.New()
+
+	tests := []struct {
+		name        string
+		masID       string
+		expectedErr string
+	}{
+		{
+			name:        "invalid masId",
+			masID:       "not-a-uuid",
+			expectedErr: "masId must be a valid UUID",
+		},
+		{
+			name:        "invalid workspaceId",
+			masID:       uuid.New().String(),
+			expectedErr: "workspaceId must be a valid UUID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wsID := workspaceID.String()
+			if tt.name == "invalid workspaceId" {
+				wsID = "not-a-uuid"
+			}
+			url := fmt.Sprintf("/api/workspaces/%s/multi-agentic-systems/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z",
+				wsID, tt.masID)
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("workspaceId", wsID)
+			req.SetPathValue("masId", tt.masID)
+			rr := httptest.NewRecorder()
+
+			code, err := app.getMASMetricsHandler(rr, req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, code)
+
+			var resp map[string]string
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
+func TestGetMASMetricsHandler_InvalidCEIDFilter(t *testing.T) {
+	app := newTestApp()
+
+	workspaceID := uuid.New()
+	masID := uuid.New()
+
+	url := fmt.Sprintf("/api/workspaces/%s/multi-agentic-systems/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z&ce_id=not-a-uuid",
+		workspaceID, masID)
+
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.SetPathValue("workspaceId", workspaceID.String())
+	req.SetPathValue("masId", masID.String())
+	rr := httptest.NewRecorder()
+
+	code, err := app.getMASMetricsHandler(rr, req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "ce_id must be a valid UUID")
+}
+
+func TestGetMASMetricsHandler_TimeRangeValidation(t *testing.T) {
+	app := newTestApp()
+
+	workspaceID := uuid.New()
+	masID := uuid.New()
+
+	tests := []struct {
+		name        string
+		startTime   string
+		endTime     string
+		expectedErr string
+	}{
+		{
+			name:        "end_time before start_time",
+			startTime:   "2026-05-20T00:00:00Z",
+			endTime:     "2026-05-19T00:00:00Z",
+			expectedErr: "end_time must be after start_time",
+		},
+		{
+			name:        "time range exceeds 366 days",
+			startTime:   "2026-01-01T00:00:00Z",
+			endTime:     "2027-01-03T00:00:00Z",
+			expectedErr: "time range cannot exceed 366 days",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := fmt.Sprintf("/api/workspaces/%s/multi-agentic-systems/%s/metrics?start_time=%s&end_time=%s",
+				workspaceID, masID, tt.startTime, tt.endTime)
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req.SetPathValue("workspaceId", workspaceID.String())
+			req.SetPathValue("masId", masID.String())
+			rr := httptest.NewRecorder()
+
+			code, err := app.getMASMetricsHandler(rr, req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, code)
+
+			var resp map[string]string
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
 // Note: Full integration tests with database require a real database connection.
 // These tests focus on validation, error handling, and API contract.

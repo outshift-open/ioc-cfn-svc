@@ -85,6 +85,10 @@ func (a *App) initializeRoutes() http.Handler {
 	// a plugin-side code change.
 	rtr.Post("/v1/traces", a.otelReceiver.HandleTraces)
 
+	// metrics API - MAS-scoped query
+	// GET: Query token usage metrics for a MAS across all attached CEs (optional ce_id filter)
+	rtr.Get(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics", a.getMASMetricsHandler)
+
 	// metrics API - Cognition Engine integration
 	// POST: CE pushes infrastructure metrics (queue depth, memory, CPU, etc.)
 	// GET: Query CE infrastructure + MAS operations for a specific CE

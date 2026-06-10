@@ -529,6 +529,7 @@ type MetricSeries struct {
 	// MAS fields (populated for MAS metrics)
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	MASID       string `json:"mas_id,omitempty"`
+	CEID        string `json:"ce_id,omitempty"`
 	AgentID     string `json:"agent_id,omitempty"`
 
 	// Attributes (shared across all datapoints in this series)
@@ -537,6 +538,15 @@ type MetricSeries struct {
 	// Datapoints: array of [timestamp, value] pairs
 	// Format: [["2026-05-27T10:00:00Z", 123.45], ["2026-05-27T10:01:00Z", 456.78]]
 	Datapoints [][]interface{} `json:"datapoints"`
+}
+
+// MASMetricsQueryResponse represents the MAS-scoped metrics query result
+type MASMetricsQueryResponse struct {
+	MASID       string         `json:"mas_id"`
+	WorkspaceID string         `json:"workspace_id,omitempty"`
+	StartTime   string         `json:"start_time"`
+	EndTime     string         `json:"end_time"`
+	Series      []MetricSeries `json:"series"`
 }
 
 // MetricsQueryResponse represents the unified query result with separate CE and MAS metrics
@@ -928,6 +938,120 @@ func (a *App) queryCEMetricsData(
 	}, nil
 }
 
+// getMASMetricsHandler godoc
+//
+// @Summary     Query token usage metrics for a MAS
+// @Description Returns time-series token usage and LLM operation metrics for a MAS across all attached CEs.
+// @Description Optionally filter by ce_id, agent_id, or metric_name.
+// @Description Response groups datapoints by (metric_name, ce_id, agent_id, attributes) to distinguish contributions from different CEs.
+//
+// @Tags        mas
+// @Produce     json
+//
+// @Param       workspaceId  path   string true  "Workspace UUID"
+// @Param       masId        path   string true  "MAS UUID"
+// @Param       start_time   query  string true  "Start time (Unix timestamp, RFC3339, or date)"
+// @Param       end_time     query  string true  "End time (Unix timestamp, RFC3339, or date)"
+// @Param       ce_id        query  string false "Filter by Cognition Engine UUID"
+// @Param       agent_id     query  string false "Filter by agent ID"
+// @Param       metric_name  query  string false "Filter by metric name (supports * wildcard)"
+//
+// @Success     200 {object} MASMetricsQueryResponse
+// @Failure     400 {object} map[string]string "Invalid parameters"
+// @Failure     413 {object} map[string]string "Too many datapoints (exceeds 100K limit)"
+//
+// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics [get]
+func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	workspaceIDStr := eh.PathParam(r, "workspaceId")
+	masIDStr := eh.PathParam(r, "masId")
+
+	if _, err := uuid.Parse(workspaceIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "workspaceId must be a valid UUID",
+		})
+	}
+
+	if _, err := uuid.Parse(masIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "masId must be a valid UUID",
+		})
+	}
+
+	startTimeStr := r.URL.Query().Get("start_time")
+	endTimeStr := r.URL.Query().Get("end_time")
+
+	if startTimeStr == "" || endTimeStr == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "start_time and end_time are required",
+		})
+	}
+
+	startTime, err := parseFlexibleTime(startTimeStr)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("start_time: %v", err),
+		})
+	}
+
+	endTime, err := parseFlexibleTime(endTimeStr)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("end_time: %v", err),
+		})
+	}
+
+	if err := validateTimeRange(startTime, endTime); err != nil {
+		log.Warnf("Time range validation failed: %v", err)
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	ceIDStr := r.URL.Query().Get("ce_id")
+	agentID := r.URL.Query().Get("agent_id")
+	metricName := r.URL.Query().Get("metric_name")
+
+	if ceIDStr != "" {
+		if _, err := uuid.Parse(ceIDStr); err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "ce_id must be a valid UUID",
+			})
+		}
+	}
+
+	db, ok := a.db.(*database.Database)
+	if !ok {
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "database_error",
+		})
+	}
+
+	result, err := a.queryMASMetricsData(db.DB, startTime, endTime, workspaceIDStr, masIDStr, agentID, metricName, ceIDStr)
+	if err != nil {
+		log.Errorf("MAS metrics query failed: %v", err)
+		if strings.Contains(err.Error(), "exceeds maximum") {
+			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+				"error": err.Error(),
+			})
+		}
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "query_failed",
+		})
+	}
+
+	response := MASMetricsQueryResponse{
+		MASID:       masIDStr,
+		WorkspaceID: workspaceIDStr,
+		StartTime:   startTime.Format(time.RFC3339),
+		EndTime:     endTime.Format(time.RFC3339),
+		Series:      result.Series,
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, response)
+}
+
 // queryMASMetricsData queries mas_metrics table with filters
 // If ceIDStr is provided, filters MAS metrics by ce_id (for CE-centric queries)
 func (a *App) queryMASMetricsData(
@@ -996,11 +1120,12 @@ func (a *App) queryMASMetricsData(
 		return nil, err
 	}
 
-	// Group by (workspace_id, mas_id, agent_id, metric_name, attributes) to build series
-	// Note: ce_id is already at top level of response, no need to repeat per series
+	// Group by (workspace_id, mas_id, ce_id, agent_id, metric_name, attributes) to build series.
+	// ce_id is included so metrics from different CEs within the same MAS are not merged.
 	type seriesKey struct {
 		workspaceID string
 		masID       string
+		ceID        string
 		agentID     string
 		metricName  string
 		attrsJSON   string
@@ -1011,9 +1136,15 @@ func (a *App) queryMASMetricsData(
 		var attrs map[string]interface{}
 		json.Unmarshal(r.Attributes, &attrs)
 
+		ceIDStr := ""
+		if r.CEID != nil {
+			ceIDStr = r.CEID.String()
+		}
+
 		key := seriesKey{
 			workspaceID: r.WorkspaceID.String(),
 			masID:       r.MASID.String(),
+			ceID:        ceIDStr,
 			agentID:     r.AgentID,
 			metricName:  r.MetricName,
 			attrsJSON:   string(r.Attributes),
@@ -1024,6 +1155,7 @@ func (a *App) queryMASMetricsData(
 				MetricName:  r.MetricName,
 				WorkspaceID: r.WorkspaceID.String(),
 				MASID:       r.MASID.String(),
+				CEID:        ceIDStr,
 				AgentID:     r.AgentID,
 				Attributes:  attrs,
 				Datapoints:  [][]interface{}{},
