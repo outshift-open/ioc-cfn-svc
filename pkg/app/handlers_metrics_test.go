@@ -779,20 +779,21 @@ func TestGetMASMetricsHandler_MissingTimeParams(t *testing.T) {
 func TestGetMASMetricsHandler_InvalidPathParams(t *testing.T) {
 	app := newTestApp()
 
-	workspaceID := uuid.New()
-
 	tests := []struct {
 		name        string
+		workspaceID string
 		masID       string
 		expectedErr string
 	}{
 		{
 			name:        "invalid masId",
+			workspaceID: uuid.New().String(),
 			masID:       "not-a-uuid",
 			expectedErr: "masId must be a valid UUID",
 		},
 		{
 			name:        "invalid workspaceId",
+			workspaceID: "not-a-uuid",
 			masID:       uuid.New().String(),
 			expectedErr: "workspaceId must be a valid UUID",
 		},
@@ -800,15 +801,11 @@ func TestGetMASMetricsHandler_InvalidPathParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			wsID := workspaceID.String()
-			if tt.name == "invalid workspaceId" {
-				wsID = "not-a-uuid"
-			}
 			url := fmt.Sprintf("/api/workspaces/%s/multi-agentic-systems/%s/metrics?start_time=2026-05-19T00:00:00Z&end_time=2026-05-20T00:00:00Z",
-				wsID, tt.masID)
+				tt.workspaceID, tt.masID)
 
 			req := httptest.NewRequest(http.MethodGet, url, nil)
-			req.SetPathValue("workspaceId", wsID)
+			req.SetPathValue("workspaceId", tt.workspaceID)
 			req.SetPathValue("masId", tt.masID)
 			rr := httptest.NewRecorder()
 

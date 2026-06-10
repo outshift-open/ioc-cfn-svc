@@ -2,10 +2,12 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"strconv"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +31,16 @@ var defaultCEID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 const (
 	maxDatapoints = 100000 // Max datapoints per query (prevents unbounded result sets)
 )
+
+// errTooManyDatapoints is returned when a query would exceed the datapoint safety limit.
+// Callers map this to HTTP 413.
+type errTooManyDatapoints struct {
+	count int
+}
+
+func (e *errTooManyDatapoints) Error() string {
+	return fmt.Sprintf("query would return %d datapoints, exceeds maximum of %d. narrow your time range or add more filters", e.count, maxDatapoints)
+}
 
 // getDefaultCEID returns a placeholder CE ID for metrics storage.
 // TODO: Extract real CE ID from cognition agent client configuration.
@@ -543,7 +555,7 @@ type MetricSeries struct {
 // MASMetricsQueryResponse represents the MAS-scoped metrics query result
 type MASMetricsQueryResponse struct {
 	MASID       string         `json:"mas_id"`
-	WorkspaceID string         `json:"workspace_id,omitempty"`
+	WorkspaceID string         `json:"workspace_id"`
 	StartTime   string         `json:"start_time"`
 	EndTime     string         `json:"end_time"`
 	Series      []MetricSeries `json:"series"`
@@ -735,7 +747,7 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 	if err != nil {
 		log.Errorf("CE query failed: %v", err)
 		// Check if error is due to too many datapoints
-		if strings.Contains(err.Error(), "exceeds maximum") {
+		if errors.As(err, new(*errTooManyDatapoints)) {
 			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
 				"error": err.Error(),
 			})
@@ -752,7 +764,7 @@ func (a *App) getMetricsHandler(w http.ResponseWriter, r *http.Request) (int, er
 	if err != nil {
 		log.Errorf("MAS query (by CE ID) failed: %v", err)
 		// Check if error is due to too many datapoints
-		if strings.Contains(err.Error(), "exceeds maximum") {
+		if errors.As(err, new(*errTooManyDatapoints)) {
 			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
 				"error": err.Error(),
 			})
@@ -886,7 +898,7 @@ func (a *App) queryCEMetricsData(
 	}
 
 	if total > maxDatapoints {
-		return nil, fmt.Errorf("query would return %d datapoints, exceeds maximum of %d. narrow your time range or add more filters", total, maxDatapoints)
+		return nil, &errTooManyDatapoints{count: int(total)}
 	}
 
 	// Execute query (no pagination)
@@ -927,11 +939,24 @@ func (a *App) queryCEMetricsData(
 		})
 	}
 
-	// Convert map to slice
+	// Convert map to slice with deterministic ordering
 	series := make([]MetricSeries, 0, len(seriesMap))
 	for _, s := range seriesMap {
 		series = append(series, *s)
 	}
+	sort.Slice(series, func(i, j int) bool {
+		a, b := series[i], series[j]
+		if a.MetricName != b.MetricName {
+			return a.MetricName < b.MetricName
+		}
+		if a.CEID != b.CEID {
+			return a.CEID < b.CEID
+		}
+		if a.AgentID != b.AgentID {
+			return a.AgentID < b.AgentID
+		}
+		return a.WorkspaceID < b.WorkspaceID
+	})
 
 	return &MetricResultSet{
 		Series: series,
@@ -959,8 +984,9 @@ func (a *App) queryCEMetricsData(
 // @Success     200 {object} MASMetricsQueryResponse
 // @Failure     400 {object} map[string]string "Invalid parameters"
 // @Failure     413 {object} map[string]string "Too many datapoints (exceeds 100K limit)"
+// @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics [get]
+// @Router      /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics [get]
 func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
@@ -1031,7 +1057,7 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 	result, err := a.queryMASMetricsData(db.DB, startTime, endTime, workspaceIDStr, masIDStr, agentID, metricName, ceIDStr)
 	if err != nil {
 		log.Errorf("MAS metrics query failed: %v", err)
-		if strings.Contains(err.Error(), "exceeds maximum") {
+		if errors.As(err, new(*errTooManyDatapoints)) {
 			return eh.RespondWithJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
 				"error": err.Error(),
 			})
@@ -1052,8 +1078,9 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
-// queryMASMetricsData queries mas_metrics table with filters
-// If ceIDStr is provided, filters MAS metrics by ce_id (for CE-centric queries)
+// queryMASMetricsData queries mas_metrics table with optional filters.
+// Used by both getMASMetricsHandler (MAS-scoped) and getMetricsHandler (CE-scoped).
+// All UUID string arguments must be pre-validated by the caller; empty string means no filter.
 func (a *App) queryMASMetricsData(
 	db *gorm.DB,
 	startTime, endTime time.Time,
@@ -1062,30 +1089,22 @@ func (a *App) queryMASMetricsData(
 	query := db.Model(&metric.MASMetric{}).
 		Where("time >= ? AND time < ?", startTime, endTime)
 
-	// Apply CE ID filter (for CE-centric queries)
+	// Apply CE ID filter
+	// Callers are responsible for validating these UUIDs before calling this function.
 	if ceIDStr != "" {
-		ceID, err := uuid.Parse(ceIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("ce_id must be valid UUID")
-		}
+		ceID, _ := uuid.Parse(ceIDStr)
 		query = query.Where("ce_id = ?", ceID)
 	}
 
 	// Apply workspace ID filter
 	if workspaceIDStr != "" {
-		workspaceID, err := uuid.Parse(workspaceIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("workspace_id must be valid UUID")
-		}
+		workspaceID, _ := uuid.Parse(workspaceIDStr)
 		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	// Apply MAS ID filter
 	if masIDStr != "" {
-		masID, err := uuid.Parse(masIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("mas_id must be valid UUID")
-		}
+		masID, _ := uuid.Parse(masIDStr)
 		query = query.Where("mas_id = ?", masID)
 	}
 
@@ -1111,7 +1130,7 @@ func (a *App) queryMASMetricsData(
 	}
 
 	if total > maxDatapoints {
-		return nil, fmt.Errorf("query would return %d datapoints, exceeds maximum of %d. narrow your time range or add more filters", total, maxDatapoints)
+		return nil, &errTooManyDatapoints{count: int(total)}
 	}
 
 	// Execute query (no pagination)
@@ -1169,11 +1188,14 @@ func (a *App) queryMASMetricsData(
 		})
 	}
 
-	// Convert map to slice
+	// Convert map to slice with deterministic ordering
 	series := make([]MetricSeries, 0, len(seriesMap))
 	for _, s := range seriesMap {
 		series = append(series, *s)
 	}
+	sort.Slice(series, func(i, j int) bool {
+		return series[i].MetricName < series[j].MetricName
+	})
 
 	return &MetricResultSet{
 		Series: series,
