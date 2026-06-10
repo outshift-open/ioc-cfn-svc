@@ -552,13 +552,26 @@ type MetricSeries struct {
 	Datapoints [][]interface{} `json:"datapoints"`
 }
 
+type MASMetricSeries struct {
+	MetricName string                 `json:"metric_name"`
+	AgentID    string                 `json:"agent_id,omitempty"`
+	Attributes map[string]interface{} `json:"attributes"`
+	Datapoints [][]interface{}        `json:"datapoints"`
+}
+
+// CEMetricGroup groups metric series by CE within a MAS metrics response.
+type CEMetricGroup struct {
+	CEID   string            `json:"ce_id"`
+	Series []MASMetricSeries `json:"series"`
+}
+
 // MASMetricsQueryResponse represents the MAS-scoped metrics query result
 type MASMetricsQueryResponse struct {
-	MASID       string         `json:"mas_id"`
-	WorkspaceID string         `json:"workspace_id"`
-	StartTime   string         `json:"start_time"`
-	EndTime     string         `json:"end_time"`
-	Series      []MetricSeries `json:"series"`
+	MASID       string          `json:"mas_id"`
+	WorkspaceID string          `json:"workspace_id"`
+	StartTime   string          `json:"start_time"`
+	EndTime     string          `json:"end_time"`
+	CEs         []CEMetricGroup `json:"ces"`
 }
 
 // MetricsQueryResponse represents the unified query result with separate CE and MAS metrics
@@ -1067,12 +1080,35 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 		})
 	}
 
+	// Group flat series by CE ID; order follows the sorted series (alphabetical by CEID).
+	ceMap := make(map[string]*CEMetricGroup)
+	ceOrder := []string{}
+	for _, s := range result.Series {
+		if _, exists := ceMap[s.CEID]; !exists {
+			ceMap[s.CEID] = &CEMetricGroup{
+				CEID:   s.CEID,
+				Series: []MASMetricSeries{},
+			}
+			ceOrder = append(ceOrder, s.CEID)
+		}
+		ceMap[s.CEID].Series = append(ceMap[s.CEID].Series, MASMetricSeries{
+			MetricName: s.MetricName,
+			AgentID:    s.AgentID,
+			Attributes: s.Attributes,
+			Datapoints: s.Datapoints,
+		})
+	}
+	ces := make([]CEMetricGroup, 0, len(ceOrder))
+	for _, ceID := range ceOrder {
+		ces = append(ces, *ceMap[ceID])
+	}
+
 	response := MASMetricsQueryResponse{
 		MASID:       masIDStr,
 		WorkspaceID: workspaceIDStr,
 		StartTime:   startTime.Format(time.RFC3339),
 		EndTime:     endTime.Format(time.RFC3339),
-		Series:      result.Series,
+		CEs:         ces,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, response)
