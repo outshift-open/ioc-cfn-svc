@@ -589,28 +589,6 @@ var jsonHeaders = map[string]string{
 	"Accept":       "application/json",
 }
 
-func ExtractMetaFromPayload(payload map[string]interface{}) *TokenUsageMeta {
-	if payload == nil {
-		return nil
-	}
-	raw, ok := payload["meta"]
-	if !ok || raw == nil {
-		return nil
-	}
-	b, err := json.Marshal(raw)
-	if err != nil {
-		return nil
-	}
-	var meta TokenUsageMeta
-	if err := json.Unmarshal(b, &meta); err != nil {
-		return nil
-	}
-	if meta.Tokens.Total == 0 {
-		return nil
-	}
-	return &meta
-}
-
 // post sends a POST request with a JSON body to baseURL+path and decodes the
 // JSON response into dest. If the server returns a non-200 response, we attempt
 // to decode the body as the same response envelope (which may contain an

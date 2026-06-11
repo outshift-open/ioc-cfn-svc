@@ -130,14 +130,8 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "unable to parse negotiation response"})
 	}
 
-	// Store token metrics to TimescaleDB (fire-and-forget).
-	// The CE places meta inside the SSTP payload (cogResp.Payload["meta"]) rather than
-	// at the top-level envelope field, so we check both locations.
-	tokenMeta := cogResp.Meta
-	if tokenMeta == nil {
-		tokenMeta = cognitionagentclient.ExtractMetaFromPayload(cogResp.Payload)
-	}
-	if tokenMeta != nil {
+	// Store token metrics to TimescaleDB (fire-and-forget)
+	if cogResp.Meta != nil {
 		workspaceUUID, _ := uuid.Parse(workspaceID)
 		masUUID, _ := uuid.Parse(masID)
 		agentID := "unknown"
@@ -146,11 +140,11 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		}
 		// Extract CE ID from response metadata
 		var ceID *uuid.UUID
-		if tokenMeta.CEID != "" {
-			if parsed, err := uuid.Parse(tokenMeta.CEID); err == nil {
+		if cogResp.Meta.CEID != "" {
+			if parsed, err := uuid.Parse(cogResp.Meta.CEID); err == nil {
 				ceID = &parsed
 			} else {
-				log.Warnf("Invalid CE ID in response metadata: %s", tokenMeta.CEID)
+				log.Warnf("Invalid CE ID in response metadata: %s", cogResp.Meta.CEID)
 			}
 		}
 		a.storeTokenMetricsAsync(
@@ -162,14 +156,14 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 			ceID,
 			&common.TokenUsageMeta{
 				Tokens: common.TokenUsage{
-					Prompt:     tokenMeta.Tokens.Prompt,
-					Completion: tokenMeta.Tokens.Completion,
-					Total:      tokenMeta.Tokens.Total,
-					Model:      tokenMeta.Tokens.Model,
+					Prompt:     cogResp.Meta.Tokens.Prompt,
+					Completion: cogResp.Meta.Tokens.Completion,
+					Total:      cogResp.Meta.Tokens.Total,
+					Model:      cogResp.Meta.Tokens.Model,
 				},
-				LatencyMs: tokenMeta.LatencyMs,
-				CostUsd:   tokenMeta.CostUsd,
-				Timestamp: tokenMeta.Timestamp,
+				LatencyMs: cogResp.Meta.LatencyMs,
+				CostUsd:   cogResp.Meta.CostUsd,
+				Timestamp: cogResp.Meta.Timestamp,
 			},
 		)
 	}
