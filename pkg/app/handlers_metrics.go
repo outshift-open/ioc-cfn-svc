@@ -1116,7 +1116,6 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 
 // queryMASMetricsData queries mas_metrics table with optional filters.
 // Used by both getMASMetricsHandler (MAS-scoped) and getMetricsHandler (CE-scoped).
-// All UUID string arguments must be pre-validated by the caller; empty string means no filter.
 func (a *App) queryMASMetricsData(
 	db *gorm.DB,
 	startTime, endTime time.Time,
@@ -1125,22 +1124,30 @@ func (a *App) queryMASMetricsData(
 	query := db.Model(&metric.MASMetric{}).
 		Where("time >= ? AND time < ?", startTime, endTime)
 
-	// Apply CE ID filter
-	// Callers are responsible for validating these UUIDs before calling this function.
+	// Apply CE ID filter (for CE-centric queries)
 	if ceIDStr != "" {
-		ceID, _ := uuid.Parse(ceIDStr)
+		ceID, err := uuid.Parse(ceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("ce_id must be valid UUID")
+		}
 		query = query.Where("ce_id = ?", ceID)
 	}
 
 	// Apply workspace ID filter
 	if workspaceIDStr != "" {
-		workspaceID, _ := uuid.Parse(workspaceIDStr)
+		workspaceID, err := uuid.Parse(workspaceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("workspace_id must be valid UUID")
+		}
 		query = query.Where("workspace_id = ?", workspaceID)
 	}
 
 	// Apply MAS ID filter
 	if masIDStr != "" {
-		masID, _ := uuid.Parse(masIDStr)
+		masID, err := uuid.Parse(masIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("mas_id must be valid UUID")
+		}
 		query = query.Where("mas_id = ?", masID)
 	}
 
