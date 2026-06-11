@@ -107,6 +107,101 @@
                 }
             }
         },
+        "/api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics": {
+            "get": {
+                "description": "Returns time-series token usage and LLM operation metrics for a MAS across all attached CEs.\nOptionally filter by ce_id, agent_id, or metric_name.\nResponse groups datapoints by (metric_name, ce_id, agent_id, attributes) to distinguish contributions from different CEs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mas"
+                ],
+                "summary": "Query token usage metrics for a MAS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace UUID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "MAS UUID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start time (Unix timestamp, RFC3339, or date)",
+                        "name": "start_time",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End time (Unix timestamp, RFC3339, or date)",
+                        "name": "end_time",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Cognition Engine UUID",
+                        "name": "ce_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent ID",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by metric name (supports * wildcard)",
+                        "name": "metric_name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.MASMetricsQueryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Too many datapoints (exceeds 100K limit)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search": {
             "post": {
                 "description": "Finds concept nodes nearest to a query embedding vector using HNSW index.",
@@ -653,6 +748,20 @@
         }
     },
     "definitions": {
+        "app.CEMetricGroup": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MASMetricSeries"
+                    }
+                }
+            }
+        },
         "app.IngestCEMetricsRequest": {
             "type": "object",
             "properties": {
@@ -698,6 +807,51 @@
                 }
             }
         },
+        "app.MASMetricSeries": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "datapoints": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "metric_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.MASMetricsQueryResponse": {
+            "type": "object",
+            "properties": {
+                "ces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CEMetricGroup"
+                    }
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "app.MetricDataPoint": {
             "type": "object",
             "properties": {
@@ -737,6 +891,9 @@
                     "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "ce_id": {
+                    "type": "string"
                 },
                 "datapoints": {
                     "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",
