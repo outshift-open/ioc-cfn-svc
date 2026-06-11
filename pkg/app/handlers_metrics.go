@@ -1006,9 +1006,14 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 	workspaceIDStr := eh.PathParam(r, "workspaceId")
 	masIDStr := eh.PathParam(r, "masId")
 
-	if err := validateWorkspaceAndMAS(workspaceIDStr, masIDStr); err != nil {
-		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
-			"error": err.Error(),
+	if _, err := uuid.Parse(workspaceIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "workspaceId must be a valid UUID",
+		})
+	}
+	if _, err := uuid.Parse(masIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "masId must be a valid UUID",
 		})
 	}
 
@@ -1045,6 +1050,20 @@ func (a *App) getMASMetricsHandler(w http.ResponseWriter, r *http.Request) (int,
 	ceIDStr := r.URL.Query().Get("ce_id")
 	agentID := r.URL.Query().Get("agent_id")
 	metricName := r.URL.Query().Get("metric_name")
+
+	if ceIDStr != "" {
+		if _, err := uuid.Parse(ceIDStr); err != nil {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "ce_id must be a valid UUID",
+			})
+		}
+	}
+
+	if err := validateWorkspaceAndMAS(workspaceIDStr, masIDStr); err != nil {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": err.Error(),
+		})
+	}
 
 	if ceIDStr != "" {
 		cfnConfigMutex.RLock()
