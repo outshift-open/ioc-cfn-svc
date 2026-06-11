@@ -1231,7 +1231,7 @@ func (a *App) queryMASMetricsData(
 		})
 	}
 
-	// Sort for stable response ordering — Go map iteration is non-deterministic
+	// Sort for stable response ordering — Go map iterates in random order
 	series := make([]MetricSeries, 0, len(seriesMap))
 	for _, s := range seriesMap {
 		series = append(series, *s)
