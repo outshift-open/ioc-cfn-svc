@@ -952,7 +952,7 @@ func (a *App) queryCEMetricsData(
 		})
 	}
 
-	// Convert map to slice with deterministic ordering
+	// Sort for stable response ordering — Go maps iterate in random order
 	series := make([]MetricSeries, 0, len(seriesMap))
 	for _, s := range seriesMap {
 		series = append(series, *s)
@@ -1231,7 +1231,7 @@ func (a *App) queryMASMetricsData(
 		})
 	}
 
-	// Convert map to slice with deterministic ordering
+	// Sort for stable response ordering — Go map iteration is non-deterministic
 	series := make([]MetricSeries, 0, len(seriesMap))
 	for _, s := range seriesMap {
 		series = append(series, *s)
