@@ -65,6 +65,16 @@ type CreateOrUpdateResponse struct {
 	Meta *common.TokenUsageMeta `json:"meta,omitempty"`
 }
 
+// CreateOrUpdateAcceptedResponse is returned for async upsert requests.
+type CreateOrUpdateAcceptedResponse struct {
+	// ID of the request, can be used for correlation in logs
+	ResponseID string `json:"response_id"`
+	// Status indicates the request was accepted for processing
+	Status string `json:"status"`
+	// Message provides additional information
+	Message string `json:"message"`
+}
+
 type QueryRequest struct {
 	// Header(s) of the request, required (must include agent_id)
 	Header *Header `json:"header"`

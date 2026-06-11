@@ -1659,7 +1659,7 @@ const docTemplate = `{
         },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories": {
             "post": {
-                "description": "Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.",
+                "description": "Accepts a request to create or update shared memories and processes it asynchronously. Returns 202 Accepted immediately. The extraction and storage operations run in the background.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1669,7 +1669,7 @@ const docTemplate = `{
                 "tags": [
                     "shared-memories"
                 ],
-                "summary": "Create or update shared memories.",
+                "summary": "Create or update shared memories (async).",
                 "parameters": [
                     {
                         "type": "string",
@@ -1695,23 +1695,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Shared memories successfully created or updated",
+                    "202": {
+                        "description": "Request accepted for async processing",
                         "schema": {
-                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateResponse"
+                            "$ref": "#/definitions/sharedmemory.CreateOrUpdateAcceptedResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2996,6 +2987,23 @@ const docTemplate = `{
                 }
             }
         },
+        "sharedmemory.CreateOrUpdateAcceptedResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides additional information",
+                    "type": "string"
+                },
+                "response_id": {
+                    "description": "ID of the request, can be used for correlation in logs",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status indicates the request was accepted for processing",
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
@@ -3017,35 +3025,6 @@ const docTemplate = `{
                 },
                 "request_id": {
                     "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.CreateOrUpdateResponse": {
-            "type": "object",
-            "properties": {
-                "graph_store_message": {
-                    "description": "Optional message from the graph store upsert operation",
-                    "type": "string"
-                },
-                "meta": {
-                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/common.TokenUsageMeta"
-                        }
-                    ]
-                },
-                "response_id": {
-                    "description": "ID of the response, this gets populated from request_id",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status of the request",
-                    "type": "string"
-                },
-                "vector_store_message": {
-                    "description": "Optional message from the vector store upsert operation",
                     "type": "string"
                 }
             }
