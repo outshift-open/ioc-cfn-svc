@@ -1140,6 +1140,20 @@
         }
     },
     "definitions": {
+        "app.CEMetricGroup": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.MASMetricSeries"
+                    }
+                }
+            }
+        },
         "app.IngestCEMetricsRequest": {
             "type": "object",
             "properties": {
@@ -1185,6 +1199,51 @@
                 }
             }
         },
+        "app.MASMetricSeries": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "datapoints": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "metric_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.MASMetricsQueryResponse": {
+            "type": "object",
+            "properties": {
+                "ces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CEMetricGroup"
+                    }
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "app.MetricDataPoint": {
             "type": "object",
             "properties": {
@@ -1224,6 +1283,9 @@
                     "description": "Attributes (shared across all datapoints in this series)",
                     "type": "object",
                     "additionalProperties": true
+                },
+                "ce_id": {
+                    "type": "string"
                 },
                 "datapoints": {
                     "description": "Datapoints: array of [timestamp, value] pairs\nFormat: [[\"2026-05-27T10:00:00Z\", 123.45], [\"2026-05-27T10:01:00Z\", 456.78]]",

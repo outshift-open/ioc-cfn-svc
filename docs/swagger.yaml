@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  app.CEMetricGroup:
+    properties:
+      ce_id:
+        type: string
+      series:
+        items:
+          $ref: '#/definitions/app.MASMetricSeries'
+        type: array
+    type: object
   app.IngestCEMetricsRequest:
     properties:
       attributes:
@@ -31,6 +40,36 @@ definitions:
         description: MAS metrics fields (mutually exclusive with CE fields)
         type: string
     type: object
+  app.MASMetricSeries:
+    properties:
+      agent_id:
+        type: string
+      attributes:
+        additionalProperties: true
+        type: object
+      datapoints:
+        items:
+          items: {}
+          type: array
+        type: array
+      metric_name:
+        type: string
+    type: object
+  app.MASMetricsQueryResponse:
+    properties:
+      ces:
+        items:
+          $ref: '#/definitions/app.CEMetricGroup'
+        type: array
+      end_time:
+        type: string
+      mas_id:
+        type: string
+      start_time:
+        type: string
+      workspace_id:
+        type: string
+    type: object
   app.MetricDataPoint:
     properties:
       attributes:
@@ -58,6 +97,8 @@ definitions:
         additionalProperties: true
         description: Attributes (shared across all datapoints in this series)
         type: object
+      ce_id:
+        type: string
       datapoints:
         description: |-
           Datapoints: array of [timestamp, value] pairs
@@ -1582,6 +1623,73 @@ paths:
       summary: Fetch knowledge graph for a MAS
       tags:
       - knowledge-graph
+  /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics:
+    get:
+      description: |-
+        Returns time-series token usage and LLM operation metrics for a MAS across all attached CEs.
+        Optionally filter by ce_id, agent_id, or metric_name.
+        Response groups datapoints by (metric_name, ce_id, agent_id, attributes) to distinguish contributions from different CEs.
+      parameters:
+      - description: Workspace UUID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: MAS UUID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Start time (Unix timestamp, RFC3339, or date)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: End time (Unix timestamp, RFC3339, or date)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      - description: Filter by Cognition Engine UUID
+        in: query
+        name: ce_id
+        type: string
+      - description: Filter by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter by metric name (supports * wildcard)
+        in: query
+        name: metric_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.MASMetricsQueryResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Too many datapoints (exceeds 100K limit)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query token usage metrics for a MAS
+      tags:
+      - mas
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search:
     post:
       consumes:

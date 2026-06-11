@@ -153,7 +153,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 			agentID,
 			"semantic_negotiation",
 			reqPayload.SessionID,
-			ceID, // Now passes actual CE ID from response
+			ceID,
 			&common.TokenUsageMeta{
 				Tokens: common.TokenUsage{
 					Prompt:     cogResp.Meta.Tokens.Prompt,
