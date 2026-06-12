@@ -37,20 +37,22 @@ type ExtractionPayloadMetadata struct {
 	//
 	// Supported values:
 	// - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+	// - "otel-trace": Data is a grouped OTel trace payload pushed by cfn-svc
 	// - "openclaw": Data is an opaque JSON payload
 	Format string `json:"format"`
 }
 
 func (m ExtractionPayloadMetadata) Validate() error {
 	switch m.Format {
-	case common.FormatObserveSDKOTel, common.FormatOpenClaw:
+	case common.FormatObserveSDKOTel, common.FormatOpenClaw, common.FormatOTelTrace:
 		return nil
 	default:
 		return fmt.Errorf(
-			"invalid metadata.format %q (supported: %q, %q)",
+			"invalid metadata.format %q (supported: %q, %q, %q)",
 			m.Format,
 			common.FormatObserveSDKOTel,
 			common.FormatOpenClaw,
+			common.FormatOTelTrace,
 		)
 	}
 }
@@ -61,7 +63,7 @@ type ExtractionPayload struct {
 	Metadata ExtractionPayloadMetadata `json:"metadata"`
 	// Data contains the extraction payload and its structure depends on Metadata.Format.
 	//
-	// Supported formats: "observe-sdk-otel" and "openclaw
+	// Supported formats: "observe-sdk-otel", "openclaw" and "otel-trace".
 	//
 	// 1. format = "observe-sdk-otel"
 	//    - Data MUST be a JSON array of ExtractionDataRecord objects.

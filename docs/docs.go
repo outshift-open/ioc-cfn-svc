@@ -1053,6 +1053,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/otel-spans": {
+            "get": {
+                "description": "Returns raw OTel spans from TimescaleDB for a given trace_id. Used by cognition-engine for KG ingestion.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "otel-spans"
+                ],
+                "summary": "Get OTel spans by trace ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "MAS ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Trace ID to fetch spans for",
+                        "name": "trace_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/otelreceiver.SpanRecord"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search": {
             "post": {
                 "description": "Performs vector similarity search over document embeddings stored for a given workspace and MAS.",
@@ -2279,7 +2343,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
-                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\" and \"openclaw\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
+                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\", \"openclaw\" and \"otel-trace\".\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
                     "type": "object"
                 },
                 "metadata": {
@@ -2296,7 +2360,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "format": {
-                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"otel-trace\": Data is a grouped OTel trace payload pushed by cfn-svc\n- \"openclaw\": Data is an opaque JSON payload",
                     "type": "string"
                 }
             }
@@ -2774,6 +2838,73 @@ const docTemplate = `{
                 },
                 "http-status": {
                     "type": "integer"
+                }
+            }
+        },
+        "otelreceiver.SpanRecord": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "duration_nano": {
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "kind": {
+                    "type": "integer"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_span_id": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "span_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "description": "RFC3339Nano",
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "status_message": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
                 }
             }
         },

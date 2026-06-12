@@ -210,7 +210,11 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		return agentID
 	}
 
-	exp := otelreceiver.NewSpanExporter(db, resolver)
+	var (
+		spanStore    otelreceiver.SpanStore    = db
+		traceTracker otelreceiver.TraceTracker = db
+	)
+	exp := otelreceiver.NewSpanExporter(spanStore, traceTracker, resolver)
 
 	batchFactory := batchprocessor.NewFactory()
 	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)
@@ -332,6 +336,7 @@ func (a *App) registerOnStartup() {
 			ParsedConfig = &parsed
 			ConfigVersion = parsed.ConfigVersion
 			cfnConfigMutex.Unlock()
+			a.syncTasksFromConfig(&parsed)
 		}
 	}
 

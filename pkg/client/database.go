@@ -55,6 +55,14 @@ type Database interface {
 	// DeleteTasksNotInSet deletes orphaned tasks when their CE schedule is removed from config.
 	// activeKeys format: "workspace_id|mas_id|ce_id"
 	DeleteTasksNotInSet(activeKeys map[string]bool) ([]model.Task, error)
+
+	// OTel trace ingestion state
+	UpsertPendingOtelTrace(workspaceID, masID, traceID string, lastSpanTime time.Time) error
+	GetPendingOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error)
+	ClaimReadyOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error)
+	UpdateOtelTraceStatus(workspaceID, masID, traceID, newStatus string) error
+	GetOtelSpansForTrace(workspaceID, masID, traceID string) ([]otelreceiver.OtelSpan, error)
+	MarkInactiveTracesReady(inactivityThreshold time.Duration) (int, error)
 }
 
 // ensure at build time that this mock type fulfills the interface
@@ -252,5 +260,29 @@ func (m *MockDatabase) FindTaskByKey(_, _, _ string) (*model.Task, error) {
 }
 
 func (m *MockDatabase) DeleteTasksNotInSet(_ map[string]bool) ([]model.Task, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) UpsertPendingOtelTrace(_, _, _ string, _ time.Time) error {
+	return nil
+}
+
+func (m *MockDatabase) GetPendingOtelTraces(_, _ string, _ int, _ time.Duration) ([]string, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) ClaimReadyOtelTraces(_, _ string, _ int, _ time.Duration) ([]string, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) MarkInactiveTracesReady(_ time.Duration) (int, error) {
+	return 0, nil
+}
+
+func (m *MockDatabase) UpdateOtelTraceStatus(_, _, _, _ string) error {
+	return nil
+}
+
+func (m *MockDatabase) GetOtelSpansForTrace(_, _, _ string) ([]otelreceiver.OtelSpan, error) {
 	return nil, nil
 }

@@ -4,6 +4,12 @@ package task
 
 import "strings"
 
+const (
+	EndpointDistillation = "/api/knowledge-mgmt/runDistillation"
+	EndpointNegotiation  = "/api/knowledge-mgmt/runNegotiation"
+	EndpointExtraction   = "/api/knowledge-mgmt/extraction"
+)
+
 // GetEndpointForCE returns the endpoint path for a given CE name.
 // Returns empty string if no endpoint mapping exists.
 //
@@ -18,18 +24,18 @@ func GetEndpointForCE(ceName string) string {
 	// TODO: CE must implement /api/knowledge-mgmt/runDistillation endpoint
 	// This endpoint should accept a TaskExecutionRequest and return 202 Accepted with a TaskExecutionResponse.
 	if strings.Contains(nameLower, "distillation") {
-		return "/api/knowledge-mgmt/runDistillation"
+		return EndpointDistillation
 	}
 
 	// TODO: Not implemented - placeholder for future negotiation endpoint.
 	// CE must implement /api/knowledge-mgmt/runNegotiation endpoint.
 	if strings.Contains(nameLower, "negotiation") {
-		return "/api/knowledge-mgmt/runNegotiation"
+		return EndpointNegotiation
 	}
 
 	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
 	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {
-		return "/api/knowledge-mgmt/extraction"
+		return EndpointExtraction
 	}
 
 	// No matching pattern found

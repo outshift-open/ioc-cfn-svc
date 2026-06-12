@@ -82,14 +82,25 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
-	if err := db.DB.AutoMigrate(&model.Task{}, &model.TaskExecutionHistory{}); err != nil {
+	if err := db.DB.AutoMigrate(&model.Task{}, &model.TaskExecutionHistory{}, &model.OtelTraceIngestionState{}); err != nil {
 		return err
 	}
 
-	// Partial index for efficient due-task polling — only indexes rows the scheduler queries.
-	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_next_run_time
+	// Partial index for readiness scans that wait after the last received span batch.
+	// Serves MarkInactiveTracesReady: WHERE status='pending' AND last_span_time IS NOT NULL AND updated_at < cutoff
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_otel_ingestion_pending_updated_at
+		ON otel_trace_ingestion_state (status, updated_at)
+		WHERE status = 'pending' AND last_span_time IS NOT NULL`)
+
+	// Partial index for efficient task payload claims (ready traces that passed the delay).
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_otel_ingestion_ready_timeout
+		ON otel_trace_ingestion_state (workspace_id, mas_id, status, last_span_time, created_at)
+		WHERE status = 'ready' AND last_span_time IS NOT NULL`)
+
+	// Partial index for efficient due-task polling — covers both statuses the scheduler queries.
+	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_due
 		ON task (next_run_time)
-		WHERE status = 'scheduled'`)
+		WHERE status IN ('scheduled', 'failed')`)
 
 	// Composite index for looking up execution history by task ordered by recency.
 	db.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_task_execution_history_task_id
@@ -277,4 +288,137 @@ func (db *Database) FindTaskByKey(workspaceID, masID, ceID string) (*model.Task,
 		return nil, err
 	}
 	return &task, nil
+}
+
+// UpsertPendingOtelTrace inserts or updates trace activity while spans are still arriving.
+// Late spans move a ready or running trace back to pending so ingestion waits for a fresh inactivity window.
+func (db *Database) UpsertPendingOtelTrace(workspaceID, masID, traceID string, lastSpanTime time.Time) error {
+	state := &model.OtelTraceIngestionState{
+		ID:           uuid.New().String(),
+		WorkspaceID:  workspaceID,
+		MasID:        masID,
+		TraceID:      traceID,
+		Status:       "pending",
+		LastSpanTime: &lastSpanTime,
+	}
+	result := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "workspace_id"}, {Name: "mas_id"}, {Name: "trace_id"}},
+		DoNothing: true,
+	}).Create(state)
+	if result.Error != nil || result.RowsAffected > 0 {
+		return result.Error
+	}
+
+	return db.DB.Model(&model.OtelTraceIngestionState{}).
+		Where("workspace_id = ? AND mas_id = ? AND trace_id = ? AND status IN ?", workspaceID, masID, traceID, []string{"pending", "ready", "running"}).
+		Updates(map[string]interface{}{
+			"last_span_time": gorm.Expr("GREATEST(COALESCE(last_span_time, ?), ?)", lastSpanTime, lastSpanTime),
+			"status":         gorm.Expr("CASE WHEN status IN ? THEN ? ELSE status END", []string{"ready", "running"}, "pending"),
+			"updated_at":     time.Now(),
+		}).Error
+}
+
+// GetPendingOtelTraces returns trace IDs that are ready for KG ingestion for a given workspace/MAS.
+// It revalidates last_span_time at dispatch so stale ready rows are not processed prematurely.
+func (db *Database) GetPendingOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error) {
+	var rows []model.OtelTraceIngestionState
+	cutoff := time.Now().Add(-inactivityThreshold)
+	err := db.DB.
+		Where("workspace_id = ? AND mas_id = ? AND status = ? AND last_span_time IS NOT NULL AND last_span_time < ?", workspaceID, masID, "ready", cutoff).
+		Order("created_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	traceIDs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		traceIDs = append(traceIDs, r.TraceID)
+	}
+	return traceIDs, nil
+}
+
+// ClaimReadyOtelTraces atomically selects ready traces that have passed the inactivity delay
+// and moves them to running so a task trigger can push their spans to CE without duplicate dispatch.
+func (db *Database) ClaimReadyOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	var rows []model.OtelTraceIngestionState
+	cutoff := time.Now().Add(-inactivityThreshold)
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("workspace_id = ? AND mas_id = ? AND status = ? AND last_span_time IS NOT NULL AND last_span_time < ?", workspaceID, masID, "ready", cutoff).
+			Order("created_at ASC").
+			Limit(limit).
+			Find(&rows).Error; err != nil {
+			return err
+		}
+
+		if len(rows) == 0 {
+			return nil
+		}
+
+		ids := make([]string, 0, len(rows))
+		for _, r := range rows {
+			ids = append(ids, r.ID)
+		}
+
+		return tx.Model(&model.OtelTraceIngestionState{}).
+			Where("id IN ?", ids).
+			Updates(map[string]interface{}{
+				"status":     "running",
+				"updated_at": time.Now(),
+			}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	traceIDs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		traceIDs = append(traceIDs, r.TraceID)
+	}
+	return traceIDs, nil
+}
+
+// UpdateOtelTraceStatus transitions a trace's ingestion state.
+func (db *Database) UpdateOtelTraceStatus(workspaceID, masID, traceID, newStatus string) error {
+	query := db.DB.Model(&model.OtelTraceIngestionState{}).
+		Where("workspace_id = ? AND mas_id = ? AND trace_id = ?", workspaceID, masID, traceID).
+		Where("status = ?", "running")
+	return query.Updates(map[string]interface{}{"status": newStatus, "updated_at": time.Now()}).Error
+}
+
+// MarkInactiveTracesReady transitions traces from "pending" to "ready" if no span batch has updated
+// the trace for longer than the inactivity threshold. The always-polling extraction task will pick
+// them up on its next scheduler tick without explicit wake-up.
+// Returns count of traces marked ready.
+func (db *Database) MarkInactiveTracesReady(inactivityThreshold time.Duration) (int, error) {
+	now := time.Now()
+	cutoff := now.Add(-inactivityThreshold)
+
+	result := db.DB.Exec(`
+		UPDATE otel_trace_ingestion_state
+		SET status = 'ready', updated_at = ?
+		WHERE status = 'pending'
+		  AND last_span_time IS NOT NULL
+		  AND updated_at < ?
+	`, now, cutoff)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	return int(result.RowsAffected), nil
+}
+
+// GetOtelSpansForTrace retrieves all spans for a given trace scoped by workspace and MAS.
+func (db *Database) GetOtelSpansForTrace(workspaceID, masID, traceID string) ([]otelreceiver.OtelSpan, error) {
+	var spans []otelreceiver.OtelSpan
+	err := db.Where("workspace_id = ? AND mas_id = ? AND trace_id = ?", workspaceID, masID, traceID).
+		Order("start_time ASC").Find(&spans).Error
+	return spans, err
 }

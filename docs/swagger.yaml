@@ -273,7 +273,7 @@ definitions:
         description: |-
           Data contains the extraction payload and its structure depends on Metadata.Format.
 
-          Supported formats: "observe-sdk-otel" and "openclaw
+          Supported formats: "observe-sdk-otel", "openclaw" and "otel-trace".
 
           1. format = "observe-sdk-otel"
              - Data MUST be a JSON array of ExtractionDataRecord objects.
@@ -301,6 +301,7 @@ definitions:
 
           Supported values:
           - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+          - "otel-trace": Data is a grouped OTel trace payload pushed by cfn-svc
           - "openclaw": Data is an opaque JSON payload
         type: string
     type: object
@@ -624,6 +625,52 @@ definitions:
         type: object
       http-status:
         type: integer
+    type: object
+  otelreceiver.SpanRecord:
+    properties:
+      agent_id:
+        type: string
+      attributes:
+        additionalProperties: {}
+        type: object
+      duration_nano:
+        type: integer
+      events:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      kind:
+        type: integer
+      links:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      mas_id:
+        type: string
+      name:
+        type: string
+      parent_span_id:
+        type: string
+      resource:
+        additionalProperties: {}
+        type: object
+      service_name:
+        type: string
+      span_id:
+        type: string
+      start_time:
+        description: RFC3339Nano
+        type: string
+      status_code:
+        type: integer
+      status_message:
+        type: string
+      trace_id:
+        type: string
+      workspace_id:
+        type: string
     type: object
   semanticnegotiation.Agent:
     properties:
@@ -1907,6 +1954,50 @@ paths:
       summary: Update knowledge graph
       tags:
       - Graph Store
+  /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/otel-spans:
+    get:
+      description: Returns raw OTel spans from TimescaleDB for a given trace_id. Used
+        by cognition-engine for KG ingestion.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: workspaceId
+        required: true
+        type: string
+      - description: MAS ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Trace ID to fetch spans for
+        in: query
+        name: trace_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/otelreceiver.SpanRecord'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get OTel spans by trace ID
+      tags:
+      - otel-spans
   /api/internal/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/rag/similarity-search:
     post:
       consumes:
