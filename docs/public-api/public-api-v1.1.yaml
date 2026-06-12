@@ -1,14 +1,17 @@
 openapi: 3.0.3
 info:
   title: CFN Service Public API
-  version: "1.0.0"
+  version: "1.1.0"
   description: |-
     Public API contract for IoC Cognition Fabric Node service.
 
     This specification is used for external SDK generation (Python, TypeScript, Go clients).
 
-    **Note:** This is a snapshot of the public API at version 1.0.0.
+    **Note:** This is a snapshot of the public API at version 1.1.0.
     The implementation may include additional internal endpoints not documented here.
+
+    **Changes in v1.1.0:**
+    - `POST /shared-memories` now returns 202 Accepted (async processing)
   contact: {}
 
 servers:
@@ -74,11 +77,11 @@ paths:
 
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
     post:
-      summary: Create or update shared memories
+      summary: Create or update shared memories (async)
       description: |-
-        Creates or updates shared memories with entries (concepts and relations)
-        extracted from the provided trace or OpenClaw output for a given workspace
-        and multi-agentic system.
+        Accepts a request to create or update shared memories and processes it asynchronously.
+        Returns 202 Accepted immediately. The extraction and storage operations run in the background.
+        The response_id in the response can be used for log correlation.
       operationId: createOrUpdateSharedMemories
       tags:
         - shared-memories
@@ -105,20 +108,14 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrUpdateRequest'
       responses:
-        '201':
-          description: Shared memories successfully created or updated
+        '202':
+          description: Request accepted for asynchronous processing
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateOrUpdateResponse'
+                $ref: '#/components/schemas/CreateOrUpdateAcceptedResponse'
         '400':
           description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
           content:
             application/json:
               schema:
@@ -586,6 +583,26 @@ components:
             The structure of the payload data is defined by Payload.Metadata.Format
       required:
         - payload
+
+    CreateOrUpdateAcceptedResponse:
+      type: object
+      description: Response returned when an async upsert request is accepted (202 Accepted)
+      properties:
+        response_id:
+          type: string
+          description: ID of the request, can be used for correlation in logs
+        status:
+          type: string
+          description: Status indicating the request was accepted for processing
+          example: accepted
+        message:
+          type: string
+          description: Message providing additional information
+          example: Request accepted for asynchronous processing
+      required:
+        - response_id
+        - status
+        - message
 
     CreateOrUpdateResponse:
       type: object

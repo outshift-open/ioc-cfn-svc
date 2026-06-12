@@ -178,8 +178,8 @@ func (a *App) logSharedMemoryAudit(operationID, workspaceID, masID, auditType, s
 
 // createOrUpdateSharedMemoriesHandler godoc
 //
-// @Summary     Create or update shared memories.
-// @Description Creates or updates shared memories with entries (concepts and relations) extracted from the provided trace or OpenClaw output for a given workspace and multi-agentic system.
+// @Summary     Create or update shared memories (async).
+// @Description Accepts a request to create or update shared memories and processes it asynchronously. Returns 202 Accepted immediately. The extraction and storage operations run in the background.
 //
 // @Tags        shared-memories
 // @Accept      json
@@ -189,9 +189,8 @@ func (a *App) logSharedMemoryAudit(operationID, workspaceID, masID, auditType, s
 // @Param       masId       path string true "Multi-Agentic System ID"
 // @Param       body        body sharedmemory.CreateOrUpdateRequest false "Create or update shared memories request"
 //
-// @Success     201 {object} sharedmemory.CreateOrUpdateResponse "Shared memories successfully created or updated"
+// @Success     202 {object} sharedmemory.CreateOrUpdateAcceptedResponse "Request accepted for async processing"
 // @Failure     400 {object} map[string]string "Invalid request"
-// @Failure     500 {object} map[string]string "Internal server error"
 //
 // @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories [post]
 // createOrUpdateSharedMemoriesCore contains the core business logic for creating or updating shared memories.
@@ -346,9 +345,9 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 }
 
 // createOrUpdateSharedMemoriesHandler handles HTTP requests for creating or updating shared memories.
-// It parses the HTTP request and delegates to the core business logic function.
+// It parses the HTTP request, spawns async processing, and returns 202 Accepted immediately.
 func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	ctx := r.Context()
+	log := getLogger()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
@@ -365,17 +364,43 @@ func (a *App) createOrUpdateSharedMemoriesHandler(w http.ResponseWriter, r *http
 		}
 	}
 
-	// Call core business logic
-	resp, err := a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, reqPayload)
-	if err != nil {
-		return eh.RespondWithJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()},
-		)
+	// Generate request ID if not provided
+	requestID := uuid.New().String()
+	if reqPayload.RequestId != nil && *reqPayload.RequestId != "" {
+		requestID = *reqPayload.RequestId
 	}
 
-	return eh.RespondWithJSON(w, http.StatusCreated, resp)
+	log.Infof(
+		"Accepted async shared memories upsert | workspace=%s mas=%s request_id=%s",
+		workspaceID, masID, requestID,
+	)
+
+	// Spawn background goroutine to process the request (fire-and-forget)
+	go func() {
+		// Use a fresh background context since the HTTP request context will be cancelled
+		ctx := context.Background()
+
+		resp, err := a.createOrUpdateSharedMemoriesCore(ctx, workspaceID, masID, reqPayload)
+		if err != nil {
+			log.Errorf(
+				"Async shared memories upsert failed | workspace=%s mas=%s request_id=%s err=%v",
+				workspaceID, masID, requestID, err,
+			)
+			return
+		}
+
+		log.Infof(
+			"Async shared memories upsert completed | workspace=%s mas=%s request_id=%s status=%s",
+			workspaceID, masID, requestID, resp.Status,
+		)
+	}()
+
+	// Return 202 Accepted immediately
+	return eh.RespondWithJSON(w, http.StatusAccepted, sharedmemory.CreateOrUpdateAcceptedResponse{
+		ResponseID: requestID,
+		Status:     "accepted",
+		Message:    "Request accepted for asynchronous processing",
+	})
 }
 
 func mapKGRecordToQueryRecord(r iocmemoryprovider.KnowledgeGraphQueryResponseRecord) sharedmemory.QueryResponseRecord {

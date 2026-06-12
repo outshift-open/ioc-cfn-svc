@@ -2,7 +2,7 @@
 
 Versioned OpenAPI specifications for SDK generation and API documentation.
 
-**Current version:** `public-api-v1.0.yaml`
+**Current version:** `public-api-v1.1.yaml`
 
 ## Quick Start
 

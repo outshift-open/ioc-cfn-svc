@@ -7,9 +7,9 @@ Supported input formats:
 - **Otel Trace** (`observe-sdk-otel`)
 - **OpenClaw** (`openclaw`)
 
-## Create or update shared memories
+## Create or update shared memories (async)
 
-Send a payload to persist concepts/relationships.
+Send a payload to persist concepts/relationships. The API is **asynchronous** — it returns `202 Accepted` immediately and processes the extraction and storage in the background.
 
 ### Example: Otel Trace input
 
@@ -31,10 +31,11 @@ cat ../pkg/app/testdata/otel.json | jq -s '{
   -H "Content-Type: application/json" \
   --data-binary @-
 
-# Response (201 Created)
+# Response (202 Accepted)
 # {
-#   "response_id": "9af99ba5-e8aa-47aa-a217-b87dd928ac59",
-#   "message": "Successfully saved 10 nodes and 16 edges to graph 'graph_mas_otel'"
+#   "response_id": "my-trace-id-123",
+#   "status": "accepted",
+#   "message": "Request accepted for asynchronous processing"
 # }
 ```
 
@@ -58,12 +59,15 @@ cat ../pkg/app//testdata/openclaw.json | jq -s '{
   -H "Content-Type: application/json" \
   --data-binary @-
 
-# Response (201 Created)
+# Response (202 Accepted)
 # {
-#   "response_id": "9af99ba5-e8aa-47aa-a217-b87dd928ac59",
-#   "message": "Successfully saved 15 nodes and 17 edges to graph 'graph_mas_openclaw'"
+#   "response_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+#   "status": "accepted",
+#   "message": "Request accepted for asynchronous processing"
 # }
 ```
+
+> **Note:** The `response_id` in the response can be used to correlate logs. If not provided in the request, a UUID is auto-generated.
 
 ## Fetch shared memories
 

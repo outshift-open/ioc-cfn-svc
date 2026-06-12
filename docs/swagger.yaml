@@ -895,6 +895,18 @@ definitions:
           $ref: '#/definitions/sharedmemory.GraphConcept'
         type: array
     type: object
+  sharedmemory.CreateOrUpdateAcceptedResponse:
+    properties:
+      message:
+        description: Message provides additional information
+        type: string
+      response_id:
+        description: ID of the request, can be used for correlation in logs
+        type: string
+      status:
+        description: Status indicates the request was accepted for processing
+        type: string
+    type: object
   sharedmemory.CreateOrUpdateRequest:
     properties:
       header:
@@ -909,26 +921,6 @@ definitions:
       request_id:
         description: ID of the request, optional. If not provided, a random UUID is
           used to represent the request
-        type: string
-    type: object
-  sharedmemory.CreateOrUpdateResponse:
-    properties:
-      graph_store_message:
-        description: Optional message from the graph store upsert operation
-        type: string
-      meta:
-        allOf:
-        - $ref: '#/definitions/common.TokenUsageMeta'
-        description: Meta provides LLM token usage and performance metrics (optional,
-          present when LLM calls are made)
-      response_id:
-        description: ID of the response, this gets populated from request_id
-        type: string
-      status:
-        description: Status of the request
-        type: string
-      vector_store_message:
-        description: Optional message from the vector store upsert operation
         type: string
     type: object
   sharedmemory.GraphConcept:
@@ -2425,9 +2417,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates or updates shared memories with entries (concepts and relations)
-        extracted from the provided trace or OpenClaw output for a given workspace
-        and multi-agentic system.
+      description: Accepts a request to create or update shared memories and processes
+        it asynchronously. Returns 202 Accepted immediately. The extraction and storage
+        operations run in the background.
       parameters:
       - description: Workspace ID
         in: path
@@ -2447,23 +2439,17 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Shared memories successfully created or updated
+        "202":
+          description: Request accepted for async processing
           schema:
-            $ref: '#/definitions/sharedmemory.CreateOrUpdateResponse'
+            $ref: '#/definitions/sharedmemory.CreateOrUpdateAcceptedResponse'
         "400":
           description: Invalid request
           schema:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Create or update shared memories.
+      summary: Create or update shared memories (async).
       tags:
       - shared-memories
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories/query:

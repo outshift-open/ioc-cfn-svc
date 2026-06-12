@@ -140,7 +140,10 @@ func TestCreateOrUpdateSharedMemories_Audit_Success(t *testing.T) {
 	code, err := app.createOrUpdateSharedMemoriesHandler(rr, req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, http.StatusCreated, code)
+	assert.Equal(t, http.StatusAccepted, code) // Async API returns 202
+
+	// Wait for background goroutine to complete processing and create audit event
+	time.Sleep(1000 * time.Millisecond)
 
 	events := listAllAudits(t, app.db)
 	require.Len(t, events, 1, "expected exactly one audit event")
@@ -186,7 +189,10 @@ func TestCreateOrUpdateSharedMemories_Audit_ExtractionFailure(t *testing.T) {
 	rr := httptest.NewRecorder()
 	code, _ := app.createOrUpdateSharedMemoriesHandler(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, code)
+	assert.Equal(t, http.StatusAccepted, code) // Async API returns 202 immediately
+
+	// Wait for background goroutine to complete processing and create audit event
+	time.Sleep(1000 * time.Millisecond)
 
 	events := listAllAudits(t, app.db)
 	require.Len(t, events, 1, "expected exactly one audit event on extraction failure")
@@ -239,7 +245,10 @@ func TestCreateOrUpdateSharedMemories_Audit_UpsertFailure(t *testing.T) {
 	rr := httptest.NewRecorder()
 	code, _ := app.createOrUpdateSharedMemoriesHandler(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, code)
+	assert.Equal(t, http.StatusAccepted, code) // Async API returns 202 immediately
+
+	// Wait for background goroutine to complete processing and create audit event
+	time.Sleep(1000 * time.Millisecond)
 
 	events := listAllAudits(t, app.db)
 	require.Len(t, events, 1, "expected exactly one audit event on upsert failure")

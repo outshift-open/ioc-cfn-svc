@@ -2016,6 +2016,23 @@
                 }
             }
         },
+        "sharedmemory.CreateOrUpdateAcceptedResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message provides additional information",
+                    "type": "string"
+                },
+                "response_id": {
+                    "description": "ID of the request, can be used for correlation in logs",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status indicates the request was accepted for processing",
+                    "type": "string"
+                }
+            }
+        },
         "sharedmemory.CreateOrUpdateRequest": {
             "type": "object",
             "properties": {
@@ -2037,35 +2054,6 @@
                 },
                 "request_id": {
                     "description": "ID of the request, optional. If not provided, a random UUID is used to represent the request",
-                    "type": "string"
-                }
-            }
-        },
-        "sharedmemory.CreateOrUpdateResponse": {
-            "type": "object",
-            "properties": {
-                "graph_store_message": {
-                    "description": "Optional message from the graph store upsert operation",
-                    "type": "string"
-                },
-                "meta": {
-                    "description": "Meta provides LLM token usage and performance metrics (optional, present when LLM calls are made)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/common.TokenUsageMeta"
-                        }
-                    ]
-                },
-                "response_id": {
-                    "description": "ID of the response, this gets populated from request_id",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status of the request",
-                    "type": "string"
-                },
-                "vector_store_message": {
-                    "description": "Optional message from the vector store upsert operation",
                     "type": "string"
                 }
             }
