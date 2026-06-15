@@ -18,7 +18,7 @@ Your App  ──▶  cognitionagentclient.Client  ──▶  httpclient.Client  
 | ----------------------------------------------- | ----------------------- | ----------------------------------------------------- |
 | `POST /api/knowledge-mgmt/extraction`           | `SendExtraction`        | Ingest agent telemetry → extract concepts & relations  |
 | `POST /api/knowledge-mgmt/reasoning/evidence`   | `SendReasoningEvidence` | Reasoning evidence request with an intent query        |
-| `POST /api/semantic-negotiation`                | `SendSemanticNegotiation` | Semantic negotiation request (TBD)                   |
+| `POST /api/semantic-alignment`                  | `SendSemanticAlignment` | Semantic alignment request (TBD)                     |
 
 ---
 

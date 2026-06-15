@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/semanticnegotiation"
+	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/semanticalignment"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
@@ -17,42 +17,42 @@ import (
 	"github.com/google/uuid"
 )
 
-// startSemanticNegotiationHandler godoc
+// startSemanticAlignmentHandler godoc
 //
-// @Summary     Start semantic negotiation session
-// @Description Initiates a new semantic negotiation session with multiple agents.
+// @Summary     Start semantic alignment session
+// @Description Initiates a new semantic alignment session with multiple agents.
 //
-// @Tags        semantic-negotiation
+// @Tags        semantic-alignment
 // @Accept      json
 // @Produce     json
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body semanticnegotiation.StartRequest true "Semantic negotiation start request"
+// @Param       body        body semanticalignment.StartRequest true "Semantic negotiation start request"
 //
-// @Success     200 {object} semanticnegotiation.StartResponse "Negotiation session started successfully"
+// @Success     200 {object} semanticalignment.StartResponse "Negotiation session started successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start [post]
-func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start [post]
+func (a *App) startSemanticAlignmentHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
-		"Starting semantic negotiation | workspace=%s mas=%s",
+		"Starting semantic alignment | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
 
 	operationID := uuid.New().String()
 
-	var reqPayload semanticnegotiation.StartRequest
+	var reqPayload semanticalignment.StartRequest
 	if r.Body != nil {
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("invalid JSON body"))
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr("invalid JSON body"))
 
 			return eh.RespondWithJSON(
 				w,
@@ -64,7 +64,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 
 	// Validate required fields
 	if reqPayload.SessionID == "" {
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("session_id is required"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr("session_id is required"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -73,7 +73,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 	if reqPayload.ContentText == "" {
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("content_text is required"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr("content_text is required"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -82,7 +82,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 	if len(reqPayload.Agents) == 0 {
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr("agents list cannot be empty"))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr("agents list cannot be empty"))
 
 		return eh.RespondWithJSON(
 			w,
@@ -92,31 +92,31 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Transform DTO to client request
-	agents := make([]cognitionagentclient.SemanticNegotiationAgent, len(reqPayload.Agents))
+	agents := make([]cognitionagentclient.SemanticAlignmentAgent, len(reqPayload.Agents))
 	for i, agent := range reqPayload.Agents {
-		agents[i] = cognitionagentclient.SemanticNegotiationAgent{
+		agents[i] = cognitionagentclient.SemanticAlignmentAgent{
 			ID:   agent.ID,
 			Name: agent.Name,
 		}
 	}
 
-	cogReq := &cognitionagentclient.SemanticNegotiationStartRequest{
+	cogReq := &cognitionagentclient.SemanticAlignmentStartRequest{
 		SessionID:   reqPayload.SessionID,
 		ContentText: reqPayload.ContentText,
 		Agents:      agents,
 		NSteps:      reqPayload.NSteps,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationStart(r.Context(), cogReq, workspaceID, masID)
+	cogResp, err := a.cognitionAgentsClient.SendSemanticAlignmentStart(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
-		log.Errorf("failed to start semantic negotiation, error: %s", err.Error())
+		log.Errorf("failed to start semantic alignment, error: %s", err.Error())
 
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr(err.Error()))
 
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "unable to start semantic negotiation"},
+			map[string]string{"error": "unable to start semantic alignment"},
 		)
 	}
 
@@ -126,7 +126,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 	resp, err := mapInitiatePayloadToStartResponse(cogResp)
 	if err != nil {
 		log.Errorf("failed to map initiate response | workspace=%s mas=%s err=%v", workspaceID, masID, err)
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "FAILED", common.StrToPtr(err.Error()))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "FAILED", common.StrToPtr(err.Error()))
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "unable to parse negotiation response"})
 	}
 
@@ -151,7 +151,7 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 			workspaceUUID,
 			masUUID,
 			agentID,
-			"semantic_negotiation",
+			"semantic_alignment",
 			reqPayload.SessionID,
 			ceID,
 			&common.TokenUsageMeta{
@@ -168,49 +168,49 @@ func (a *App) startSemanticNegotiationHandler(w http.ResponseWriter, r *http.Req
 		)
 	}
 
-	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationStart, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentStart, "SUCCESS", nil)
 
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 
-// decideSemanticNegotiationHandler godoc
+// decideSemanticAlignmentHandler godoc
 //
-// @Summary     Advance semantic negotiation session
-// @Description Advances an existing semantic negotiation session with agent replies.
+// @Summary     Advance semantic alignment session
+// @Description Advances an existing semantic alignment session with agent replies.
 //
-// @Tags        semantic-negotiation
+// @Tags        semantic-alignment
 // @Accept      json
 // @Produce     json
 //
 // @Param       workspaceId path string true "Workspace ID"
 // @Param       masId       path string true "Multi-Agentic System ID"
-// @Param       body        body semanticnegotiation.DecideRequest true "Semantic negotiation decide request"
+// @Param       body        body semanticalignment.DecideRequest true "Semantic negotiation decide request"
 //
-// @Success     200 {object} semanticnegotiation.DecideResponse "Negotiation step executed successfully"
+// @Success     200 {object} semanticalignment.DecideResponse "Negotiation step executed successfully"
 // @Failure     400 {object} map[string]string "Invalid request"
 // @Failure     404 {object} map[string]string "Session not found"
 // @Failure     500 {object} map[string]string "Internal server error"
 //
-// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide [post]
-func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// @Router      /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide [post]
+func (a *App) decideSemanticAlignmentHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
 
 	log.Infof(
-		"Advancing semantic negotiation | workspace=%s mas=%s",
+		"Advancing semantic alignment | workspace=%s mas=%s",
 		workspaceID, masID,
 	)
 
 	operationID := uuid.New().String()
 
-	var reqPayload semanticnegotiation.DecideRequest
+	var reqPayload semanticalignment.DecideRequest
 	if r.Body != nil {
 		defer r.Body.Close()
 
 		if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil && err != io.EOF {
-			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("invalid JSON body"))
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr("invalid JSON body"))
 
 			return eh.RespondWithJSON(
 				w,
@@ -223,7 +223,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	// Validate required fields
 	if reqPayload.SessionID == "" {
 		errMsg := "session_id is required"
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr(errMsg))
 		return eh.RespondWithJSON(
 			w,
 			http.StatusBadRequest,
@@ -232,7 +232,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	}
 	if len(reqPayload.AgentReplies) == 0 {
 		errMsg := "agent_replies list cannot be empty"
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr(errMsg))
 
 		return eh.RespondWithJSON(
 			w,
@@ -244,19 +244,19 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	agentReplies, err := buildAgentReplyEnvelopes(reqPayload.SessionID, reqPayload.AgentReplies)
 	if err != nil {
 		errMsg := "failed to build agent reply envelopes"
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(errMsg))
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr(errMsg))
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": errMsg})
 	}
 
-	cogReq := &cognitionagentclient.SemanticNegotiationDecideRequest{
+	cogReq := &cognitionagentclient.SemanticAlignmentDecideRequest{
 		SessionID:    reqPayload.SessionID,
 		AgentReplies: agentReplies,
 	}
 
-	cogResp, err := a.cognitionAgentsClient.SendSemanticNegotiationDecide(r.Context(), cogReq, workspaceID, masID)
+	cogResp, err := a.cognitionAgentsClient.SendSemanticAlignmentDecide(r.Context(), cogReq, workspaceID, masID)
 	if err != nil {
-		log.Errorf("failed to advance semantic negotiation, error: %s", err.Error())
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr(err.Error()))
+		log.Errorf("failed to advance semantic alignment, error: %s", err.Error())
+		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr(err.Error()))
 
 		if errors.Is(err, cognitionagentclient.ErrNotFound) {
 			return eh.RespondWithJSON(
@@ -268,7 +268,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		return eh.RespondWithJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "unable to advance semantic negotiation"},
+			map[string]string{"error": "unable to advance semantic alignment"},
 		)
 	}
 
@@ -277,7 +277,7 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 	if cogResp.Round != nil {
 		round = *cogResp.Round
 	}
-	resp := &semanticnegotiation.DecideResponse{
+	resp := &semanticalignment.DecideResponse{
 		Status:      cogResp.Status,
 		SessionID:   cogResp.SessionID,
 		Round:       round,
@@ -308,8 +308,8 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 		if err != nil {
 			log.Errorf("failed to marshal final_result for persistence | workspace=%s mas=%s session=%s err=%v",
 				workspaceID, masID, reqPayload.SessionID, err)
-			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to marshall final result for persistence"))
-			resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr("failed to marshall final result for persistence"))
+			resp.SharedMemory = &semanticalignment.SharedMemoryResult{
 				Persisted: false,
 				Error:     "failed to marshal final result for persistence",
 			}
@@ -326,22 +326,22 @@ func (a *App) decideSemanticNegotiationHandler(w http.ResponseWriter, r *http.Re
 			if _, err := a.createOrUpdateSharedMemoriesCore(context.Background(), workspaceID, masID, persistReq); err != nil {
 				log.Errorf("failed to persist negotiation agreement | workspace=%s mas=%s session=%s err=%v",
 					workspaceID, masID, reqPayload.SessionID, err)
-				a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "FAILED", common.StrToPtr("failed to persist negotiation agreement"))
-				resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+				a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "FAILED", common.StrToPtr("failed to persist negotiation agreement"))
+				resp.SharedMemory = &semanticalignment.SharedMemoryResult{
 					Persisted: false,
 					Error:     "failed to persist negotiation agreement to shared memory",
 				}
 			} else {
 				log.Infof("persisted negotiation agreement to shared memory | workspace=%s mas=%s session=%s",
 					workspaceID, masID, reqPayload.SessionID)
-				resp.SharedMemory = &semanticnegotiation.SharedMemoryResult{
+				resp.SharedMemory = &semanticalignment.SharedMemoryResult{
 					Persisted: true,
 				}
 			}
 		}
 	}
 
-	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticNegotiationDecide, "SUCCESS", nil)
+	a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeSemanticAlignmentDecide, "SUCCESS", nil)
 	return eh.RespondWithJSON(w, http.StatusOK, resp)
 }
 
@@ -398,7 +398,7 @@ type initiateRaw struct {
 // a typed StartResponse. It handles two response shapes:
 //   - SSTP envelope: cogResp.Payload contains InitiateResponse fields (current_round, trace, etc.)
 //   - Flat dict: cogResp carries status/session_id/issues/messages directly (async_execute path)
-func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNegotiationResponse) (*semanticnegotiation.StartResponse, error) {
+func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticAlignmentResponse) (*semanticalignment.StartResponse, error) {
 	// Prefer the SSTP envelope payload if populated, otherwise fall back to the
 	// top-level flat fields on cogResp.
 	source := cogResp.Payload
@@ -423,7 +423,7 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 		return nil, fmt.Errorf("unmarshal initiate payload: %w", err)
 	}
 
-	resp := &semanticnegotiation.StartResponse{
+	resp := &semanticalignment.StartResponse{
 		Status:          raw.Status,
 		SessionID:       raw.SessionID,
 		TotalRounds:     raw.TotalRounds,
@@ -450,14 +450,14 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 	}
 
 	if raw.CurrentRound != nil {
-		cr := &semanticnegotiation.RoundOffer{
+		cr := &semanticalignment.RoundOffer{
 			Round:          raw.CurrentRound.Round,
 			ProposerID:     raw.CurrentRound.ProposerID,
 			NextProposerID: raw.CurrentRound.NextProposerID,
 			Offer:          raw.CurrentRound.Offer,
 		}
 		for _, d := range raw.CurrentRound.Decisions {
-			cr.Decisions = append(cr.Decisions, semanticnegotiation.AgentDecision{
+			cr.Decisions = append(cr.Decisions, semanticalignment.AgentDecision{
 				ParticipantID: d.ParticipantID,
 				Action:        d.Action,
 				Offer:         d.Offer,
@@ -467,19 +467,19 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 	}
 
 	if raw.Trace != nil {
-		trace := &semanticnegotiation.NegotiationTrace{
+		trace := &semanticalignment.NegotiationTrace{
 			Timedout: raw.Trace.Timedout,
 			Broken:   raw.Trace.Broken,
 		}
 		for _, r := range raw.Trace.Rounds {
-			ro := semanticnegotiation.RoundOffer{
+			ro := semanticalignment.RoundOffer{
 				Round:          r.Round,
 				ProposerID:     r.ProposerID,
 				NextProposerID: r.NextProposerID,
 				Offer:          r.Offer,
 			}
 			for _, d := range r.Decisions {
-				ro.Decisions = append(ro.Decisions, semanticnegotiation.AgentDecision{
+				ro.Decisions = append(ro.Decisions, semanticalignment.AgentDecision{
 					ParticipantID: d.ParticipantID,
 					Action:        d.Action,
 					Offer:         d.Offer,
@@ -488,7 +488,7 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 			trace.Rounds = append(trace.Rounds, ro)
 		}
 		for _, fa := range raw.Trace.FinalAgreement {
-			trace.FinalAgreement = append(trace.FinalAgreement, semanticnegotiation.NegotiationOutcome{
+			trace.FinalAgreement = append(trace.FinalAgreement, semanticalignment.NegotiationOutcome{
 				IssueID:      fa.IssueID,
 				ChosenOption: fa.ChosenOption,
 			})
@@ -501,7 +501,7 @@ func mapInitiatePayloadToStartResponse(cogResp *cognitionagentclient.SemanticNeg
 
 // buildAgentReplyEnvelopes wraps each AgentReply in a minimal SSTP envelope
 // so the downstream negotiation service receives the expected wire format.
-func buildAgentReplyEnvelopes(sessionID string, replies []semanticnegotiation.AgentReply) ([]json.RawMessage, error) {
+func buildAgentReplyEnvelopes(sessionID string, replies []semanticalignment.AgentReply) ([]json.RawMessage, error) {
 	out := make([]json.RawMessage, 0, len(replies))
 	for _, reply := range replies {
 		payload := map[string]interface{}{

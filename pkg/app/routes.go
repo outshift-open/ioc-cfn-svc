@@ -53,9 +53,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/concepts/similarity-search", withWorkspaceAndMasValidation(a.conceptSimilaritySearchHandler))
 	rtr.Post(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/rag/similarity-search", withWorkspaceAndMasValidation(a.vectorSimilaritySearchHandler))
 
-	// semantic negotiation
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start", withWorkspaceAndMasValidation(a.startSemanticNegotiationHandler))
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide", withWorkspaceAndMasValidation(a.decideSemanticNegotiationHandler))
+	// semantic alignment
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start", withWorkspaceAndMasValidation(a.startSemanticAlignmentHandler))
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide", withWorkspaceAndMasValidation(a.decideSemanticAlignmentHandler))
 
 	// remote agent memory operations
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations", withWorkspaceAndMasValidation(a.memoryOperationsHandler))

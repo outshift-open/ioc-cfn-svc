@@ -62,7 +62,7 @@ pkg/client/database/database.go  — Real (Postgres) Database implementation
 | `AuditTypeMemoryOperation` | `MEMORY_OPERATION` |
 | `AuditTypeSharedMemoryOperation` | `SHARED_MEMORY_OPERATION` |
 | `AuditTypeAgentMemoryOperation` | `AGENT_MEMORY_OPERATION` |
-| `AuditTypeSemanticNegotiation` | `SEMANTIC_NEGOTIATION` |
+| `AuditTypeSemanticAlignment` | `SEMANTIC_ALIGNMENT` |
 
 Both enums are validated on create and list operations. Invalid values return an error with the list of valid options.
 
@@ -163,7 +163,7 @@ curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=KNOWLEDGE_
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=MEMORY_OPERATION"
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SHARED_MEMORY_OPERATION"
 curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=AGENT_MEMORY_OPERATION"
-curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SEMANTIC_NEGOTIATION"
+curl -X GET "http://localhost:8080/api/internal/mgmt/audit?audit_type=SEMANTIC_ALIGNMENT"
 ```
 
 #### List — both filters

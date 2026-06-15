@@ -1611,9 +1611,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide": {
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide": {
             "post": {
-                "description": "Advances an existing semantic negotiation session with agent replies.",
+                "description": "Advances an existing semantic alignment session with agent replies.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1621,9 +1621,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "semantic-negotiation"
+                    "semantic-alignment"
                 ],
-                "summary": "Advance semantic negotiation session",
+                "summary": "Advance semantic alignment session",
                 "parameters": [
                     {
                         "type": "string",
@@ -1645,7 +1645,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.DecideRequest"
+                            "$ref": "#/definitions/semanticalignment.DecideRequest"
                         }
                     }
                 ],
@@ -1653,7 +1653,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Negotiation step executed successfully",
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.DecideResponse"
+                            "$ref": "#/definitions/semanticalignment.DecideResponse"
                         }
                     },
                     "400": {
@@ -1686,9 +1686,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start": {
+        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start": {
             "post": {
-                "description": "Initiates a new semantic negotiation session with multiple agents.",
+                "description": "Initiates a new semantic alignment session with multiple agents.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1696,9 +1696,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "semantic-negotiation"
+                    "semantic-alignment"
                 ],
-                "summary": "Start semantic negotiation session",
+                "summary": "Start semantic alignment session",
                 "parameters": [
                     {
                         "type": "string",
@@ -1720,7 +1720,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.StartRequest"
+                            "$ref": "#/definitions/semanticalignment.StartRequest"
                         }
                     }
                 ],
@@ -1728,7 +1728,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Negotiation session started successfully",
                         "schema": {
-                            "$ref": "#/definitions/semanticnegotiation.StartResponse"
+                            "$ref": "#/definitions/semanticalignment.StartResponse"
                         }
                     },
                     "400": {
@@ -2777,7 +2777,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.Agent": {
+        "semanticalignment.Agent": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2790,7 +2790,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.AgentDecision": {
+        "semanticalignment.AgentDecision": {
             "type": "object",
             "properties": {
                 "action": {
@@ -2810,7 +2810,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.AgentReply": {
+        "semanticalignment.AgentReply": {
             "type": "object",
             "properties": {
                 "action": {
@@ -2830,14 +2830,14 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.DecideRequest": {
+        "semanticalignment.DecideRequest": {
             "type": "object",
             "properties": {
                 "agent_replies": {
                     "description": "AgentReplies contains each agent's reply to the current round.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.AgentReply"
+                        "$ref": "#/definitions/semanticalignment.AgentReply"
                     }
                 },
                 "session_id": {
@@ -2846,7 +2846,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.DecideResponse": {
+        "semanticalignment.DecideResponse": {
             "type": "object",
             "properties": {
                 "final_result": {
@@ -2884,7 +2884,7 @@ const docTemplate = `{
                     "description": "SharedMemory reports the outcome of persisting the agreement to shared\nmemory. Only present when Status is \"agreed\".",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/semanticnegotiation.SharedMemoryResult"
+                            "$ref": "#/definitions/semanticalignment.SharedMemoryResult"
                         }
                     ]
                 },
@@ -2894,7 +2894,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.NegotiationOutcome": {
+        "semanticalignment.NegotiationOutcome": {
             "type": "object",
             "properties": {
                 "chosen_option": {
@@ -2905,7 +2905,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.NegotiationTrace": {
+        "semanticalignment.NegotiationTrace": {
             "type": "object",
             "properties": {
                 "broken": {
@@ -2916,14 +2916,14 @@ const docTemplate = `{
                     "description": "FinalAgreement is the agreed option per issue, if any.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.NegotiationOutcome"
+                        "$ref": "#/definitions/semanticalignment.NegotiationOutcome"
                     }
                 },
                 "rounds": {
                     "description": "Rounds contains all SAO rounds in order (1-based).",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.RoundOffer"
+                        "$ref": "#/definitions/semanticalignment.RoundOffer"
                     }
                 },
                 "timedout": {
@@ -2932,14 +2932,14 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.RoundOffer": {
+        "semanticalignment.RoundOffer": {
             "type": "object",
             "properties": {
                 "decisions": {
                     "description": "Decisions contains each participant's response to this round's offer.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.AgentDecision"
+                        "$ref": "#/definitions/semanticalignment.AgentDecision"
                     }
                 },
                 "next_proposer_id": {
@@ -2963,7 +2963,7 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.SharedMemoryResult": {
+        "semanticalignment.SharedMemoryResult": {
             "type": "object",
             "properties": {
                 "error": {
@@ -2976,14 +2976,14 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.StartRequest": {
+        "semanticalignment.StartRequest": {
             "type": "object",
             "properties": {
                 "agents": {
                     "description": "Agents is the list of participating agents (minimum 2).",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/semanticnegotiation.Agent"
+                        "$ref": "#/definitions/semanticalignment.Agent"
                     }
                 },
                 "content_text": {
@@ -3000,14 +3000,14 @@ const docTemplate = `{
                 }
             }
         },
-        "semanticnegotiation.StartResponse": {
+        "semanticalignment.StartResponse": {
             "type": "object",
             "properties": {
                 "current_round": {
                     "description": "CurrentRound is the first offer in the trace (SSTP envelope path only).",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/semanticnegotiation.RoundOffer"
+                            "$ref": "#/definitions/semanticalignment.RoundOffer"
                         }
                     ]
                 },
@@ -3070,7 +3070,7 @@ const docTemplate = `{
                     "description": "Trace is the complete pre-computed SAO trace (SSTP envelope path only).",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/semanticnegotiation.NegotiationTrace"
+                            "$ref": "#/definitions/semanticalignment.NegotiationTrace"
                         }
                     ]
                 }

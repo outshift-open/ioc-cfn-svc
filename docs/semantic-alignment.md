@@ -1,7 +1,7 @@
-# Semantic Negotiation via CFN
+# Semantic Alignment via CFN
 
 The CFN acts as a proxy between a MAS client and the Cognition Engine server
-([`semantic_negotiation`](https://github.com/cisco-eti/ioc-cfn-cognitive-agents/tree/main/semantic_negotiation)).
+([`semantic_alignment`](https://github.com/cisco-eti/ioc-cfn-cognitive-agents/tree/main/semantic_alignment)).
 The client drives the negotiation loop turn-by-turn; CFN wraps each request in the
 required SSTP envelope and forwards it to the negotiation server.
 
@@ -10,24 +10,24 @@ required SSTP envelope and forwards it to the negotiation server.
 ```text
 MAS Client
     │
-    │  POST /semantic-negotiation/start
-    │  POST /semantic-negotiation/decide  (repeated)
+    │  POST /semantic-alignment/start
+    │  POST /semantic-alignment/decide  (repeated)
     ▼
 CFN (ioc-cfn-svc)
     │  wraps in SSTPNegotiateMessage envelope
     │
-    │  POST /api/semantic-negotiation/negotiate/initiate
-    │  POST /api/semantic-negotiation/negotiate/decide          (repeated)
+    │  POST /api/semantic-alignment/negotiate/initiate
+    │  POST /api/semantic-alignment/negotiate/decide          (repeated)
     ▼
-Cognition Engine Server (Semantic Negotiation)
+Cognition Engine Server (Semantic Alignment)
 ```
 
 ## Endpoints
 
 | CFN Route | Method | Proxies to |
 | --- | --- | --- |
-| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start` | POST | `POST /api/semantic-negotiation/negotiate/initiate` |
-| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide` | POST | `POST /api/semantic-negotiation/negotiate/decide` |
+| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start` | POST | `POST /api/semantic-alignment/negotiate/initiate` |
+| `/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide` | POST | `POST /api/semantic-alignment/negotiate/decide` |
 
 ---
 
@@ -36,7 +36,7 @@ Cognition Engine Server (Semantic Negotiation)
 ### Request
 
 ```bash
-curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-negotiation/start \
+curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-alignment/start \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "sess-test-001",
@@ -186,7 +186,7 @@ to the negotiation server — callers never deal with SSTP.
 `next_proposer_id` is `agent-a`, so agent-a counter-offers while the others respond:
 
 ```bash
-curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-negotiation/decide \
+curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-alignment/decide \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "sess-test-001",
@@ -285,7 +285,7 @@ Example response:
 When all agents accept the standing offer the negotiation concludes:
 
 ```bash
-curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-negotiation/decide \
+curl -X POST http://localhost:<cfn-port>/api/workspaces/<workspaceId>/multi-agentic-systems/<masId>/semantic-alignment/decide \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "sess-test-001",

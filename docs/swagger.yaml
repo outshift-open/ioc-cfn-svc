@@ -625,7 +625,7 @@ definitions:
       http-status:
         type: integer
     type: object
-  semanticnegotiation.Agent:
+  semanticalignment.Agent:
     properties:
       id:
         description: ID is the unique agent identifier.
@@ -634,7 +634,7 @@ definitions:
         description: Name is the human-readable agent name.
         type: string
     type: object
-  semanticnegotiation.AgentDecision:
+  semanticalignment.AgentDecision:
     properties:
       action:
         description: Action is one of "accept", "reject", or "counter_offer".
@@ -650,7 +650,7 @@ definitions:
         description: ParticipantID is the ID of the participant who made this decision.
         type: string
     type: object
-  semanticnegotiation.AgentReply:
+  semanticalignment.AgentReply:
     properties:
       action:
         description: Action is one of "accept", "reject", or "counter_offer".
@@ -666,18 +666,18 @@ definitions:
         description: ParticipantID is the ID of the agent replying.
         type: string
     type: object
-  semanticnegotiation.DecideRequest:
+  semanticalignment.DecideRequest:
     properties:
       agent_replies:
         description: AgentReplies contains each agent's reply to the current round.
         items:
-          $ref: '#/definitions/semanticnegotiation.AgentReply'
+          $ref: '#/definitions/semanticalignment.AgentReply'
         type: array
       session_id:
         description: SessionID is the session identifier from the /start response.
         type: string
     type: object
-  semanticnegotiation.DecideResponse:
+  semanticalignment.DecideResponse:
     properties:
       final_result:
         additionalProperties: true
@@ -707,7 +707,7 @@ definitions:
         type: string
       shared_memory:
         allOf:
-        - $ref: '#/definitions/semanticnegotiation.SharedMemoryResult'
+        - $ref: '#/definitions/semanticalignment.SharedMemoryResult'
         description: |-
           SharedMemory reports the outcome of persisting the agreement to shared
           memory. Only present when Status is "agreed".
@@ -715,14 +715,14 @@ definitions:
         description: Status is "ongoing", "agreed", "broken", or "timeout".
         type: string
     type: object
-  semanticnegotiation.NegotiationOutcome:
+  semanticalignment.NegotiationOutcome:
     properties:
       chosen_option:
         type: string
       issue_id:
         type: string
     type: object
-  semanticnegotiation.NegotiationTrace:
+  semanticalignment.NegotiationTrace:
     properties:
       broken:
         description: Broken indicates whether a participant explicitly broke off.
@@ -730,24 +730,24 @@ definitions:
       final_agreement:
         description: FinalAgreement is the agreed option per issue, if any.
         items:
-          $ref: '#/definitions/semanticnegotiation.NegotiationOutcome'
+          $ref: '#/definitions/semanticalignment.NegotiationOutcome'
         type: array
       rounds:
         description: Rounds contains all SAO rounds in order (1-based).
         items:
-          $ref: '#/definitions/semanticnegotiation.RoundOffer'
+          $ref: '#/definitions/semanticalignment.RoundOffer'
         type: array
       timedout:
         description: Timedout indicates whether the SAO exhausted its step budget.
         type: boolean
     type: object
-  semanticnegotiation.RoundOffer:
+  semanticalignment.RoundOffer:
     properties:
       decisions:
         description: Decisions contains each participant's response to this round's
           offer.
         items:
-          $ref: '#/definitions/semanticnegotiation.AgentDecision'
+          $ref: '#/definitions/semanticalignment.AgentDecision'
         type: array
       next_proposer_id:
         description: |-
@@ -766,7 +766,7 @@ definitions:
         description: Round is the 1-based round number.
         type: integer
     type: object
-  semanticnegotiation.SharedMemoryResult:
+  semanticalignment.SharedMemoryResult:
     properties:
       error:
         description: Error contains a human-readable reason when Persisted is false.
@@ -776,12 +776,12 @@ definitions:
           to shared memory.
         type: boolean
     type: object
-  semanticnegotiation.StartRequest:
+  semanticalignment.StartRequest:
     properties:
       agents:
         description: Agents is the list of participating agents (minimum 2).
         items:
-          $ref: '#/definitions/semanticnegotiation.Agent'
+          $ref: '#/definitions/semanticalignment.Agent'
         type: array
       content_text:
         description: ContentText is the negotiation prompt/context used to initialize
@@ -796,11 +796,11 @@ definitions:
         description: SessionID is the client-provided session identifier.
         type: string
     type: object
-  semanticnegotiation.StartResponse:
+  semanticalignment.StartResponse:
     properties:
       current_round:
         allOf:
-        - $ref: '#/definitions/semanticnegotiation.RoundOffer'
+        - $ref: '#/definitions/semanticalignment.RoundOffer'
         description: CurrentRound is the first offer in the trace (SSTP envelope path
           only).
       issues:
@@ -847,7 +847,7 @@ definitions:
         type: integer
       trace:
         allOf:
-        - $ref: '#/definitions/semanticnegotiation.NegotiationTrace'
+        - $ref: '#/definitions/semanticalignment.NegotiationTrace'
         description: Trace is the complete pre-computed SAO trace (SSTP envelope path
           only).
     type: object
@@ -2319,11 +2319,11 @@ paths:
       summary: Upsert vectors for an agent
       tags:
       - Vector Store
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide:
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide:
     post:
       consumes:
       - application/json
-      description: Advances an existing semantic negotiation session with agent replies.
+      description: Advances an existing semantic alignment session with agent replies.
       parameters:
       - description: Workspace ID
         in: path
@@ -2340,14 +2340,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/semanticnegotiation.DecideRequest'
+          $ref: '#/definitions/semanticalignment.DecideRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Negotiation step executed successfully
           schema:
-            $ref: '#/definitions/semanticnegotiation.DecideResponse'
+            $ref: '#/definitions/semanticalignment.DecideResponse'
         "400":
           description: Invalid request
           schema:
@@ -2366,14 +2366,14 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Advance semantic negotiation session
+      summary: Advance semantic alignment session
       tags:
-      - semantic-negotiation
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start:
+      - semantic-alignment
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start:
     post:
       consumes:
       - application/json
-      description: Initiates a new semantic negotiation session with multiple agents.
+      description: Initiates a new semantic alignment session with multiple agents.
       parameters:
       - description: Workspace ID
         in: path
@@ -2390,14 +2390,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/semanticnegotiation.StartRequest'
+          $ref: '#/definitions/semanticalignment.StartRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Negotiation session started successfully
           schema:
-            $ref: '#/definitions/semanticnegotiation.StartResponse'
+            $ref: '#/definitions/semanticalignment.StartResponse'
         "400":
           description: Invalid request
           schema:
@@ -2410,9 +2410,9 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Start semantic negotiation session
+      summary: Start semantic alignment session
       tags:
-      - semantic-negotiation
+      - semantic-alignment
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/shared-memories:
     post:
       consumes:
