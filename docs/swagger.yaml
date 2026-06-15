@@ -273,7 +273,7 @@ definitions:
         description: |-
           Data contains the extraction payload and its structure depends on Metadata.Format.
 
-          Supported formats: "observe-sdk-otel" and "openclaw
+          Supported formats: "observe-sdk-otel", "openclaw" and "otel-trace".
 
           1. format = "observe-sdk-otel"
              - Data MUST be a JSON array of ExtractionDataRecord objects.
@@ -301,6 +301,7 @@ definitions:
 
           Supported values:
           - "observe-sdk-otel": Data is a JSON array of ExtractionDataRecord
+          - "otel-trace": Data is a grouped OTel trace payload pushed by cfn-svc
           - "openclaw": Data is an opaque JSON payload
         type: string
     type: object

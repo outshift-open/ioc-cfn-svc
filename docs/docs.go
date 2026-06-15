@@ -2279,7 +2279,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
-                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\" and \"openclaw\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
+                    "description": "Data contains the extraction payload and its structure depends on Metadata.Format.\n\nSupported formats: \"observe-sdk-otel\", \"openclaw\" and \"otel-trace\".\n\n1. format = \"observe-sdk-otel\"\n   - Data MUST be a JSON array of ExtractionDataRecord objects.\n   - Example:\n[\n  { TraceId, SpanId, ParentSpanId, SpanName, ServiceName, SpanAttributes, Duration }\n]\n\n2. format = \"openclaw\"\n   - Data is an opaque JSON payload.\n   - The structure is not interpreted or validated by this service and is processed as-is.\n\nClients MUST ensure the Data field matches the structure required by the specified Metadata.Format.",
                     "type": "object"
                 },
                 "metadata": {
@@ -2296,7 +2296,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "format": {
-                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"openclaw\": Data is an opaque JSON payload",
+                    "description": "Format specifies how the Data field should be interpreted.\n\nSupported values:\n- \"observe-sdk-otel\": Data is a JSON array of ExtractionDataRecord\n- \"otel-trace\": Data is a grouped OTel trace payload pushed by cfn-svc\n- \"openclaw\": Data is an opaque JSON payload",
                     "type": "string"
                 }
             }

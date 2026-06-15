@@ -55,6 +55,10 @@ var (
 	defaultPageSizeFlag = flag.Int("default_page_size", 20, "default number of records per page")
 	maxPageSizeFlag     = flag.Int("max_page_size", 100, "maximum allowed number of records per page")
 
+	// Trace completion configs
+	traceInactivityTimeoutFlag = flag.Duration("trace_inactivity_timeout", 30*time.Second, "time after last span before a trace is considered complete")
+	traceCheckIntervalFlag     = flag.Duration("trace_check_interval", 30*time.Second, "how often to scan for inactive traces")
+
 	// Task scheduler configs
 	taskCallbackDeadlineMinutesFlag = flag.Int("task_callback_deadline_minutes", 30, "minutes to wait for CE callback before marking task as timed out")
 
@@ -70,20 +74,21 @@ var (
 )
 
 type Config struct {
-	AppPort                      int
-	McpPort                      int
-	MetricsPort                  int
-	HostID                       string
-	HelmChartVersion             string
-	TagVersion                   string
-	ServiceName                  string
-	OomGracefulExitThreshold     float64
-	ExternalServiceURL           string
-	TaskCallbackDeadlineMinutes  int
-	DB                           Database
-	IDP                          IdentityProvider
-	Pagination                   Pagination
-	OTel                         OTelConfig
+	AppPort                     int
+	McpPort                     int
+	MetricsPort                 int
+	HostID                      string
+	HelmChartVersion            string
+	TagVersion                  string
+	ServiceName                 string
+	OomGracefulExitThreshold    float64
+	ExternalServiceURL          string
+	TaskCallbackDeadlineMinutes int
+	DB                          Database
+	IDP                         IdentityProvider
+	Pagination                  Pagination
+	OTel                        OTelConfig
+	TraceCompletion             TraceCompletionConfig
 }
 
 // OTelConfig holds configurable parameters for the embedded OTLP receiver.
@@ -98,17 +103,23 @@ type Pagination struct {
 	MaxPageSize     int
 }
 
+// TraceCompletionConfig holds parameters for trace completion detection.
+type TraceCompletionConfig struct {
+	InactivityTimeout time.Duration
+	CheckInterval     time.Duration
+}
+
 func Get() *Config {
 	flag.Parse()
 	return &Config{
-		AppPort:                  *portFlag,
-		McpPort:                  *mcpPortFlag,
-		MetricsPort:              *metricsPortFlag,
-		HostID:                   *replicaIDFlag,
-		HelmChartVersion:         *helmChartVersionFlag,
-		TagVersion:               *tagVersionFlag,
-		ServiceName:              *appNameFlag,
-		OomGracefulExitThreshold: *oomGracefulExitThresholdFlag,
+		AppPort:                     *portFlag,
+		McpPort:                     *mcpPortFlag,
+		MetricsPort:                 *metricsPortFlag,
+		HostID:                      *replicaIDFlag,
+		HelmChartVersion:            *helmChartVersionFlag,
+		TagVersion:                  *tagVersionFlag,
+		ServiceName:                 *appNameFlag,
+		OomGracefulExitThreshold:    *oomGracefulExitThresholdFlag,
 		ExternalServiceURL:          *externalServiceURLFlag,
 		TaskCallbackDeadlineMinutes: *taskCallbackDeadlineMinutesFlag,
 		DB: Database{
@@ -127,6 +138,10 @@ func Get() *Config {
 		OTel: OTelConfig{
 			BatchSize:     *otelBatchSizeFlag,
 			FlushInterval: *otelFlushIntervalFlag,
+		},
+		TraceCompletion: TraceCompletionConfig{
+			InactivityTimeout: *traceInactivityTimeoutFlag,
+			CheckInterval:     *traceCheckIntervalFlag,
 		},
 		IDP: IdentityProvider{
 			Label:                     *idpLabelFlag,

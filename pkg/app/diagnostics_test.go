@@ -24,7 +24,8 @@ func newDiagnosticsTestApp() *App {
 		startTime:     time.Now(),
 		db:            client.NewMockDatabase(),
 		Cfg: config.Config{
-			McpPort: 9001,
+			// port 9001 collides with the full stack deployment
+			McpPort: 19001,
 		},
 	}
 }
@@ -69,7 +70,7 @@ func TestDiagnosticsHealthHandler(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Equal(t, "DOWN", resp["status"])
-	assert.Contains(t, resp["message"], "MCP server not responding on port 9001")
+	assert.Contains(t, resp["message"], "MCP server not responding on port 19001")
 }
 
 // setParsedConfigForTest sets ParsedConfig for the duration of a test and restores it on cleanup.

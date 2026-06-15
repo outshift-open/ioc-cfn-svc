@@ -6,6 +6,7 @@ package otelreceiver
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -21,17 +22,23 @@ type SpanStore interface {
 	BulkInsertOtelSpans(spans []OtelSpan) error
 }
 
+// TraceTracker records ingestion state for trace discovery and completion detection.
+type TraceTracker interface {
+	UpsertPendingOtelTrace(workspaceID, masID, traceID string, lastSpanTime time.Time) error
+}
+
 // SpanExporter implements consumer.Traces and component.Component.
 // It maps ptrace.Traces to OtelSpans and bulk-inserts them via SpanStore.
 // Batching is handled upstream by the batchprocessor.
 type SpanExporter struct {
 	store    SpanStore
+	tracker  TraceTracker
 	resolver AgentResolver
 }
 
 // NewSpanExporter creates a SpanExporter that writes to store.
-func NewSpanExporter(store SpanStore, resolver AgentResolver) *SpanExporter {
-	return &SpanExporter{store: store, resolver: resolver}
+func NewSpanExporter(store SpanStore, tracker TraceTracker, resolver AgentResolver) *SpanExporter {
+	return &SpanExporter{store: store, tracker: tracker, resolver: resolver}
 }
 
 // Capabilities returns consumer capabilities (read-only, does not mutate spans).
@@ -79,5 +86,32 @@ func (e *SpanExporter) ConsumeTraces(_ context.Context, td ptrace.Traces) error 
 	}
 
 	exporterLog.Infof("otelwriter: inserted %d span(s)", len(otelSpans))
+
+	// Track distinct traces for pending KG ingestion and update last_span_time for completion detection.
+	if e.tracker != nil {
+		type traceKey struct {
+			ws, mas, trace string
+			lastSpanTime   time.Time
+		}
+		traces := make(map[string]traceKey) // key: ws|mas|trace
+		for _, s := range otelSpans {
+			key := s.WorkspaceID.String() + "|" + s.MasID.String() + "|" + s.TraceID
+			existing, ok := traces[key]
+			if !ok || s.StartTime.After(existing.lastSpanTime) {
+				traces[key] = traceKey{
+					ws:           s.WorkspaceID.String(),
+					mas:          s.MasID.String(),
+					trace:        s.TraceID,
+					lastSpanTime: s.StartTime,
+				}
+			}
+		}
+		for _, k := range traces {
+			if err := e.tracker.UpsertPendingOtelTrace(k.ws, k.mas, k.trace, k.lastSpanTime); err != nil {
+				exporterLog.Warnf("otelwriter: failed to track pending trace %s: %v", k.trace, err)
+			}
+		}
+	}
+
 	return nil
 }

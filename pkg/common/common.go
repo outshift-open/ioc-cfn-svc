@@ -6,6 +6,7 @@ const (
 	FormatObserveSDKOTel = "observe-sdk-otel"
 	FormatOpenClaw       = "openclaw"
 	FormatSemNeg         = "semneg"
+	FormatOTelTrace      = "otel-trace"
 )
 
 // Header carries routing context for CFN requests and responses.
