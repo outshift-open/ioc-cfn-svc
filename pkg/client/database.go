@@ -58,7 +58,6 @@ type Database interface {
 
 	// OTel trace ingestion state
 	UpsertPendingOtelTrace(workspaceID, masID, traceID string, lastSpanTime time.Time) error
-	GetPendingOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error)
 	ClaimReadyOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error)
 	UpdateOtelTraceStatus(workspaceID, masID, traceID, newStatus string) error
 	GetOtelSpansForTrace(workspaceID, masID, traceID string) ([]otelreceiver.OtelSpan, error)
@@ -265,10 +264,6 @@ func (m *MockDatabase) DeleteTasksNotInSet(_ map[string]bool) ([]model.Task, err
 
 func (m *MockDatabase) UpsertPendingOtelTrace(_, _, _ string, _ time.Time) error {
 	return nil
-}
-
-func (m *MockDatabase) GetPendingOtelTraces(_, _ string, _ int, _ time.Duration) ([]string, error) {
-	return nil, nil
 }
 
 func (m *MockDatabase) ClaimReadyOtelTraces(_, _ string, _ int, _ time.Duration) ([]string, error) {

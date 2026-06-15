@@ -65,7 +65,7 @@ func TestBuildReadyOtelTaskPayload(t *testing.T) {
 					Attributes:    datatypes.JSON([]byte(`{"openclaw.message.channel":"final"}`)),
 					Events:        datatypes.JSON([]byte(`[]`)),
 					Links:         datatypes.JSON([]byte(`[]`)),
-					Resource:      datatypes.JSON([]byte(`{"service.name":"openclaw","openclaw.plugin":"insightClaw"}`)),
+					Resource:      datatypes.JSON([]byte(`{"service.name":"openclaw","openclaw.plugin":"openclaw-deep-observability"}`)),
 				},
 			},
 		},
@@ -104,11 +104,6 @@ func TestBuildReadyOtelTaskPayload(t *testing.T) {
 	assert.Equal(t, "openclaw-deep-observability", span.Resource["openclaw.plugin"])
 }
 
-func TestNormalizeOtelResourceLeavesCurrentPluginUnchanged(t *testing.T) {
-	resource := normalizeOtelResource([]byte(`{"service.name":"openclaw","openclaw.plugin":"openclaw-deep-observability"}`))
-	assert.Equal(t, "openclaw", resource["service.name"])
-	assert.Equal(t, "openclaw-deep-observability", resource["openclaw.plugin"])
-}
 
 func TestBuildReadyOtelTaskPayloadNoReadyTraces(t *testing.T) {
 	db := &otelTaskPayloadDB{

@@ -318,27 +318,6 @@ func (db *Database) UpsertPendingOtelTrace(workspaceID, masID, traceID string, l
 		}).Error
 }
 
-// GetPendingOtelTraces returns trace IDs that are ready for KG ingestion for a given workspace/MAS.
-// It revalidates last_span_time at dispatch so stale ready rows are not processed prematurely.
-func (db *Database) GetPendingOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error) {
-	var rows []model.OtelTraceIngestionState
-	cutoff := time.Now().Add(-inactivityThreshold)
-	err := db.DB.
-		Where("workspace_id = ? AND mas_id = ? AND status = ? AND last_span_time IS NOT NULL AND last_span_time < ?", workspaceID, masID, "ready", cutoff).
-		Order("created_at ASC").
-		Limit(limit).
-		Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-
-	traceIDs := make([]string, 0, len(rows))
-	for _, r := range rows {
-		traceIDs = append(traceIDs, r.TraceID)
-	}
-	return traceIDs, nil
-}
-
 // ClaimReadyOtelTraces atomically selects ready traces that have passed the inactivity delay
 // and moves them to running so a task trigger can push their spans to CE without duplicate dispatch.
 func (db *Database) ClaimReadyOtelTraces(workspaceID, masID string, limit int, inactivityThreshold time.Duration) ([]string, error) {

@@ -78,9 +78,6 @@ func (a *App) initializeRoutes() http.Handler {
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
-	// OTel spans read API (consumed by cognition-engine for KG ingestion)
-	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/otel-spans", withWorkspaceAndMasValidation(a.getOtelSpansHandler))
-	rtr.Get(internalPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/otel-spans/pending", withWorkspaceAndMasValidation(a.getPendingOtelSpansHandler))
 
 	// OTLP trace ingestion (canonical route follows API guidelines)
 	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)
