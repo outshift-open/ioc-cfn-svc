@@ -298,6 +298,29 @@ func (a *App) decideSemanticAlignmentHandler(w http.ResponseWriter, r *http.Requ
 			CostUsd:   cogResp.Meta.CostUsd,
 			Timestamp: cogResp.Meta.Timestamp,
 		}
+		workspaceUUID, _ := uuid.Parse(workspaceID)
+		masUUID, _ := uuid.Parse(masID)
+		agentID := "unknown"
+		if len(reqPayload.AgentReplies) > 0 {
+			agentID = reqPayload.AgentReplies[0].ParticipantID
+		}
+		var ceID *uuid.UUID
+		if cogResp.Meta.CEID != "" {
+			if parsed, err := uuid.Parse(cogResp.Meta.CEID); err == nil {
+				ceID = &parsed
+			} else {
+				log.Warnf("Invalid CE ID in decide response metadata: %s", cogResp.Meta.CEID)
+			}
+		}
+		a.storeTokenMetricsAsync(
+			workspaceUUID,
+			masUUID,
+			agentID,
+			"semantic_alignment",
+			reqPayload.SessionID,
+			ceID,
+			resp.Meta,
+		)
 	}
 
 	// If agreement is reached, persist the final result to shared memory.
