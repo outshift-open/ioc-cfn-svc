@@ -2183,7 +2183,7 @@ const docTemplate = `{
         "app.updateGraphHeader": {
             "type": "object",
             "properties": {
-                "agent_id": {
+                "cfn_id": {
                     "type": "string"
                 }
             }

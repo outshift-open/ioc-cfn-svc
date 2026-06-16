@@ -206,7 +206,7 @@ definitions:
     type: object
   app.updateGraphHeader:
     properties:
-      agent_id:
+      cfn_id:
         type: string
     type: object
   app.updateGraphRelation:

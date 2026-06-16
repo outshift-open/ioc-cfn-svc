@@ -574,7 +574,7 @@ func containsStr(slice []string, s string) bool {
 // ── Update graph ─────────────────────────────────────────────────────────────
 
 type updateGraphHeader struct {
-	AgentID string `json:"agent_id,omitempty"`
+	CfnID string `json:"cfn_id,omitempty"`
 }
 
 type updateGraphConcept struct {
@@ -685,15 +685,33 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 		requestID = *req.RequestID
 	}
 
+	// Validate cfnID from header
+	if req.Header.CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "cfn_id is required in header"})
+	}
+
 	log.Infof(
-		"Update graph | workspace=%s mas=%s agent=%s request_id=%s concepts=%d relations=%d",
-		workspaceID, masID, req.Header.AgentID, requestID, len(req.Concepts), len(req.Relations),
+		"Update graph | cfn_id=%s | workspace=%s mas=%s request_id=%s concepts=%d relations=%d",
+		req.Header.CfnID, workspaceID, masID, requestID, len(req.Concepts), len(req.Relations),
 	)
 
 	// Map to the provider request format
 	concepts := make([]iocmemoryprovider.Concept, 0, len(req.Concepts))
 	for _, c := range req.Concepts {
 		attrs, embeddings := extractEmbeddingFromAttributes(c.Attributes)
+
+		// Extract owner from internal attributes and validate against cfnID
+		owner := ""
+		for _, internalAttr := range c.InternalAttributes {
+			if internalAttr.Owner != "" {
+				owner = internalAttr.Owner
+				// Validate owner against cfnID
+				if !a.validateCEOwner(req.Header.CfnID, owner) {
+					return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("owner validation failed: owner=%s cfnID=%s", owner, req.Header.CfnID)})
+				}
+			}
+		}
+
 		concepts = append(concepts, iocmemoryprovider.Concept{
 			ID:                 c.ID,
 			Name:               c.Name,
@@ -706,6 +724,18 @@ func (a *App) updateGraphHandler(w http.ResponseWriter, r *http.Request) (int, e
 
 	relations := make([]iocmemoryprovider.Relation, 0, len(req.Relations))
 	for _, rel := range req.Relations {
+		// Extract owner from internal attributes and validate against cfnID
+		owner := ""
+		for _, internalAttr := range rel.InternalAttributes {
+			if internalAttr.Owner != "" {
+				owner = internalAttr.Owner
+				// Validate owner against cfnID
+				if !a.validateCEOwner(req.Header.CfnID, owner) {
+					return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("relation owner validation failed: owner=%s cfnID=%s", owner, req.Header.CfnID)})
+				}
+			}
+		}
+
 		relations = append(relations, iocmemoryprovider.Relation{
 			ID:                 rel.ID,
 			Relation:           rel.Relationship,
@@ -768,7 +798,7 @@ type distillationGraphResponse struct {
 }
 
 type distillationGraphHeader struct {
-	AgentID string `json:"agent_id,omitempty"`
+	CfnID string `json:"cfn_id,omitempty"`
 }
 
 func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -785,6 +815,11 @@ func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (
 	requestID := uuid.New().String()
 	if req.RequestID != nil && *req.RequestID != "" {
 		requestID = *req.RequestID
+	}
+
+	// Validate cfnID from header
+	if req.Header.CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "cfn_id is required in header"})
 	}
 
 	// Validate required filters
@@ -829,10 +864,18 @@ func (a *App) distillationGraphHandler(w http.ResponseWriter, r *http.Request) (
 	if owner == nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "owner filter cannot be null"})
 	}
+	// Validate owner against cfnID
+	if ownerStr, ok := owner.(string); ok {
+		if !a.validateCEOwner(req.Header.CfnID, ownerStr) {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("owner validation failed: owner=%s cfnID=%s", ownerStr, req.Header.CfnID)})
+		}
+	} else {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "owner filter must be a string"})
+	}
 
 	log.Infof(
-		"Distillation graph | workspace=%s mas=%s request_id=%s relations_cnt=%v distill_status=%v owner=%v",
-		workspaceID, masID, requestID, relationsCnt, req.Filters["distill_status"], owner,
+		"Distillation request | cfn_id=%s | workspace=%s mas=%s request_id=%s relations_cnt=%v distill_status=%v owner=%v",
+		req.Header.CfnID, workspaceID, masID, requestID, relationsCnt, req.Filters["distill_status"], owner,
 	)
 
 	// Get all concepts and relations with relations_cnt_gte filter
@@ -1051,4 +1094,11 @@ func (a *App) buildConceptRelationsMap(concepts []iocmemoryprovider.Concept, rel
 	}
 
 	return conceptRelationsMap
+}
+
+// validateCEOwner validates the owner against the cfnID
+func (a *App) validateCEOwner(cfnID, owner string) bool {
+	// TODO: Implement actual validation logic
+	// validate owner against cfnID using synced data from mgmt plane
+	return cfnID != "" && owner != ""
 }
