@@ -1,4 +1,4 @@
-package semanticnegotiation
+package semanticalignment
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 )
 
-// Agent represents a participant in a semantic negotiation session.
+// Agent represents a participant in a semantic alignment session.
 type Agent struct {
 	// ID is the unique agent identifier.
 	ID string `json:"id"`
@@ -14,7 +14,7 @@ type Agent struct {
 	Name string `json:"name"`
 }
 
-// StartRequest is the request body to initiate a new semantic negotiation session.
+// StartRequest is the request body to initiate a new semantic alignment session.
 type StartRequest struct {
 	// SessionID is the client-provided session identifier.
 	SessionID string `json:"session_id"`

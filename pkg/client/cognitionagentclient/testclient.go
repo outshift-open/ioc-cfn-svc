@@ -34,7 +34,7 @@ func RunTestClient(baseURL string) {
 
 	//testSendExtractionOtel(ctx, client)
 	testSendReasoningEvidence(ctx, client)
-	//testSendSemanticNegotiation(ctx, client)
+	//testSendSemanticAlignment(ctx, client)
 }
 
 // ---------------------------------------------------------------------------

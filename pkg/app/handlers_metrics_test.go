@@ -27,7 +27,7 @@ func TestIngestMetricsHandler_Success(t *testing.T) {
 		AgentID:     "agent-1",
 		Attributes: map[string]interface{}{
 			"session_id":     uuid.New().String(),
-			"operation_type": "semantic_negotiation",
+			"operation_type": "semantic_alignment",
 		},
 		Metrics: []MetricDataPoint{
 			{

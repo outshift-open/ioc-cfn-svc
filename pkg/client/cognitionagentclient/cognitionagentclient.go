@@ -3,8 +3,8 @@
 // It supports the following endpoints:
 //   - POST /api/knowledge-mgmt/extraction          — ingest agent telemetry data and extract knowledge.
 //   - POST /api/knowledge-mgmt/reasoning/evidence   — reasoning evidence request with an intent query.
-//   - POST /api/semantic-negotiation/start          — initiate a semantic negotiation session.
-//   - POST /api/semantic-negotiation/decide         — advance a semantic negotiation session.
+//   - POST /api/semantic-alignment/start          — initiate a semantic alignment session.
+//   - POST /api/semantic-alignment/decide         — advance a semantic alignment session.
 //
 // The client wraps httpclient.Client for retries and exponential backoff.
 //
@@ -117,30 +117,30 @@ type ReasoningEvidenceRequest struct {
 	Payload   ReasoningEvidencePayload `json:"payload"`
 }
 
-// SemanticNegotiationAgent represents a participant in a semantic negotiation session.
-type SemanticNegotiationAgent struct {
+// SemanticAlignmentAgent represents a participant in a semantic alignment session.
+type SemanticAlignmentAgent struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-// SemanticNegotiationStartRequest is the request body for POST /api/semantic-negotiation/negotiate/initiate.
-type SemanticNegotiationStartRequest struct {
+// SemanticAlignmentStartRequest is the request body for POST /api/semantic-alignment/negotiate/initiate.
+type SemanticAlignmentStartRequest struct {
 	SessionID   string                     `json:"session_id"`
 	ContentText string                     `json:"content_text"`
-	Agents      []SemanticNegotiationAgent `json:"agents"`
+	Agents      []SemanticAlignmentAgent `json:"agents"`
 	NSteps      *int                       `json:"n_steps,omitempty"`
 }
 
-// SemanticNegotiationDecideRequest is the request body for POST  /api/semantic-negotiation/negotiate/decide.
+// SemanticAlignmentDecideRequest is the request body for POST  /api/semantic-alignment/negotiate/decide.
 // AgentReplies are full SSTPNegotiateMessage objects returned by the agent callback
 // server and forwarded verbatim inside the SSTP envelope to the negotiation server.
-type SemanticNegotiationDecideRequest struct {
+type SemanticAlignmentDecideRequest struct {
 	SessionID    string            `json:"session_id"`
 	AgentReplies []json.RawMessage `json:"agent_replies"`
 }
 
 // ---------------------------------------------------------------------------
-// SSTP envelope types (required by the semantic negotiation API)
+// SSTP envelope types (required by the semantic alignment API)
 // ---------------------------------------------------------------------------
 
 // sstpOrigin identifies the actor and tenant for an SSTP message.
@@ -312,7 +312,7 @@ type ReasonerCognitionResponse struct {
 	Meta       *TokenUsageMeta        `json:"meta,omitempty"`
 }
 
-// SemanticNegotiationResponse is the response from POST /negotiate/initiate and
+// SemanticAlignmentResponse is the response from POST /negotiate/initiate and
 // POST /negotiate/decide. Both endpoints return an SSTPNegotiateMessage envelope
 // whose payload carries the negotiation result.
 //
@@ -320,7 +320,7 @@ type ReasonerCognitionResponse struct {
 // current_round, trace, etc.). For /negotiate/decide the payload carries either
 // {session_id, status, round, messages} (ongoing) or {session_id, status, round,
 // final_result} (terminal).
-type SemanticNegotiationResponse struct {
+type SemanticAlignmentResponse struct {
 	// Top-level SSTP envelope fields
 	Kind      string                 `json:"kind,omitempty"`
 	MessageID string                 `json:"message_id,omitempty"`
@@ -410,7 +410,7 @@ func (c *Client) SendReasoningEvidence(ctx context.Context, req *ReasoningEviden
 	return &result, nil
 }
 
-// SendSemanticNegotiationStart initiates a new semantic negotiation session.
+// SendSemanticAlignmentStart initiates a new semantic alignment session.
 // POST /negotiate/initiate
 //
 // The Python service expects a full SSTPNegotiateMessage envelope where:
@@ -418,7 +418,7 @@ func (c *Client) SendReasoningEvidence(ctx context.Context, req *ReasoningEviden
 //   - origin.actor_id / origin.tenant_id are set to a placeholder (the server
 //     reads workspace/mas from the SSTP origin on the initiate path)
 //   - payload carries content_text, agents, and optional n_steps
-func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *SemanticNegotiationStartRequest, workspaceID, masID string) (*SemanticNegotiationResponse, error) {
+func (c *Client) SendSemanticAlignmentStart(ctx context.Context, req *SemanticAlignmentStartRequest, workspaceID, masID string) (*SemanticAlignmentResponse, error) {
 	agentsRaw := make([]map[string]string, len(req.Agents))
 	for i, a := range req.Agents {
 		agentsRaw[i] = map[string]string{"id": a.ID, "name": a.Name}
@@ -452,11 +452,11 @@ func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *Semantic
 
 	body, err := json.Marshal(envelope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal semantic negotiation initiate envelope: %w", err)
+		return nil, fmt.Errorf("failed to marshal semantic alignment initiate envelope: %w", err)
 	}
 
-	var result SemanticNegotiationResponse
-	if err := c.post(ctx, "/api/semantic-negotiation/negotiate/initiate", body, &result); err != nil {
+	var result SemanticAlignmentResponse
+	if err := c.post(ctx, "/api/semantic-alignment/negotiate/initiate", body, &result); err != nil {
 		return nil, err
 	}
 
@@ -478,14 +478,14 @@ func (c *Client) SendSemanticNegotiationStart(ctx context.Context, req *Semantic
 	return &result, nil
 }
 
-// SendSemanticNegotiationDecide advances an existing semantic negotiation session.
+// SendSemanticAlignmentDecide advances an existing semantic alignment session.
 // POST /negotiate/decide
 //
 // The Python service expects an SSTPNegotiateMessage envelope where:
 //   - payload.session_id identifies the active session
 //   - payload.agent_replies holds the full SSTPNegotiateMessage objects returned
 //     by the agent callback server, forwarded verbatim.
-func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *SemanticNegotiationDecideRequest, workspaceID, masID string) (*SemanticNegotiationResponse, error) {
+func (c *Client) SendSemanticAlignmentDecide(ctx context.Context, req *SemanticAlignmentDecideRequest, workspaceID, masID string) (*SemanticAlignmentResponse, error) {
 	payload := map[string]interface{}{
 		"session_id":    req.SessionID,
 		"agent_replies": req.AgentReplies,
@@ -511,11 +511,11 @@ func (c *Client) SendSemanticNegotiationDecide(ctx context.Context, req *Semanti
 
 	body, err := json.Marshal(envelope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal semantic negotiation decide envelope: %w", err)
+		return nil, fmt.Errorf("failed to marshal semantic alignment decide envelope: %w", err)
 	}
 
-	var result SemanticNegotiationResponse
-	if err := c.post(ctx, "/api/semantic-negotiation/negotiate/decide", body, &result); err != nil {
+	var result SemanticAlignmentResponse
+	if err := c.post(ctx, "/api/semantic-alignment/negotiate/decide", body, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

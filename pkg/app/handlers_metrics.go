@@ -818,7 +818,7 @@ func (a *App) storeTokenMetricsAsync(
 
 	// Prepare attributes
 	attributes := map[string]interface{}{
-		"service":    service, // "semantic_negotiation", "ingestion", "evidence"
+		"service":    service, // "semantic_alignment", "ingestion", "evidence"
 		"model":      tokenMeta.Tokens.Model,
 		"request_id": requestID,
 	}

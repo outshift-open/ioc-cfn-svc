@@ -23,8 +23,8 @@ servers:
 tags:
   - name: shared-memories
     description: Shared memory operations for knowledge extraction and querying
-  - name: semantic-negotiation
-    description: Multi-agent semantic negotiation sessions
+  - name: semantic-alignment
+    description: Multi-agent semantic alignment sessions
   - name: memory-operations
     description: Proxy for remote memory provider operations
   - name: metrics
@@ -272,13 +272,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/start:
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/start:
     post:
-      summary: Start semantic negotiation session
-      description: Initiates a new semantic negotiation session with multiple agents.
-      operationId: startSemanticNegotiation
+      summary: Start semantic alignment session
+      description: Initiates a new semantic alignment session with multiple agents.
+      operationId: startSemanticAlignment
       tags:
-        - semantic-negotiation
+        - semantic-alignment
       parameters:
         - name: workspaceId
           in: path
@@ -321,13 +321,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-negotiation/decide:
+  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide:
     post:
-      summary: Advance semantic negotiation session
-      description: Advances an existing semantic negotiation session with agent replies.
-      operationId: decideSemanticNegotiation
+      summary: Advance semantic alignment session
+      description: Advances an existing semantic alignment session with agent replies.
+      operationId: decideSemanticAlignment
       tags:
-        - semantic-negotiation
+        - semantic-alignment
       parameters:
         - name: workspaceId
           in: path
@@ -727,7 +727,7 @@ components:
       required:
         - http-status
 
-    # Semantic Negotiation schemas
+    # Semantic Alignment schemas
     Agent:
       type: object
       properties:
@@ -838,7 +838,7 @@ components:
           additionalProperties: true
           description: |-
             Result contains the pipeline execution result.
-            The structure depends on the semantic negotiation library implementation.
+            The structure depends on the semantic alignment library implementation.
 
     # Metrics schemas (query responses only - ingestion is internal)
     MetricsQueryResponse:
@@ -953,7 +953,7 @@ components:
           example:
             model: "gpt-4o"
             session_id: "770e8400-e29b-41d4-a716-446655440000"
-            operation_type: "semantic_negotiation"
+            operation_type: "semantic_alignment"
       required:
         - timestamp
         - workspace_id
