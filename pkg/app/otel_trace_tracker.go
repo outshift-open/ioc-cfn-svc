@@ -36,7 +36,7 @@ func (t *otelTraceTracker) UpsertPendingOtelTrace(workspaceID, masID, traceID st
 // (config not loaded, DB error) it clears the cache entry so the next
 // trace retries.
 func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
-	// Fast path: skip if we've already created a task for this pair.
+	// skip if we've already created a task for this pair.
 	key := workspaceID + "|" + masID
 	if _, loaded := t.seen.LoadOrStore(key, true); loaded {
 		return
@@ -44,7 +44,7 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 
 	log := getLogger()
 
-	// Read the live config to find the extraction CE for this MAS.
+	// Read the cfn to find the extraction CE for this MAS.
 	cfnConfigMutex.RLock()
 	cfg := ParsedConfig
 	cfnConfigMutex.RUnlock()
@@ -58,6 +58,7 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 	mas := cfg.FindMAS(workspaceID, masID)
 	if mas == nil {
 		// MAS not in config — traces may come from an unregistered source.
+		// Keep the traces, but don't create a task since we don't know which CE to run.
 		return
 	}
 
