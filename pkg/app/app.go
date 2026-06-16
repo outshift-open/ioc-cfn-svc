@@ -212,7 +212,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	var (
 		spanStore    otelreceiver.SpanStore    = db
-		traceTracker otelreceiver.TraceTracker = db
+		traceTracker otelreceiver.TraceTracker = &otelTraceTracker{db: db}
 	)
 	exp := otelreceiver.NewSpanExporter(spanStore, traceTracker, resolver)
 
