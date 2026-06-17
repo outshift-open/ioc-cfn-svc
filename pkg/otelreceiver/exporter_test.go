@@ -32,6 +32,11 @@ func (m *mockSpanStore) BulkInsertOtelSpans(spans []OtelSpan) error {
 var (
 	spanStart = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	spanEnd   = spanStart.Add(time.Second)
+
+	defaultFilters = []SpanFilter{
+		IngressValidator(func(ws, mas string) bool { return ws != "" && mas != "" }),
+		DropNoise,
+	}
 )
 
 func buildSingleSpanTraces(workspaceID, masID, operationName string, extraAttrs map[string]string) ptrace.Traces {
@@ -59,7 +64,7 @@ func buildSingleSpanTraces(workspaceID, masID, operationName string, extraAttrs 
 
 func TestConsumeTraces_ValidSpan(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, nil)
 
 	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "llm.call", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -70,7 +75,7 @@ func TestConsumeTraces_ValidSpan(t *testing.T) {
 
 func TestConsumeTraces_DropsSpanMissingWorkspaceID(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, defaultFilters...)
 
 	td := buildSingleSpanTraces("", testMasID, "llm.call", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -80,7 +85,7 @@ func TestConsumeTraces_DropsSpanMissingWorkspaceID(t *testing.T) {
 
 func TestConsumeTraces_DropsSpanMissingMasID(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, defaultFilters...)
 
 	td := buildSingleSpanTraces(testWorkspaceID, "", "llm.call", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -90,7 +95,7 @@ func TestConsumeTraces_DropsSpanMissingMasID(t *testing.T) {
 
 func TestConsumeTraces_DropsSessionStuck(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, DropNoise)
 
 	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "openclaw.session.stuck", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -100,7 +105,7 @@ func TestConsumeTraces_DropsSessionStuck(t *testing.T) {
 
 func TestConsumeTraces_DropsHeartbeat(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, DropNoise)
 
 	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "some.op", map[string]string{
 		"openclaw.message.channel": "heartbeat",
@@ -112,7 +117,7 @@ func TestConsumeTraces_DropsHeartbeat(t *testing.T) {
 
 func TestConsumeTraces_DropsSpanWithInvalidWorkspaceUUID(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, nil)
 
 	td := buildSingleSpanTraces("not-a-uuid", testMasID, "llm.call", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -122,7 +127,7 @@ func TestConsumeTraces_DropsSpanWithInvalidWorkspaceUUID(t *testing.T) {
 
 func TestConsumeTraces_NoSpansCallsNoInsert(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, nil)
 
 	err := exp.ConsumeTraces(context.Background(), ptrace.NewTraces())
 	require.NoError(t, err)
@@ -131,7 +136,7 @@ func TestConsumeTraces_NoSpansCallsNoInsert(t *testing.T) {
 
 func TestConsumeTraces_StoreErrorPropagates(t *testing.T) {
 	store := &mockSpanStore{err: errors.New("db down")}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, nil)
 
 	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "llm.call", nil)
 	err := exp.ConsumeTraces(context.Background(), td)
@@ -140,7 +145,7 @@ func TestConsumeTraces_StoreErrorPropagates(t *testing.T) {
 
 func TestConsumeTraces_MixedValidAndDropped(t *testing.T) {
 	store := &mockSpanStore{}
-	exp := NewSpanExporter(store, nil, nil)
+	exp := NewSpanExporter(store, nil, nil, defaultFilters...)
 
 	td := ptrace.NewTraces()
 
@@ -172,4 +177,39 @@ func TestConsumeTraces_MixedValidAndDropped(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, store.inserted, 1)
 	assert.Equal(t, "valid.op", store.inserted[0].Name)
+}
+
+func TestConsumeTraces_FilterRejects(t *testing.T) {
+	store := &mockSpanStore{}
+	rejectAll := func(SpanRecord) bool { return false }
+	exp := NewSpanExporter(store, nil, nil, rejectAll)
+
+	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "llm.call", nil)
+	err := exp.ConsumeTraces(context.Background(), td)
+	require.NoError(t, err)
+	assert.Empty(t, store.inserted)
+}
+
+func TestConsumeTraces_IngressValidatorRejects(t *testing.T) {
+	store := &mockSpanStore{}
+	rejectAll := func(_, _ string) bool { return false }
+	exp := NewSpanExporter(store, nil, nil, IngressValidator(rejectAll))
+
+	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "llm.call", nil)
+	err := exp.ConsumeTraces(context.Background(), td)
+	require.NoError(t, err)
+	assert.Empty(t, store.inserted)
+}
+
+
+func TestConsumeTraces_DropNoiseFiltersHeartbeat(t *testing.T) {
+	store := &mockSpanStore{}
+	exp := NewSpanExporter(store, nil, nil, DropNoise)
+
+	td := buildSingleSpanTraces(testWorkspaceID, testMasID, "some.op", map[string]string{
+		"openclaw.message.channel": "heartbeat",
+	})
+	err := exp.ConsumeTraces(context.Background(), td)
+	require.NoError(t, err)
+	assert.Empty(t, store.inserted)
 }

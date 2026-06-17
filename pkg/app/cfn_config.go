@@ -202,6 +202,21 @@ func (c *CfnConfigPayload) FindAgentByURL(sessionKey string) (workspaceID, masID
 	return "", "", ""
 }
 
+// hasRequiredIDs returns true if both workspace and MAS IDs are non-empty.
+func hasRequiredIDs(workspaceID, masID string) bool {
+	return workspaceID != "" && masID != ""
+}
+
+// masExistsInConfig returns true if the workspace/MAS pair is registered in the current CFN config.
+func masExistsInConfig(workspaceID, masID string) bool {
+	cfnConfigMutex.RLock()
+	defer cfnConfigMutex.RUnlock()
+	if ParsedConfig == nil {
+		return false
+	}
+	return ParsedConfig.FindMAS(workspaceID, masID) != nil
+}
+
 // getSharedMemoryID returns the shared memory ID for a given workspace/MAS from ParsedConfig.
 func getSharedMemoryID(workspaceID, masID string) string {
 	cfnConfigMutex.RLock()

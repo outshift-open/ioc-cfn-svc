@@ -57,8 +57,7 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 
 	mas := cfg.FindMAS(workspaceID, masID)
 	if mas == nil {
-		// MAS not in config — traces may come from an unregistered source.
-		// Keep the traces, but don't create a task since we don't know which CE to run.
+		t.seen.Delete(key)
 		return
 	}
 
