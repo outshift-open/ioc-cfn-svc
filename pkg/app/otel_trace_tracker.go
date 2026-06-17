@@ -33,10 +33,8 @@ func (t *otelTraceTracker) UpsertPendingOtelTrace(workspaceID, masID, traceID st
 // autoCreateTask idempotently creates a task row for the extraction CE
 // associated with the given workspace/MAS pair. It skips the DB call if
 // the pair has already been successfully processed this session. On failure
-// (config not loaded, DB error) it clears the cache entry so the next
-// trace retries.
+// it clears the cache entry so the next trace retries.
 func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
-	// skip if we've already created a task for this pair.
 	key := workspaceID + "|" + masID
 	if _, loaded := t.seen.LoadOrStore(key, true); loaded {
 		return
@@ -44,24 +42,15 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 
 	log := getLogger()
 
-	// Read the CFN config to find the extraction CE for this MAS.
 	cfnConfigMutex.RLock()
 	cfg := ParsedConfig
 	cfnConfigMutex.RUnlock()
 
-	if cfg == nil {
-		// Config not loaded yet (startup race); retry on next trace.
-		t.seen.Delete(key)
-		return
-	}
-
 	mas := cfg.FindMAS(workspaceID, masID)
 	if mas == nil {
-		t.seen.Delete(key)
 		return
 	}
 
-	// Find the extraction CE and upsert a task for the scheduler.
 	for _, ce := range mas.CognitionEngines {
 		ceDef := cfg.FindCE(ce.ID)
 		if ceDef == nil {
@@ -79,7 +68,6 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 			}
 			if err := t.db.UpsertTask(newTask); err != nil {
 				log.Warnf("autoCreateTask: upsert failed ws=%s mas=%s: %v", workspaceID, masID, err)
-				// Clear cache so we retry on the next trace.
 				t.seen.Delete(key)
 			}
 			return
