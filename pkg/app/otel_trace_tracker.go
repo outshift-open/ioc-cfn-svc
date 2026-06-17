@@ -44,7 +44,7 @@ func (t *otelTraceTracker) autoCreateTask(workspaceID, masID string) {
 
 	log := getLogger()
 
-	// Read the cfn to find the extraction CE for this MAS.
+	// Read the CFN config to find the extraction CE for this MAS.
 	cfnConfigMutex.RLock()
 	cfg := ParsedConfig
 	cfnConfigMutex.RUnlock()
