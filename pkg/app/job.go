@@ -1,15 +1,12 @@
 package app
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
 	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
 )
@@ -86,6 +83,12 @@ func (a *App) dispatchTask(t model.Task) {
 		return
 	}
 
+	// For extraction tasks, pre-check if there's work to avoid creating empty execution history rows.
+	// When no traces are ready, we skip the execution entirely and reschedule for the next tick.
+	if endpointPath == task.EndpointExtraction && a.shouldSkipOtelTask(t) {
+		return
+	}
+
 	now := time.Now()
 	deadline := now.Add(time.Duration(a.Cfg.TaskCallbackDeadlineMinutes) * time.Minute)
 
@@ -134,18 +137,6 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 			a.completeTaskExecution(t, historyID, "failed", nil, err)
 			return
 		}
-
-		// TODO: avoid creating an empty execution history row when there are no traces to process.
-		// Currently dispatchTask inserts history before we know if there's work.
-		if otelPayload.TraceCount == 0 {
-			log.Infof("no ready OTel traces to ingest | workspace=%s mas=%s task=%s", t.WorkspaceID, t.MASID, t.ID)
-			a.completeTaskExecution(t, historyID, "success", map[string]interface{}{
-				"format":      otelPayload.Format,
-				"trace_count": 0,
-				"span_count":  0,
-			}, nil)
-			return
-		}
 	}
 
 	// --- Send to CE ---
@@ -154,57 +145,6 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 	} else {
 		a.sendAsyncTaskExecution(t, endpointPath, historyID)
 	}
-}
-
-// sendOtelTaskExecution builds a shared-memory request from the OTel payload and delegates
-// extraction + persistence to createOrUpdateSharedMemoriesCore.
-func (a *App) sendOtelTaskExecution(t model.Task, historyID string, payload *OtelTaskPayload) {
-	log := getLogger()
-
-	result := map[string]interface{}{
-		"format":      payload.Format,
-		"trace_count": payload.TraceCount,
-		"span_count":  payload.SpanCount,
-		"trace_ids":   otelTaskTraceIDs(payload),
-	}
-
-	payloadData, err := json.Marshal(payload.Traces)
-	if err != nil {
-		log.Errorf("failed to marshal OTel extraction payload | workspace=%s mas=%s task=%s: %s", t.WorkspaceID, t.MASID, t.ID, err)
-		a.updateOtelTraceStatuses(t.WorkspaceID, t.MASID, payload.Traces, "failed")
-		a.completeTaskExecution(t, historyID, "failed", result, err)
-		return
-	}
-
-	req := sharedmemory.CreateOrUpdateRequest{
-		RequestId: &historyID,
-		Payload: cognitionagentclient.ExtractionPayload{
-			Metadata: cognitionagentclient.ExtractionPayloadMetadata{
-				Format: common.FormatOTelTrace,
-			},
-			Data: json.RawMessage(payloadData),
-		},
-	}
-
-	resp, err := a.createOrUpdateSharedMemoriesCore(context.Background(), t.WorkspaceID, t.MASID, req)
-	if err != nil {
-		log.Errorf("OTel extraction failed | workspace=%s mas=%s task=%s: %s", t.WorkspaceID, t.MASID, t.ID, err)
-		a.updateOtelTraceStatuses(t.WorkspaceID, t.MASID, payload.Traces, "failed")
-		a.completeTaskExecution(t, historyID, "failed", result, err)
-		return
-	}
-
-	if resp != nil {
-		result["graph_status"] = resp.Status
-		result["graph_store_message"] = resp.GraphStoreMessage
-		result["vector_store_message"] = resp.VectorStoreMessage
-		if resp.ResponseID != nil {
-			result["extraction_response_id"] = *resp.ResponseID
-		}
-	}
-
-	a.updateOtelTraceStatuses(t.WorkspaceID, t.MASID, payload.Traces, "completed")
-	a.completeTaskExecution(t, historyID, "success", result, nil)
 }
 
 // sendAsyncTaskExecution dispatches a task to CE via the async callback path.
@@ -224,33 +164,6 @@ func (a *App) sendAsyncTaskExecution(t model.Task, endpointPath string, historyI
 	if err != nil {
 		log.Errorf("failed to dispatch task %s to CE %s | workspace=%s mas=%s: %s", t.ID, t.CEID, t.WorkspaceID, t.MASID, err)
 		a.completeTaskExecution(t, historyID, "failed", nil, err)
-	}
-}
-
-// otelTaskTraceIDs extracts a list of trace IDs from an OTel task payload for logging/result tracking.
-func otelTaskTraceIDs(payload *OtelTaskPayload) []string {
-	if payload == nil || len(payload.Traces) == 0 {
-		return nil
-	}
-
-	traceIDs := make([]string, 0, len(payload.Traces))
-	for _, trace := range payload.Traces {
-		traceIDs = append(traceIDs, trace.TraceID)
-	}
-	return traceIDs
-}
-
-// updateOtelTraceStatuses marks each trace in the payload with the given ingestion status
-// (e.g., "completed", "failed"). Used after KG extraction succeeds or fails.
-func (a *App) updateOtelTraceStatuses(workspaceID, masID string, traces []OtelTraceTaskPayload, status string) {
-	log := getLogger()
-	for _, trace := range traces {
-		if trace.TraceID == "" {
-			continue
-		}
-		if err := a.db.UpdateOtelTraceStatus(workspaceID, masID, trace.TraceID, status); err != nil {
-			log.Errorf("failed to update OTel trace state | workspace=%s mas=%s trace=%s status=%s err=%s", workspaceID, masID, trace.TraceID, status, err)
-		}
 	}
 }
 
