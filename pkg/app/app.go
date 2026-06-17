@@ -212,9 +212,13 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 
 	var (
 		spanStore    otelreceiver.SpanStore    = db
-		traceTracker otelreceiver.TraceTracker = db
+		traceTracker otelreceiver.TraceTracker = &otelTraceTracker{db: db}
 	)
-	exp := otelreceiver.NewSpanExporter(spanStore, traceTracker, resolver)
+	exp := otelreceiver.NewSpanExporter(spanStore, traceTracker, resolver,
+		otelreceiver.IngressValidator(hasRequiredIDs),
+		otelreceiver.IngressValidator(masExistsInConfig),
+		otelreceiver.DropNoise,
+	)
 
 	batchFactory := batchprocessor.NewFactory()
 	batchCfg := batchFactory.CreateDefaultConfig().(*batchprocessor.Config)

@@ -27,18 +27,50 @@ type TraceTracker interface {
 	UpsertPendingOtelTrace(workspaceID, masID, traceID string, lastSpanTime time.Time) error
 }
 
+// SpanFilter returns true if the span record should be kept for storage.
+type SpanFilter func(SpanRecord) bool
+
+// DropNoise drops internal/noise spans (session.stuck, heartbeat).
+func DropNoise(r SpanRecord) bool {
+	if r.Name == "openclaw.session.stuck" {
+		return false
+	}
+	if ch, ok := r.Attributes["openclaw.message.channel"].(string); ok && ch == "heartbeat" {
+		return false
+	}
+	return true
+}
+
+// IngressValidator adapts a func(workspaceID, masID string) bool into a SpanFilter.
+func IngressValidator(check func(workspaceID, masID string) bool) SpanFilter {
+	return func(r SpanRecord) bool {
+		if !check(r.WorkspaceID, r.MasID) {
+			exporterLog.Warnf("otelwriter: dropping span %s (%s) — failed ingress validation", r.SpanID, r.Name)
+			return false
+		}
+		return true
+	}
+}
+
 // SpanExporter implements consumer.Traces and component.Component.
 // It maps ptrace.Traces to OtelSpans and bulk-inserts them via SpanStore.
 // Batching is handled upstream by the batchprocessor.
 type SpanExporter struct {
-	store    SpanStore
-	tracker  TraceTracker
+	store    SpanStore    // persists validated spans to the otel_spans table
+	tracker  TraceTracker // records ingestion state for trace completion detection
 	resolver AgentResolver
+	filters  []SpanFilter
 }
 
 // NewSpanExporter creates a SpanExporter that writes to store.
-func NewSpanExporter(store SpanStore, tracker TraceTracker, resolver AgentResolver) *SpanExporter {
-	return &SpanExporter{store: store, tracker: tracker, resolver: resolver}
+func NewSpanExporter(store SpanStore, tracker TraceTracker, resolver AgentResolver, filters ...SpanFilter) *SpanExporter {
+	var ff []SpanFilter
+	for _, f := range filters {
+		if f != nil {
+			ff = append(ff, f)
+		}
+	}
+	return &SpanExporter{store: store, tracker: tracker, resolver: resolver, filters: ff}
 }
 
 // Capabilities returns consumer capabilities (read-only, does not mutate spans).
@@ -52,20 +84,23 @@ func (e *SpanExporter) Start(_ context.Context, _ component.Host) error { return
 // Shutdown is a no-op required by component.Component.
 func (e *SpanExporter) Shutdown(_ context.Context) error { return nil }
 
-// ConsumeTraces maps spans, drops those missing required fields, and bulk-inserts the rest.
+// accept returns true if the span passes all registered filters.
+func (e *SpanExporter) accept(r SpanRecord) bool {
+	for _, f := range e.filters {
+		if !f(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// ConsumeTraces maps spans, applies filters, and bulk-inserts the rest.
 func (e *SpanExporter) ConsumeTraces(_ context.Context, td ptrace.Traces) error {
 	records := MapSpans(td, e.resolver)
 
 	var otelSpans []OtelSpan
 	for _, r := range records {
-		if r.WorkspaceID == "" || r.MasID == "" {
-			exporterLog.Warnf("otelwriter: dropping span %s (%s) — missing workspace_id or mas_id", r.SpanID, r.Name)
-			continue
-		}
-		if r.Name == "openclaw.session.stuck" {
-			continue
-		}
-		if ch, ok := r.Attributes["openclaw.message.channel"].(string); ok && ch == "heartbeat" {
+		if !e.accept(r) {
 			continue
 		}
 		span, err := spanRecordToOtelSpan(r)
