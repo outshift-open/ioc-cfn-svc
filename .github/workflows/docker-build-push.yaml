@@ -21,7 +21,7 @@ jobs:
         run: docker system prune -af || true
 
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -45,12 +45,12 @@ jobs:
           echo "Event: ${{ github.event_name }} | Ref: ${{ github.ref }} | SHA: ${{ steps.metadata.outputs.short_sha }}"
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image (PR)
         if: github.event_name == 'pull_request'
@@ -80,8 +80,8 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: |
-            ghcr.io/cisco-eti/ioc-cfn-svc:latest
-            ghcr.io/cisco-eti/ioc-cfn-svc:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
+            ghcr.io/${{ github.repository }}/ioc-cfn-svc:latest
+            ghcr.io/${{ github.repository }}/ioc-cfn-svc:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
           build-args: |
             GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
             GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
