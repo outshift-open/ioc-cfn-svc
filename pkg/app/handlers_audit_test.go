@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -10,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client"
 )
 
 func newTestApp() *App {

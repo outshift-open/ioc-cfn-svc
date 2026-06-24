@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package mcpclient
 
 import (
@@ -8,8 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Split the generated swagger.json into two separate specs:
   - docs/swagger.json          (public endpoints — /api/* excluding /api/internal/*)

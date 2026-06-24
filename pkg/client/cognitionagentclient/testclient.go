@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package cognitionagentclient
 
 // RunTestClient is a smoke-test helper that sends sample requests to the
@@ -5,7 +9,7 @@ package cognitionagentclient
 //
 // Usage (from anywhere in the codebase):
 //
-//   import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
+//   import "github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 //
 //   cognitionagentclient.RunTestClient("http://localhost:8000")
 //
@@ -17,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
 	"github.com/google/uuid"
 )
 

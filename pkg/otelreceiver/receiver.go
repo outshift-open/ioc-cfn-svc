@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/ptrace/ptraceotlp"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 const maxBodyBytes = 4 << 20 // 4 MB

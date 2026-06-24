@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Package cognitionagentclient provides a client for the cognition agents API.
 //
 // It supports the following endpoints:
@@ -23,8 +27,8 @@ import (
 	"net/http"
 	"time"
 
-	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
+	httpclient "github.com/outshift-open/ioc-cfn-svc/pkg/client/http"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
 )
 
 // ---------------------------------------------------------------------------

@@ -5,8 +5,8 @@
 # the repo. Unless a later match takes precedence,
 # @global-owner1 and @global-owner2 will be requested for
 # review when someone opens a pull request.
-.github/ @cisco-eti/sre
-# *      @cisco-eti/<your-team>
+.github/ @outshift-open/ioc-cfn
+*        @outshift-open/ioc-cfn
 
 # Order is important; the last matching pattern takes the most
 # precedence. When someone opens a pull request that only

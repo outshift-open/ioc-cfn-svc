@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Package cognitionagents provides DTOs for the cognition agents API handler.
 //
 // NOTE: Struct fields and JSON tags may change as the API evolves.
@@ -6,7 +10,7 @@ package cognitionagents
 import (
 	"encoding/json"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
 )
 
 //////////////////////////////////////////////////////////////////
@@ -22,7 +26,7 @@ const (
 
 // SharedMemoryVectorsRequest represents a request for shared memory vector operations.
 // The Body field contains the raw JSON payload as defined in:
-// https://github.com/cisco-eti/ioc-cfn-svc/blob/main/pkg/providers/memory/ioc/schema.go
+// https://github.com/outshift-open/ioc-cfn-svc/blob/main/pkg/providers/memory/ioc/schema.go
 //
 // Example JSON structure:
 //

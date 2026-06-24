@@ -1,4 +1,8 @@
 #!/bin/bash
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Run unit tests with coverage
 set -o pipefail
 go test -v -count=1 -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt

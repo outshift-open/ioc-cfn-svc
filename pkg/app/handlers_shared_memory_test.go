@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 // +build integration
 
@@ -13,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
 func TestCreateOrUpdateSharedMemoriesHandler_KnowledgeExtraction_Otel_Integration(t *testing.T) {

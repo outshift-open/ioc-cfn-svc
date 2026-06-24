@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -11,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 // diagnosticsInfoHandler returns service and git build info

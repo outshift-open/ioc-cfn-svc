@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -8,7 +12,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionengine"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/cognitionengine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

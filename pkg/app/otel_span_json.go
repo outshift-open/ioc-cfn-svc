@@ -1,10 +1,14 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
 	"encoding/json"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/otelreceiver"
 )
 
 // otelSpanToRecord converts a persisted OtelSpan (DB schema) to a SpanRecord (API/wire format)

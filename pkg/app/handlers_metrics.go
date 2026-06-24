@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -15,10 +19,10 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/database"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/metric"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 // defaultCEID is a placeholder CE ID used when real CE ID is not available from configuration.

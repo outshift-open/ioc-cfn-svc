@@ -1,8 +1,8 @@
-# IOC CFN Service
+# Internet of Cognition (IOC) - Cognition Fabric Node (CFN) Service
 
 Go microservice with HTTP server and mock database.
 
-**Docker Image:** `ghcr.io/cisco-eti/ioc-cfn-svc:latest`
+**Docker Image:** `ghcr.io/outshift-open/ioc-cfn-svc:latest`
 
 ## Public API Contracts
 
@@ -20,12 +20,12 @@ This service provides **versioned OpenAPI specifications** for external SDK gene
 
 ```bash
 # Clone and run the management backend
-git clone https://github.com/cisco-eti/ioc-cfn-mgmt-backend-svc
+git clone https://github.com/outshift-open/ioc-cfn-mgmt-backend-svc
 cd ioc-cfn-mgmt-backend-svc
 task docker-compose-full-stack-up    # Start complete stack (application + databases)
 ```
 
-See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/cisco-eti/ioc-cfn-mgmt-backend-svc?tab=readme-ov-file#deployment-options) for more details.
+See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/outshift-open/ioc-cfn-mgmt-backend-svc?tab=readme-ov-file#deployment-options) for more details.
 
 2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
 
@@ -531,5 +531,9 @@ docs/               # Swagger docs
 
 ## CI/CD
 
-- **PR**: Builds `ghcr.io/cisco-eti/ioc-cfn-svc:latest` (no push)
+- **PR**: Builds `ghcr.io/outshift-open/ioc-cfn-svc:latest` (no push)
 - **Merge to main**: Builds and pushes to GHCR/ECR
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE.md](LICENSE.md) file for details.

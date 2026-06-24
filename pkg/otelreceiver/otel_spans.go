@@ -13,7 +13,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var otelSpansLog = logger.SubPkg("otelspans")

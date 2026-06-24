@@ -1,7 +1,7 @@
-# Semantic Alignment via CFN
+# Semantic Alignment via Cognition Fabric Node (CFN)
 
 The CFN acts as a proxy between a MAS client and the Cognition Engine server
-([`semantic_alignment`](https://github.com/cisco-eti/ioc-cfn-cognitive-agents/tree/main/semantic_alignment)).
+([`semantic_alignment`](https://github.com/outshift-open/ioc-cfn-cognition-engines/tree/main/semantic_alignment)).
 The client drives the negotiation loop turn-by-turn; CFN wraps each request in the
 required SSTP envelope and forwards it to the negotiation server.
 

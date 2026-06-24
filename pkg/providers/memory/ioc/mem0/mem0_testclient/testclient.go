@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Package main provides a sample / smoke-test client that exercises all
 // mem0 Agentic Memory Client operations against a live OpenMemory endpoint.
 //
@@ -19,7 +23,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	mem0client "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
+	mem0client "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc/mem0"
 )
 
 func main() {

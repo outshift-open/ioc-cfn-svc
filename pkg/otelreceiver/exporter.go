@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var exporterLog = logger.SubPkg("otelwriter")
