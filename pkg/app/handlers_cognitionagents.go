@@ -1,13 +1,17 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/cognitionagents"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/cognitionagents"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 // TODO: Handler logic, API route, and request/response structs may change based on

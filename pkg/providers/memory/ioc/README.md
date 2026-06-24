@@ -1,6 +1,6 @@
-# IOC Memory Provider
+# Internet of Cognition (IOC) Memory Provider
 
-This directory contains the implementation of the IOC Memory Provider, which provides a client interface for interacting with  the IOC knowledge memory service.
+This directory contains the implementation of the IOC Memory Provider, which provides a client interface for interacting with the IOC knowledge memory service.
 It provides reference implementation of a test client for using the IOC Memory provider.
 
 ## Directory Structure

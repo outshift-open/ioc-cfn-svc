@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -8,8 +12,8 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 // Sample client using the IOC Memory Provider

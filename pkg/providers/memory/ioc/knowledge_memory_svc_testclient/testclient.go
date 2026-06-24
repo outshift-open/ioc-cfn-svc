@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -11,7 +15,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
+	httpclient "github.com/outshift-open/ioc-cfn-svc/pkg/client/http"
 )
 
 //Sample Client using the Knowledge Memory Service

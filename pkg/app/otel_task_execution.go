@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -5,10 +9,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/model"
 )
 
 // shouldSkipOtelTask checks if an OTel extraction task should be skipped due to zero ready traces.

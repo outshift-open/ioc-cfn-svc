@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -5,7 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 // validateWorkspaceAndMAS checks that the given workspaceID and masID both exist

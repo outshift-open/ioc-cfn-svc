@@ -61,8 +61,8 @@ jobs:
           push: false
           platforms: linux/amd64
           tags: |
-            ghcr.io/{{ github.repository }}/ioc-cfn-svc:pr-${{ github.event.pull_request.number }}
-            ghcr.io/{{ github.repository }}/ioc-cfn-svc:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
+            ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
+            ghcr.io/${{ github.repository }}:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
           build-args: |
             GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
             GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
@@ -80,8 +80,8 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}/ioc-cfn-svc:latest
-            ghcr.io/${{ github.repository }}/ioc-cfn-svc:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
           build-args: |
             GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
             GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}
@@ -99,8 +99,8 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: |
-            ghcr.io/{{ github.repository }}/ioc-cfn-svc:${{ steps.get_tag.outputs.tag_name }}
-            ghcr.io/{{ github.repository }}/ioc-cfn-svc:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
+            ghcr.io/${{ github.repository }}:${{ steps.get_tag.outputs.tag_name }}
+            ghcr.io/${{ github.repository }}:${{ steps.metadata.outputs.date_formatted }}-${{ steps.metadata.outputs.short_sha }}
           build-args: |
             GIT_COMMIT_SHA=${{ steps.metadata.outputs.short_sha }}
             GIT_COMMIT_TIME=${{ steps.metadata.outputs.git_commit_time }}

@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -6,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	httpclient "github.com/outshift-open/ioc-cfn-svc/pkg/client/http"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 func getMgmtURL() string {

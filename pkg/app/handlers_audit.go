@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -8,8 +12,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 )
 
 // getAuditEventHandler retrieves a single audit event by ID.

@@ -1,4 +1,4 @@
-module github.com/cisco-eti/ioc-cfn-svc
+module github.com/outshift-open/ioc-cfn-svc
 
 go 1.25.0
 

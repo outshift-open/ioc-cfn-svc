@@ -72,7 +72,7 @@ POST /api/workspaces/{workspace-id}/multi-agentic-systems/{mas-id}/agents/{agent
 All tests pass:
 ```bash
 go test ./pkg/app/...
-# ok  	github.com/cisco-eti/ioc-cfn-svc/pkg/app	0.670s
+# ok  	github.com/outshift-open/ioc-cfn-svc/pkg/app	0.670s
 ```
 
 ## Future Enhancements

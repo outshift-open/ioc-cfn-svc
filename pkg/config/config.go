@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package config
 
 import (
@@ -11,7 +15,7 @@ import (
 	"github.com/namsral/flag"
 	"go.uber.org/zap"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var (

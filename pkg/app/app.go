@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -14,17 +18,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
-	httpclient "github.com/cisco-eti/ioc-cfn-svc/pkg/client/http"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/database"
+	httpclient "github.com/outshift-open/ioc-cfn-svc/pkg/client/http"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/config"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/otelreceiver"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/batchprocessor"

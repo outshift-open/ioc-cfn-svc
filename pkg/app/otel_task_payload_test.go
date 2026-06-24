@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -9,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/config"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/otelreceiver"
 )
 
 type otelTaskPayloadDB struct {

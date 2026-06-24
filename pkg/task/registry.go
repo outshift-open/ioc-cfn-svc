@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Package task provides the task scheduling infrastructure for cfn-svc,
 // including CE name to endpoint mapping and cron expression parsing.
 package task

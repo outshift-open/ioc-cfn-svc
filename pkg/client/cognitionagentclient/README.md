@@ -25,7 +25,7 @@ Your App  ──▶  cognitionagentclient.Client  ──▶  httpclient.Client  
 ## Quick Start
 
 ```go
-import "github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
+import "github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 
 client := cognitionagentclient.New("http://localhost:8000", 30*time.Second)
 

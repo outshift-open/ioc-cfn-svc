@@ -1,11 +1,15 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package sharedmemory
 
 import (
 	"fmt"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/common"
-	iocmemoryprovider "github.com/cisco-eti/ioc-cfn-svc/pkg/providers/memory/ioc"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
 )
 
 type Header struct {

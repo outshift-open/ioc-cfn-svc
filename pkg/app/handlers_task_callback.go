@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -5,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/task"
 )
 
 // taskCallbackRequest is the payload CE sends when a task execution completes or fails.

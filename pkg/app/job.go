@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 import (
@@ -6,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/cognitionagentclient"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/task"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/model"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/task"
 )
 
 // LongRunningBackgroundJob runs the DB-driven task scheduler loop.

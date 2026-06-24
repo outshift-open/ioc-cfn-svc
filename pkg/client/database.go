@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package client
 
 import (
@@ -8,11 +12,11 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/client/database"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/tools/logger"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/client/database"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/model"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/otelreceiver"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/tools/logger"
 )
 
 var (

@@ -1,7 +1,11 @@
 #!/bin/bash -e
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Build ioc-cfn-svc docker image
 
-IMAGE_NAME=${1:-ghcr.io/cisco-eti/ioc-cfn-svc:latest}
+IMAGE_NAME=${1:-ghcr.io/outshift-open/ioc-cfn-svc:latest}
 
 GIT_COMMIT_SHA=${GIT_COMMIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
 GIT_COMMIT_TIME=${GIT_COMMIT_TIME:-$(git log -1 --format=%cI 2>/dev/null || echo "unknown")}

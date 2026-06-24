@@ -1,3 +1,7 @@
+// Copyright 2026 Cisco Systems, Inc. and its affiliates
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package database
 
 import (
@@ -10,11 +14,11 @@ import (
 	"gorm.io/gorm/clause"
 	"gorm.io/plugin/prometheus"
 
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/audit"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/config"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/metric"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/model"
-	"github.com/cisco-eti/ioc-cfn-svc/pkg/otelreceiver"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/config"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/metric"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/model"
+	"github.com/outshift-open/ioc-cfn-svc/pkg/otelreceiver"
 )
 
 // Database wraps a GORM DB connection to PostgreSQL.
