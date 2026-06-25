@@ -12,13 +12,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/common"
 	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
-	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
 
@@ -29,11 +29,11 @@ func jsonEscapeString(s string) string {
 }
 
 func transformExtractionConcepts(src []cognitionagentclient.Concept) []iocmemoryprovider.Concept {
-	if len(src) == 0 {
-		return nil
-	}
-
+	// Always return non-nil slice so JSON serializes to [] not null
 	out := make([]iocmemoryprovider.Concept, 0, len(src))
+	if len(src) == 0 {
+		return out
+	}
 
 	for _, c := range src {
 		// Preserve empty string vs nil semantics
@@ -81,11 +81,11 @@ func transformConceptEmbedding(attrs cognitionagentclient.ConceptAttributes) *io
 }
 
 func transformExtractionRelations(src []cognitionagentclient.Relation) []iocmemoryprovider.Relation {
-	if len(src) == 0 {
-		return nil
-	}
-
+	// Always return non-nil slice so JSON serializes to [] not null
 	out := make([]iocmemoryprovider.Relation, 0, len(src))
+	if len(src) == 0 {
+		return out
+	}
 
 	for _, r := range src {
 		out = append(out, iocmemoryprovider.Relation{
@@ -243,25 +243,44 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 
 	log.Debugf("Successfully extracted knowledge, response: %+v", extractionResp)
 
-	memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
-		RequestID:    *requestId,
-		WkspID:       &workspaceID,
-		MasID:        &masID,
-		ForceReplace: true,
-		Records:      TransformExtractionResponseToRecords(extractionResp),
-	}
+	records := TransformExtractionResponseToRecords(extractionResp)
 
-	knowledgeGraphResp, err := a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
-	if err != nil {
-		log.Errorf(
-			"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
-			workspaceID, masID, err,
+	// Skip graph upsert if extraction returned nothing — knowledge-memory-svc
+	// rejects empty concept/relation lists with a 400 validation error.
+	var knowledgeGraphResp *iocmemoryprovider.KnowledgeGraphStoreResponse
+	if records == nil || (len(records.Concepts) == 0 && len(records.Relations) == 0) {
+		log.Infof(
+			"Extraction returned no concepts or relations, skipping graph upsert | workspace=%s mas=%s request_id=%s",
+			workspaceID, masID, *requestId,
 		)
+		// Synthesize a no-op response so downstream logic proceeds normally
+		knowledgeGraphResp = &iocmemoryprovider.KnowledgeGraphStoreResponse{
+			RequestID: requestId,
+			Status:    iocmemoryprovider.ResponseStatusSuccess,
+			Message:   common.StrToPtr("no concepts or relations extracted, graph upsert skipped"),
+		}
+	} else {
+		memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
+			RequestID:    *requestId,
+			WkspID:       &workspaceID,
+			MasID:        &masID,
+			ForceReplace: true,
+			Records:      records,
+		}
 
-		errMsg := err.Error()
-		a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+		var err error
+		knowledgeGraphResp, err = a.knowledgeMemSvcClient.UpsertKnowledgeGraph(ctx, memoryProviderReq)
+		if err != nil {
+			log.Errorf(
+				"UpsertKnowledgeGraph failed | workspace=%s mas=%s err=%v",
+				workspaceID, masID, err,
+			)
 
-		return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
+			errMsg := err.Error()
+			a.logSharedMemoryAudit(operationID, workspaceID, masID, audit.AuditTypeKnowledgeIngestion, "FAILED", &errMsg)
+
+			return nil, fmt.Errorf("failed to create or update shared memories: %w", err)
+		}
 	}
 
 	// Upsert RAG chunks into vector DB if present in extraction response

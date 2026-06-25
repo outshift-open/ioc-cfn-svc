@@ -7,9 +7,9 @@ package app
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
-	"github.com/google/uuid"
 )
 
 // ---------------------------------------------------------------------------
@@ -240,13 +240,13 @@ func TestTransformRagChunksToVectorRecords_UsesFirstEmbeddingVector(t *testing.T
 
 func TestTransformExtractionConcepts_Empty(t *testing.T) {
 	result := transformExtractionConcepts(nil)
-	if result != nil {
-		t.Errorf("expected nil for nil input, got %v", result)
+	if len(result) != 0 {
+		t.Errorf("expected empty concept for nil input, got %v", result)
 	}
 
 	result = transformExtractionConcepts([]cognitionagentclient.Concept{})
-	if result != nil {
-		t.Errorf("expected nil for empty slice, got %v", result)
+	if len(result) != 0 {
+		t.Errorf("expected empty concept for empty slice, got %v", result)
 	}
 }
 
@@ -311,8 +311,8 @@ func TestTransformExtractionConcepts_EmptyDescriptionBecomesNil(t *testing.T) {
 
 func TestTransformExtractionRelations_Empty(t *testing.T) {
 	result := transformExtractionRelations(nil)
-	if result != nil {
-		t.Errorf("expected nil for nil input")
+	if len(result) != 0 {
+		t.Errorf("expected empty relation for nil input")
 	}
 }
 
@@ -442,9 +442,9 @@ func TestMapKGRecordToQueryRecord_MapsConceptsAndRelations(t *testing.T) {
 		},
 		Relationships: []iocmemoryprovider.Relation{
 			{
-				ID:      "r1",
+				ID:       "r1",
 				Relation: "knows",
-				NodeIDs: []string{"c1", "c2"},
+				NodeIDs:  []string{"c1", "c2"},
 			},
 		},
 	}
@@ -638,4 +638,3 @@ func TestMapVectorSimilarityResults_MultipleResults(t *testing.T) {
 		t.Errorf("second result mismatch: %+v", result[1])
 	}
 }
-

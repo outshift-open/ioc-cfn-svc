@@ -216,8 +216,15 @@ func TestCreateOrUpdateSharedMemories_Audit_UpsertFailure(t *testing.T) {
 	cogServer := newMockCognitionServer(
 		func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			// Return non-empty concepts and relations so the upsert is actually attempted
 			json.NewEncoder(w).Encode(cognitionagentclient.KnowledgeCognitionResponse{
 				ResponseID: "resp-1",
+				Concepts: []cognitionagentclient.Concept{
+					{ID: "c1", Name: "test-concept"},
+				},
+				Relations: []cognitionagentclient.Relation{
+					{ID: "r1", Relationship: "test-rel", NodeIDs: []string{"c1", "c1"}},
+				},
 			})
 		},
 		nil,
