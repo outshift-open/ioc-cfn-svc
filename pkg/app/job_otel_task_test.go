@@ -29,7 +29,11 @@ type otelTaskExecutionDB struct {
 	*client.MockDatabase
 
 	claimedTraceIDs []string
-	spansByTraceID  map[string][]otelreceiver.OtelSpan
+	// claimCallCount counts ClaimReadyOtelTraces invocations. The regression test
+	// TestDispatchTaskClaimsOtelTracesExactlyOnce asserts this stays at 1 per dispatch.
+	claimCallCount    int
+	spansByTraceID    map[string][]otelreceiver.OtelSpan
+	insertedHistories []*model.TaskExecutionHistory
 
 	traceStatusUpdates map[string]string
 	taskStatus         string
@@ -45,7 +49,13 @@ type otelTaskSyncDB struct {
 }
 
 func (db *otelTaskExecutionDB) ClaimReadyOtelTraces(_, _ string, _ int, _ time.Duration) ([]string, error) {
+	db.claimCallCount++
 	return db.claimedTraceIDs, nil
+}
+
+func (db *otelTaskExecutionDB) InsertTaskExecutionHistory(h *model.TaskExecutionHistory) error {
+	db.insertedHistories = append(db.insertedHistories, h)
+	return nil
 }
 
 func (db *otelTaskExecutionDB) GetOtelSpansForTrace(_, _, traceID string) ([]otelreceiver.OtelSpan, error) {
@@ -189,13 +199,20 @@ func TestSendOtelTaskExecutionUsesExtractionAndPersistsResponse(t *testing.T) {
 	}
 
 	schedule := "* * * * *"
+	// Pre-build the payload here (mirroring the new dispatchTask contract: claim ready
+	// traces once, hand the payload to the goroutine — never let the goroutine reclaim).
+	prebuilt, err := app.BuildReadyOtelTaskPayload(workspaceID, masID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, prebuilt)
+	require.Equal(t, 1, prebuilt.TraceCount)
+
 	app.sendTaskExecution(model.Task{
 		ID:          taskID,
 		Name:        "Knowledge Extraction CE",
 		Schedule:    &schedule,
 		WorkspaceID: workspaceID,
 		MASID:       masID,
-	}, task.GetEndpointForCE(t.Name()), historyID)
+	}, task.GetEndpointForCE(t.Name()), historyID, prebuilt)
 
 	require.NotNil(t, extractionReq)
 	assert.Equal(t, historyID, extractionReq["request_id"])
@@ -259,3 +276,109 @@ func TestCompleteTaskExecutionKeepsExternalTaskRunnable(t *testing.T) {
 	assert.False(t, nextRun.Before(before.Add(-time.Second)), "next_run_time should not be in the past")
 	assert.Equal(t, "success", db.historyFields["status"])
 }
+
+// TestDispatchTaskClaimsOtelTracesExactlyOnce guards the contract that a single
+// dispatch performs exactly one ClaimReadyOtelTraces call. ClaimReadyOtelTraces
+// is state-mutating (ready → running); any second claim within the same dispatch
+// would see zero ready rows, ship an empty payload to CE, and strand the first
+// claim's rows in "running".
+func TestDispatchTaskClaimsOtelTracesExactlyOnce(t *testing.T) {
+	workspaceID := uuid.NewString()
+	masID := uuid.NewString()
+	taskID := uuid.NewString()
+	startTime := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
+
+	db := &otelTaskExecutionDB{
+		MockDatabase:    client.NewMockDatabase(),
+		claimedTraceIDs: []string{"trace-only"},
+		spansByTraceID: map[string][]otelreceiver.OtelSpan{
+			"trace-only": {
+				{
+					StartTime:    startTime,
+					TraceID:      "trace-only",
+					SpanID:       "span-only",
+					WorkspaceID:  uuid.MustParse(workspaceID),
+					MasID:        uuid.MustParse(masID),
+					Name:         "agent.reply",
+					ServiceName:  "openclaw",
+					DurationNano: 42,
+					StatusCode:   1,
+					Attributes:   datatypes.JSON([]byte(`{}`)),
+					Events:       datatypes.JSON([]byte(`[]`)),
+					Links:        datatypes.JSON([]byte(`[]`)),
+					Resource:     datatypes.JSON([]byte(`{}`)),
+				},
+			},
+		},
+	}
+
+	// CE stub responding with a valid extraction result.
+	ceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"header":      map[string]string{"workspace_id": workspaceID, "mas_id": masID},
+			"response_id": "ce-1",
+			"concepts":    []map[string]interface{}{},
+			"relations":   []map[string]interface{}{},
+			"metadata":    map[string]interface{}{"records_processed": 1},
+		})
+	}))
+	defer ceServer.Close()
+
+	// Knowledge memory stub — accept the graph write and the health probe.
+	kmsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.URL.Path == "/api/internal/diagnostics/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/api/knowledge/graphs/query" {
+			_ = json.NewEncoder(w).Encode(iocmemoryprovider.KnowledgeGraphQueryResponse{
+				Status: iocmemoryprovider.ResponseStatusSuccess,
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(iocmemoryprovider.KnowledgeGraphStoreResponse{
+			Status: iocmemoryprovider.ResponseStatusSuccess,
+		})
+	}))
+	defer kmsServer.Close()
+
+	knowledgeMemClient, err := iocmemoryprovider.NewClient(kmsServer.URL)
+	require.NoError(t, err)
+
+	app := &App{
+		db:                    db,
+		Cfg:                   config.Config{},
+		knowledgeMemSvcClient: knowledgeMemClient,
+		cognitionAgentsClient: cognitionagentclient.New(ceServer.URL, 5*time.Second),
+	}
+
+	app.dispatchTask(model.Task{
+		ID:          taskID,
+		Name:        "Knowledge Extraction CE",
+		WorkspaceID: workspaceID,
+		MASID:       masID,
+	})
+
+	// Wait briefly for the dispatch goroutine to finish; sendOtelTaskExecution writes
+	// the terminal traceStatusUpdate, so polling on that is a reliable signal.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := db.traceStatusUpdates["trace-only"]; ok {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// CORE ASSERTION: exactly one claim, even though the dispatch goroutine ran.
+	// Pre-fix this was 2 (shouldSkipOtelTask + sendTaskExecution both claimed).
+	assert.Equal(t, 1, db.claimCallCount, "ClaimReadyOtelTraces must be called exactly once per dispatch")
+
+	// And the trace ultimately gets marked completed (not stuck in running).
+	assert.Equal(t, "completed", db.traceStatusUpdates["trace-only"])
+
+	// History row must have been inserted (we had work to do).
+	assert.Len(t, db.insertedHistories, 1)
+}
+
