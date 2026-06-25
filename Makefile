@@ -1,3 +1,8 @@
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
 SHELL:=/bin/bash
 PROJECT_NAME=ioc-cfn-svc
 GO_FILES=$(shell go list ./... | grep -v /vendor/)
