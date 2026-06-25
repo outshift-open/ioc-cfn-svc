@@ -36,6 +36,18 @@ jobs:
         run: |
           swag init --parseDependency --parseInternal --dir .
           python3 scripts/split_swagger.py
+          # Add copyright header to generated docs/docs.go
+          if ! grep -q "Copyright" docs/docs.go; then
+            cat > docs/docs.go.tmp << 'EOF'
+          // Copyright 2026 Cisco Systems, Inc. and its affiliates
+          //
+          // SPDX-License-Identifier: Apache-2.0
+
+
+          EOF
+            cat docs/docs.go >> docs/docs.go.tmp
+            mv docs/docs.go.tmp docs/docs.go
+          fi
 
       - name: Check OpenAPI spec is up-to-date
         run: |
