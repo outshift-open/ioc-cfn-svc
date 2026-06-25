@@ -20,12 +20,12 @@ This service provides **versioned OpenAPI specifications** for external SDK gene
 
 ```bash
 # Clone and run the management backend
-git clone https://github.com/outshift-open/ioc-cfn-mgmt-backend-svc
-cd ioc-cfn-mgmt-backend-svc
+git clone https://github.com/outshift-open/ioc-cfn-mgmt-plane-svc
+cd ioc-cfn-mgmt-plane-svc
 task docker-compose-full-stack-up    # Start complete stack (application + databases)
 ```
 
-See [ioc-cfn-mgmt-backend-svc deployment options](https://github.com/outshift-open/ioc-cfn-mgmt-backend-svc?tab=readme-ov-file#deployment-options) for more details.
+See [ioc-cfn-mgmt-plane-svc deployment options](https://github.com/outshift-open/ioc-cfn-mgmt-plane-svc?tab=readme-ov-file#deployment-options) for more details.
 
 2. **PostgreSQL**: Ensure a PostgreSQL instance is running and the `cfn_cp` database exists. Tables are auto-migrated by the service on startup.
 
