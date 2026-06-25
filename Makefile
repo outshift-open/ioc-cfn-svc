@@ -1,3 +1,8 @@
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
 SHELL:=/bin/bash
 PROJECT_NAME=ioc-cfn-svc
 GO_FILES=$(shell go list ./... | grep -v /vendor/)
@@ -61,6 +66,16 @@ install-swag:
 docs: install-swag
 	swag init --parseDependency --parseInternal --dir .
 	python3 scripts/split_swagger.py
+	@echo "Adding copyright header to generated docs/docs.go..."
+	@if ! grep -q "Copyright" docs/docs.go; then \
+		echo '// Copyright 2026 Cisco Systems, Inc. and its affiliates' > docs/docs.go.tmp; \
+		echo '//' >> docs/docs.go.tmp; \
+		echo '// SPDX-License-Identifier: Apache-2.0' >> docs/docs.go.tmp; \
+		echo '' >> docs/docs.go.tmp; \
+		echo '' >> docs/docs.go.tmp; \
+		cat docs/docs.go >> docs/docs.go.tmp; \
+		mv docs/docs.go.tmp docs/docs.go; \
+	fi
 
 .PHONY: run
 run: build ## Build and run binary (loads .env via godotenv)
