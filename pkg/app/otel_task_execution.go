@@ -7,7 +7,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
@@ -15,35 +14,11 @@ import (
 	"github.com/outshift-open/ioc-cfn-svc/pkg/model"
 )
 
-// shouldSkipOtelTask checks if an OTel extraction task should be skipped due to zero ready traces.
-// Returns true if the task should be skipped (and already rescheduled), false if it should proceed.
-func (a *App) shouldSkipOtelTask(t model.Task) bool {
-	log := getLogger()
-
-	payload, err := a.BuildReadyOtelTaskPayload(t.WorkspaceID, t.MASID, 0)
-	if err != nil {
-		log.Errorf("failed to check for ready traces | workspace=%s mas=%s task=%s: %s", t.WorkspaceID, t.MASID, t.ID, err)
-		// Continue with normal dispatch - let sendTaskExecution handle the error
-		return false
-	}
-
-	if payload.TraceCount == 0 {
-		// No work to do - reschedule without creating history row
-		log.Debugf("no ready traces, skipping execution | workspace=%s mas=%s task=%s", t.WorkspaceID, t.MASID, t.ID)
-		now := time.Now()
-		taskFields := map[string]interface{}{
-			"last_run_time": now,
-			"next_run_time": now, // Externally-triggered tasks re-check on next tick
-		}
-		_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
-		return true
-	}
-
-	return false
-}
-
-// sendOtelTaskExecution builds a shared-memory request from the OTel payload and delegates
-// extraction + persistence to createOrUpdateSharedMemoriesCore.
+// sendOtelTaskExecution builds a shared-memory request from a pre-built OTel payload
+// and delegates extraction + persistence to createOrUpdateSharedMemoriesCore.
+//
+// Precondition: payload is non-nil and contains at least one trace with at least one
+// span; the caller (dispatchTask) is responsible for that gate.
 func (a *App) sendOtelTaskExecution(t model.Task, historyID string, payload *OtelTaskPayload) {
 	log := getLogger()
 

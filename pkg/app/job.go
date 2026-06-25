@@ -75,6 +75,11 @@ func (a *App) runSchedulerTick() {
 
 // dispatchTask looks up the endpoint for the CE and dispatches the task.
 // Task name is the CE name (e.g., "Memory Distillation CE") from config.
+//
+// Extraction tasks claim ready OTel traces up-front and hand the resulting
+// payload to the dispatch goroutine. The goroutine ships that payload to CE;
+// it does not re-claim or re-build, because ClaimReadyOtelTraces is
+// state-mutating (ready → running) and must run exactly once per dispatch.
 func (a *App) dispatchTask(t model.Task) {
 	log := getLogger()
 
@@ -87,10 +92,26 @@ func (a *App) dispatchTask(t model.Task) {
 		return
 	}
 
-	// For extraction tasks, pre-check if there's work to avoid creating empty execution history rows.
-	// When no traces are ready, we skip the execution entirely and reschedule for the next tick.
-	if endpointPath == task.EndpointExtraction && a.shouldSkipOtelTask(t) {
-		return
+	// For extraction tasks, build the payload up-front. If there is nothing to ship
+	// (no claimed traces, or claimed traces with zero spans), reschedule without
+	// creating an execution history row — CE rejects empty extraction payloads.
+	var otelPayload *OtelTaskPayload
+	if endpointPath == task.EndpointExtraction {
+		payload, err := a.BuildReadyOtelTaskPayload(t.WorkspaceID, t.MASID, 0)
+		if err != nil {
+			log.Errorf("failed to build OTel extraction payload | workspace=%s mas=%s task=%s: %s", t.WorkspaceID, t.MASID, t.ID, err)
+			return
+		}
+		if payload == nil || len(payload.Traces) == 0 || payload.SpanCount == 0 {
+			log.Debugf("no ready traces with spans, skipping execution | workspace=%s mas=%s task=%s", t.WorkspaceID, t.MASID, t.ID)
+			now := time.Now()
+			_ = a.db.UpdateTaskStatus(t.ID, "scheduled", map[string]interface{}{
+				"last_run_time": now,
+				"next_run_time": now, // Externally-triggered tasks re-check on next tick
+			})
+			return
+		}
+		otelPayload = payload
 	}
 
 	now := time.Now()
@@ -119,32 +140,16 @@ func (a *App) dispatchTask(t model.Task) {
 		return
 	}
 
-	go a.sendTaskExecution(t, endpointPath, hist.ID)
+	go a.sendTaskExecution(t, endpointPath, hist.ID, otelPayload)
 }
 
 // sendTaskExecution dispatches scheduled task work to CE.
 // Extraction-endpoint tasks (OTel) use a synchronous flow via createOrUpdateSharedMemoriesCore
-// to persist extracted knowledge immediately. Other CE endpoints use the generic async callback path.
-func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID string) {
-	log := getLogger()
-
-	// Determine if this is an extraction task based on the endpoint path.
-	isExtractionTask := endpointPath == task.EndpointExtraction
-
-	// OTel extraction - build payload from ready traces
-	var otelPayload *OtelTaskPayload
-	if isExtractionTask {
-		var err error
-		otelPayload, err = a.BuildReadyOtelTaskPayload(t.WorkspaceID, t.MASID, 0)
-		if err != nil {
-			log.Errorf("failed to build OTel extraction payload | workspace=%s mas=%s task=%s: %s", t.WorkspaceID, t.MASID, t.ID, err)
-			a.completeTaskExecution(t, historyID, "failed", nil, err)
-			return
-		}
-	}
-
+// to persist extracted knowledge immediately; otelPayload is the pre-built payload from
+// dispatchTask. Other CE endpoints use the generic async callback path.
+func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID string, otelPayload *OtelTaskPayload) {
 	// --- Send to CE ---
-	if isExtractionTask {
+	if endpointPath == task.EndpointExtraction {
 		a.sendOtelTaskExecution(t, historyID, otelPayload)
 	} else {
 		a.sendAsyncTaskExecution(t, endpointPath, historyID)
