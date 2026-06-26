@@ -10,7 +10,6 @@ import "strings"
 
 const (
 	EndpointDistillation = "/api/knowledge-mgmt/runDistillation"
-	EndpointNegotiation  = "/api/knowledge-mgmt/runNegotiation"
 	EndpointExtraction   = "/api/knowledge-mgmt/extraction"
 )
 
@@ -29,12 +28,6 @@ func GetEndpointForCE(ceName string) string {
 	// This endpoint should accept a TaskExecutionRequest and return 202 Accepted with a TaskExecutionResponse.
 	//if strings.Contains(nameLower, "distillation") {
 	//	return EndpointDistillation
-	//}
-
-	// TODO: Not implemented - placeholder for future negotiation endpoint.
-	// CE must implement /api/knowledge-mgmt/runNegotiation endpoint.
-	//if strings.Contains(nameLower, "negotiation") {
-	//	return EndpointNegotiation
 	//}
 
 	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
