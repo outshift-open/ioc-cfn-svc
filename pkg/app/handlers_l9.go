@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 )
 
 // l9Handler handles L9 protocol messages between MAS and CE.
@@ -42,6 +42,7 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 	cfnConfigMutex.RUnlock()
 
+	// TODO: Consider making this a blocking error in production to enforce MAS-CE association validation
 	if masConfig == nil {
 		log.Warnf("l9Handler: CE %s is not associated with MAS %s in workspace %s (allowing for testing)", ceID, masID, workspaceID)
 	} else {
@@ -67,16 +68,14 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 		})
 	}
 
-	log.Infof("l9Handler: received L9 message - protocol=%s, kind=%s, version=%s",
+	log.Infof("l9Handler: received L9 message - protocol=%s, kind=%s, subkind=%v, version=%s",
 		l9Msg.Header.Protocol,
 		l9Msg.Header.Kind,
+		l9Msg.Header.Subkind,
 		l9Msg.Header.Version)
 
-	// Process the L9 message
-	// TODO: Add your business logic here to process the incoming message
-	// TODO: Determine message direction from l9Msg.Header.Participants
-	// TODO: Route to appropriate destination (MAS -> CE or CE -> MAS)
-	// For now, we'll echo back the message as a simple response
+	// TODO: Implement routing/forwarding logic
+	// For now, echo back the message as a simple response
 	responseMsg := l9Msg
 
 	// Send response
