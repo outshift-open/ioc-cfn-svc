@@ -83,6 +83,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
 
+	// L9 protocol endpoint (MAS <-> CFN <-> CE communication)
+	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/l9", a.l9Handler)
+
 	// OTLP trace ingestion (canonical route follows API guidelines)
 	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)
 	// /v1/traces is kept as an alias: the otel-trace plugin hardcodes
