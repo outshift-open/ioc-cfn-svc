@@ -185,6 +185,38 @@ func (c *CfnConfigPayload) FindWorkspace(workspaceID string) *WorkspaceConfig {
 	return nil
 }
 
+// FindCEsByKind returns all CEs in a MAS that match the given kind and optional subkind.
+// If subkind is empty, returns all CEs matching the kind.
+func (c *CfnConfigPayload) FindCEsByKind(workspaceID, masID, kind, subkind string) []*EngineCfg {
+	var matches []*EngineCfg
+
+	mas := c.FindMAS(workspaceID, masID)
+	if mas == nil {
+		return matches
+	}
+
+	for _, masEngine := range mas.CognitionEngines {
+		ce := c.FindCE(masEngine.ID)
+		if ce == nil || !ce.Enabled {
+			continue
+		}
+
+		// Match by kind (required)
+		if ce.Kind != kind {
+			continue
+		}
+
+		// Match by subkind if specified
+		if subkind != "" && ce.Subkind != "" && ce.Subkind != subkind {
+			continue
+		}
+
+		matches = append(matches, ce)
+	}
+
+	return matches
+}
+
 // FindAgentByURL returns the workspace, MAS, and agent IDs for the first agent whose
 // any Identity.Identifiers value is a prefix of the given session key.
 // Returns empty strings if not found.

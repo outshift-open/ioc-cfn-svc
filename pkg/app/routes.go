@@ -84,7 +84,9 @@ func (a *App) initializeRoutes() http.Handler {
 
 
 	// L9 protocol endpoint (MAS <-> CFN <-> CE communication)
-	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/l9", a.l9Handler)
+	// Content-based routing: CE is selected based on message kind/subkind/subprotocol
+	// Workspace/MAS extracted from L9 message participants.groups
+	rtr.Post(apiPrefix+"/l9/messages", a.l9Handler)
 
 	// OTLP trace ingestion (canonical route follows API guidelines)
 	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)

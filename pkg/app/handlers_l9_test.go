@@ -7,38 +7,79 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 )
 
 func TestL9Handler(t *testing.T) {
-	// Create app instance
+	// Create app instance with mock config
 	app := &App{}
+
+	// Setup mock CFN config with CEs registered for different kinds
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID:            "test-workspace",
+				WorkspaceName: "Test Workspace",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID:          "test-mas",
+						WorkspaceID: "test-workspace",
+						Name:        "Test MAS",
+						CognitionEngines: []MASEngineCfg{
+							{ID: "ce-knowledge", Name: "Knowledge CE"},
+							{ID: "ce-intent", Name: "Intent CE"},
+						},
+					},
+				},
+			},
+		},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:      "ce-knowledge",
+				Name:    "Knowledge Management CE",
+				Kind:    "knowledge",
+				Subkind: "query",
+				Enabled: true,
+				URL:     "http://ce-knowledge:9004",
+			},
+			{
+				ID:      "ce-intent",
+				Name:    "Intent Processing CE",
+				Kind:    "intent",
+				Enabled: true,
+				URL:     "http://ce-intent:9005",
+			},
+		},
+	}
 
 	tests := []struct {
 		name           string
 		workspaceID    string
 		masID          string
-		ceID           string
 		l9Message      l9.L9
 		expectedStatus int
+		expectedCE     string // Expected CE ID to be routed to
 	}{
 		{
-			name:        "valid knowledge message",
+			name:        "valid knowledge/query message",
 			workspaceID: "test-workspace",
 			masID:       "test-mas",
-			ceID:        "test-ce",
 			l9Message: l9.L9{
 				Header: l9.L9Header{
 					Protocol:    "sstp",
 					Version:     "1.0",
 					Subprotocol: "ioc",
 					Kind:        l9.KindKnowledge,
+					Subkind:     "query",
 					Participants: l9.ParticipantSet{
 						Actors: []l9.Actor{
 							{ID: "agent-1", Role: "sender"},
-							{ID: "ce-knowledge", Role: "receiver"},
 						},
-						Groups: &l9.ParticipantSetGroups{},
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "test-workspace",
+							"mas_id":       "test-mas",
+						},
 					},
 				},
 				Payload: l9.L9Payload{
@@ -50,12 +91,12 @@ func TestL9Handler(t *testing.T) {
 				},
 			},
 			expectedStatus: http.StatusOK,
+			expectedCE:     "ce-knowledge",
 		},
 		{
-			name:        "intent message",
+			name:        "intent message routes to intent CE",
 			workspaceID: "test-workspace",
 			masID:       "test-mas",
-			ceID:        "test-ce",
 			l9Message: l9.L9{
 				Header: l9.L9Header{
 					Protocol:    "sstp",
@@ -66,7 +107,10 @@ func TestL9Handler(t *testing.T) {
 						Actors: []l9.Actor{
 							{ID: "agent-main", Role: "sender"},
 						},
-						Groups: &l9.ParticipantSetGroups{},
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "test-workspace",
+							"mas_id":       "test-mas",
+						},
 					},
 				},
 				Payload: l9.L9Payload{
@@ -77,35 +121,71 @@ func TestL9Handler(t *testing.T) {
 				},
 			},
 			expectedStatus: http.StatusOK,
+			expectedCE:     "ce-intent",
 		},
 		{
-			name:        "exchange message with subkind",
+			name:        "missing kind returns 400",
 			workspaceID: "test-workspace",
 			masID:       "test-mas",
-			ceID:        "test-ce",
 			l9Message: l9.L9{
 				Header: l9.L9Header{
 					Protocol:    "sstp",
 					Version:     "1.0",
 					Subprotocol: "ioc",
-					Kind:        l9.KindExchange,
-					Subkind:     "data-transfer",
 					Participants: l9.ParticipantSet{
 						Actors: []l9.Actor{
 							{ID: "agent-1", Role: "sender"},
-							{ID: "ce-processor", Role: "receiver"},
 						},
-						Groups: &l9.ParticipantSetGroups{},
-					},
-				},
-				Payload: l9.L9Payload{
-					Type: "data",
-					Data: l9.L9PayloadData{
-						"content": "Sample data payload",
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "test-workspace",
+							"mas_id":       "test-mas",
+						},
 					},
 				},
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "missing groups returns 400",
+			workspaceID: "test-workspace",
+			masID:       "test-mas",
+			l9Message: l9.L9{
+				Header: l9.L9Header{
+					Protocol:    "sstp",
+					Version:     "1.0",
+					Subprotocol: "ioc",
+					Kind:        l9.KindKnowledge,
+					Participants: l9.ParticipantSet{
+						Actors: []l9.Actor{
+							{ID: "agent-1", Role: "sender"},
+						},
+					},
+				},
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "workspace ID mismatch returns 400",
+			workspaceID: "test-workspace",
+			masID:       "test-mas",
+			l9Message: l9.L9{
+				Header: l9.L9Header{
+					Protocol:    "sstp",
+					Version:     "1.0",
+					Subprotocol: "ioc",
+					Kind:        l9.KindKnowledge,
+					Participants: l9.ParticipantSet{
+						Actors: []l9.Actor{
+							{ID: "agent-1", Role: "sender"},
+						},
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "wrong-workspace",
+							"mas_id":       "test-mas",
+						},
+					},
+				},
+			},
+			expectedStatus: http.StatusBadRequest,
 		},
 	}
 
@@ -117,13 +197,19 @@ func TestL9Handler(t *testing.T) {
 				t.Fatalf("failed to marshal L9 message: %v", err)
 			}
 
-			// Create request
+			// Create request (note: no ceId in path)
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/cognition-engines/"+tt.ceID+"/l9",
+				"/api/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/l9",
 				bytes.NewReader(body),
 			)
 			req.Header.Set("Content-Type", "application/json")
+
+			// Set path parameters using easyhttp context
+			req = eh.WithPathParams(req, map[string]string{
+				"workspaceId": tt.workspaceID,
+				"masId":       tt.masID,
+			})
 
 			// Create response recorder
 			w := httptest.NewRecorder()
@@ -137,29 +223,26 @@ func TestL9Handler(t *testing.T) {
 			}
 
 			// Check error
-			if err != nil {
+			if err != nil && tt.expectedStatus == http.StatusOK {
 				t.Errorf("unexpected error: %v", err)
 			}
 
-			// Parse response
-			var response l9.L9
-			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-				t.Fatalf("failed to decode response: %v", err)
-			}
+			// For successful routing, verify the CE ID
+			if tt.expectedStatus == http.StatusOK && tt.expectedCE != "" {
+				var response map[string]interface{}
+				if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
 
-			// Verify response echoes back the message
-			if response.Header.Kind != tt.l9Message.Header.Kind {
-				t.Errorf("expected kind %s, got %s", tt.l9Message.Header.Kind, response.Header.Kind)
-			}
+				routedCE, ok := response["routed_to_ce"].(string)
+				if !ok {
+					t.Error("response missing routed_to_ce field")
+				} else if routedCE != tt.expectedCE {
+					t.Errorf("expected routing to CE %s, got %s", tt.expectedCE, routedCE)
+				}
 
-			if response.Header.Protocol != tt.l9Message.Header.Protocol {
-				t.Errorf("expected protocol %s, got %s", tt.l9Message.Header.Protocol, response.Header.Protocol)
+				t.Logf("✓ Message routed to CE %s (%s)", routedCE, response["ce_name"])
 			}
-
-			t.Logf("✓ Response echoed back correctly - kind=%s, protocol=%s, version=%s",
-				response.Header.Kind,
-				response.Header.Protocol,
-				response.Header.Version)
 		})
 	}
 }
@@ -169,10 +252,14 @@ func TestL9Handler_InvalidJSON(t *testing.T) {
 
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/workspaces/test-ws/multi-agentic-systems/test-mas/cognition-engines/test-ce/l9",
+		"/api/workspaces/test-ws/multi-agentic-systems/test-mas/l9",
 		bytes.NewReader([]byte("invalid json")),
 	)
 	req.Header.Set("Content-Type", "application/json")
+	req = eh.WithPathParams(req, map[string]string{
+		"workspaceId": "test-ws",
+		"masId":       "test-mas",
+	})
 
 	w := httptest.NewRecorder()
 
@@ -192,33 +279,131 @@ func TestL9Handler_InvalidJSON(t *testing.T) {
 	t.Logf("✓ Invalid JSON correctly rejected with error: %s", response["error"])
 }
 
-func TestL9Handler_MissingFields(t *testing.T) {
+func TestL9Handler_NoMatchingCE(t *testing.T) {
 	app := &App{}
 
-	// L9 message missing required fields
-	invalidMsg := map[string]interface{}{
-		"header": map[string]interface{}{
-			"protocol": "sstp",
-			// Missing required fields: version, subprotocol, kind, participants
+	// Setup config with no CEs for "exchange" kind
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "test-workspace",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID:               "test-mas",
+						CognitionEngines: []MASEngineCfg{}, // Empty - no CEs
+					},
+				},
+			},
 		},
 	}
 
-	body, _ := json.Marshal(invalidMsg)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/workspaces/test-ws/multi-agentic-systems/test-mas/cognition-engines/test-ce/l9",
-		bytes.NewReader(body),
-	)
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-
-	status, _ := app.l9Handler(w, req)
-
-	if status != http.StatusBadRequest {
-		t.Errorf("expected status %d for missing fields, got %d", http.StatusBadRequest, status)
+	l9Msg := l9.L9{
+		Header: l9.L9Header{
+			Protocol:    "sstp",
+			Version:     "1.0",
+			Subprotocol: "tfp",
+			Kind:        l9.KindExchange,
+			Subkind:     "team-formation",
+			Participants: l9.ParticipantSet{
+				Actors: []l9.Actor{
+					{ID: "agent-1", Role: "sender"},
+				},
+				Groups: &l9.ParticipantSetGroups{
+					"workspace_id": "test-workspace",
+					"mas_id":       "test-mas",
+				},
+			},
+		},
 	}
 
-	t.Log("✓ Missing required fields correctly rejected")
+	body, _ := json.Marshal(l9Msg)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/workspaces/test-workspace/multi-agentic-systems/test-mas/l9",
+		bytes.NewReader(body),
+	)
+	req = eh.WithPathParams(req, map[string]string{
+		"workspaceId": "test-workspace",
+		"masId":       "test-mas",
+	})
+
+	w := httptest.NewRecorder()
+	status, _ := app.l9Handler(w, req)
+
+	if status != http.StatusNotFound {
+		t.Errorf("expected status %d when no CE matches, got %d", http.StatusNotFound, status)
+	}
+
+	t.Log("✓ No matching CE correctly returns 404")
+}
+
+func TestL9Handler_MultipleCEs(t *testing.T) {
+	app := &App{}
+
+	// Setup config with MULTIPLE CEs for the same kind
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "test-workspace",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "test-mas",
+						CognitionEngines: []MASEngineCfg{
+							{ID: "ce-knowledge-1"},
+							{ID: "ce-knowledge-2"},
+						},
+					},
+				},
+			},
+		},
+		CognitionEngines: []EngineCfg{
+			{ID: "ce-knowledge-1", Kind: "knowledge", Enabled: true},
+			{ID: "ce-knowledge-2", Kind: "knowledge", Enabled: true},
+		},
+	}
+
+	l9Msg := l9.L9{
+		Header: l9.L9Header{
+			Protocol:    "sstp",
+			Version:     "1.0",
+			Subprotocol: "ioc",
+			Kind:        l9.KindKnowledge,
+			Participants: l9.ParticipantSet{
+				Actors: []l9.Actor{
+					{ID: "agent-1", Role: "sender"},
+				},
+				Groups: &l9.ParticipantSetGroups{
+					"workspace_id": "test-workspace",
+					"mas_id":       "test-mas",
+				},
+			},
+		},
+	}
+
+	body, _ := json.Marshal(l9Msg)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/workspaces/test-workspace/multi-agentic-systems/test-mas/l9",
+		bytes.NewReader(body),
+	)
+	req = eh.WithPathParams(req, map[string]string{
+		"workspaceId": "test-workspace",
+		"masId":       "test-mas",
+	})
+
+	w := httptest.NewRecorder()
+	status, _ := app.l9Handler(w, req)
+
+	if status != http.StatusInternalServerError {
+		t.Errorf("expected status %d when multiple CEs match, got %d", http.StatusInternalServerError, status)
+	}
+
+	var response map[string]string
+	json.NewDecoder(w.Body).Decode(&response)
+
+	if response["error"] == "" || response["error"] == "{}" {
+		t.Error("expected error message about multiple CEs")
+	}
+
+	t.Logf("✓ Multiple matching CEs correctly returns 500: %s", response["error"])
 }
