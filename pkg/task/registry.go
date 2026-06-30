@@ -9,7 +9,7 @@ package task
 import "strings"
 
 const (
-	EndpointDistillation = "/api/knowledge-mgmt/runDistillation"
+	EndpointDistillation = "/api/knowledge-mgmt/distillation"
 	EndpointExtraction   = "/api/knowledge-mgmt/extraction"
 )
 
@@ -19,16 +19,15 @@ const (
 // TODO: This is a temporary hack using pattern matching on CE names.
 // Replace with proper CE type/capability-based routing once CE metadata is standardized.
 // Current patterns:
-//   - Name contains "distillation" → /api/knowledge-mgmt/runDistillation (⏳ Not implemented yet)
+//   - Name contains "distillation" → /api/knowledge-mgmt/distillation (✅ Implemented)
 //   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction (✅ Implemented)
 func GetEndpointForCE(ceName string) string {
 	nameLower := strings.ToLower(ceName)
 
-	// TODO: CE must implement /api/knowledge-mgmt/runDistillation endpoint
-	// This endpoint should accept a TaskExecutionRequest and return 202 Accepted with a TaskExecutionResponse.
-	//if strings.Contains(nameLower, "distillation") {
-	//	return EndpointDistillation
-	//}
+	// ✅ Implemented: Handles cognition distillation tasks
+	if strings.Contains(nameLower, "distillation") {
+		return EndpointDistillation
+	}
 
 	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
 	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {

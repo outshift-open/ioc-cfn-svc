@@ -542,7 +542,7 @@ type TaskExecutionResponse struct {
 	ExecutionID string `json:"execution_id"`
 }
 
-// TODO: Cognition Engine must implement /api/knowledge-mgmt/runDistillation and otel endpoint
+// TODO: Cognition Engine must implement /api/knowledge-mgmt/distillation and otel endpoint
 // to handle task execution requests dispatched by the CFN scheduler.
 // SendTaskExecution dispatches a task to the given CE endpoint path.
 // Handles 202 Accepted (success), 409 Conflict (already running), and 400 Bad Request.
