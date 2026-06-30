@@ -2216,6 +2216,61 @@ paths:
       summary: Deletes the shared memory vector store.
       tags:
       - Vector Store
+  /api/l9/messages:
+    post:
+      consumes:
+      - application/json
+      description: 'Content-based routing: extracts workspace/MAS from L9 message
+        participants.groups, selects CE by kind/subkind, forwards to CE''s /api/l9/messages
+        endpoint'
+      parameters:
+      - description: L9 protocol message with header (kind, subkind, participants)
+          and payload
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/l9.L9'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: L9 response from Cognition Engine
+          schema:
+            $ref: '#/definitions/l9.L9'
+        "400":
+          description: Invalid L9 message format or missing required fields
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Workspace/MAS not found or no CE handles this kind/subkind
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error or CE forwarding failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: CE unreachable or returned error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Target CE is disabled
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Process and route L9 message to Cognition Engine
+      tags:
+      - l9
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:
@@ -2484,56 +2539,6 @@ paths:
       summary: Upsert vectors for an agent
       tags:
       - Vector Store
-  /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/l9:
-    post:
-      consumes:
-      - application/json
-      description: Receives an L9 message, validates MAS-CE association, and returns
-        an L9 response
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: workspaceId
-        required: true
-        type: string
-      - description: Multi-Agentic System ID
-        in: path
-        name: masId
-        required: true
-        type: string
-      - description: Cognition Engine ID
-        in: path
-        name: ceId
-        required: true
-        type: string
-      - description: L9 message
-        in: body
-        name: message
-        required: true
-        schema:
-          $ref: '#/definitions/l9.L9'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/l9.L9'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Process L9 message
-      tags:
-      - l9
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/semantic-alignment/decide:
     post:
       consumes:

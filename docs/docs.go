@@ -1271,6 +1271,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/l9/messages": {
+            "post": {
+                "description": "Content-based routing: extracts workspace/MAS from L9 message participants.groups, selects CE by kind/subkind, forwards to CE's /api/l9/messages endpoint",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "l9"
+                ],
+                "summary": "Process and route L9 message to Cognition Engine",
+                "parameters": [
+                    {
+                        "description": "L9 protocol message with header (kind, subkind, participants) and payload",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/l9.L9"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "L9 response from Cognition Engine",
+                        "schema": {
+                            "$ref": "#/definitions/l9.L9"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid L9 message format or missing required fields",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Workspace/MAS not found or no CE handles this kind/subkind",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error or CE forwarding failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "CE unreachable or returned error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Target CE is disabled",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
             "post": {
                 "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe ` + "`" + `http-url` + "`" + ` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**POST example** — add memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `",
@@ -1606,79 +1685,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/l9": {
-            "post": {
-                "description": "Receives an L9 message, validates MAS-CE association, and returns an L9 response",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "l9"
-                ],
-                "summary": "Process L9 message",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Cognition Engine ID",
-                        "name": "ceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "L9 message",
-                        "name": "message",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/l9.L9"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/l9.L9"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
