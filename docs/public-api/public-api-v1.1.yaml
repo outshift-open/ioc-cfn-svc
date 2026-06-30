@@ -1,14 +1,17 @@
 openapi: 3.0.3
 info:
   title: CFN Service Public API
-  version: "1.1.0"
+  version: "1.2.0"
   description: |-
     Public API contract for IoC Cognition Fabric Node service.
 
     This specification is used for external SDK generation (Python, TypeScript, Go clients).
 
-    **Note:** This is a snapshot of the public API at version 1.1.0.
+    **Note:** This is a snapshot of the public API at version 1.2.0.
     The implementation may include additional internal endpoints not documented here.
+
+    **Changes in v1.2.0:**
+    - Added `POST /api/l9/messages` endpoint for L9 protocol message routing
 
     **Changes in v1.1.0:**
     - `POST /shared-memories` now returns 202 Accepted (async processing)
@@ -29,6 +32,8 @@ tags:
     description: Proxy for remote memory provider operations
   - name: metrics
     description: Token usage and operational metrics for MAS agents
+  - name: l9-messages
+    description: L9 protocol message routing and forwarding
 
 paths:
   /api/workspaces/{workspaceId}/shared-memories/vector-store:
@@ -474,6 +479,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/l9/messages:
+    post:
+      summary: Forward L9 protocol messages to cognition engines
+      description: |-
+        Receives L9 (SSTP) protocol messages and routes them to the appropriate
+        cognition engine based on message kind, subkind, workspace, and MAS.
+
+        The handler validates the message, extracts routing information from
+        participants.groups, finds the matching CE, and forwards the message.
+
+        Supported message kinds: intent, contingency, exchange, commit, knowledge.
+      operationId: forwardL9Message
+      tags:
+        - l9-messages
+      requestBody:
+        required: true
+        description: L9 protocol message conforming to SSTP specification
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - header
+                - payload
+              properties:
+                header:
+                  type: object
+                  required:
+                    - protocol
+                    - version
+                    - subprotocol
+                    - kind
+                    - participants
+                  properties:
+                    protocol:
+                      type: string
+                      enum: [sstp]
+                      example: sstp
+                    version:
+                      type: string
+                      example: "1.0"
+                    subprotocol:
+                      type: string
+                      example: ioc
+                    kind:
+                      type: string
+                      enum: [intent, contingency, exchange, commit, knowledge]
+                      example: knowledge
+                    subkind:
+                      type: string
+                      example: query
+                    participants:
+                      type: object
+                      required:
+                        - actors
+                        - groups
+                      properties:
+                        actors:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              role:
+                                type: string
+                        groups:
+                          type: object
+                          required:
+                            - workspace_id
+                            - mas_id
+                          properties:
+                            workspace_id:
+                              type: string
+                              format: uuid
+                            mas_id:
+                              type: string
+                              format: uuid
+                payload:
+                  type: object
+                  required:
+                    - type
+                    - data
+                  properties:
+                    type:
+                      type: string
+                      example: query
+                    data:
+                      type: object
+                      additionalProperties: true
+      responses:
+        '200':
+          description: Message successfully routed and processed by CE
+          content:
+            application/json:
+              schema:
+                type: object
+                description: L9 response from the cognition engine
+        '400':
+          description: Invalid L9 message or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "missing participants.groups in L9 message"
+        '404':
+          description: No cognition engine found for the routing criteria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "no CE found for workspace"
+        '500':
+          description: Internal server error or ambiguous routing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "ambiguous routing: multiple CEs found"
+        '502':
+          description: Failed to reach cognition engine
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "failed to reach CE"
 
 components:
   schemas:
