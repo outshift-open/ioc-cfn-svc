@@ -12,8 +12,11 @@ import (
 )
 
 const (
-	defaultCEURL   = "http://localhost:9004" // Fallback CE URL for testing
 	l9MessagesPath = "/api/l9/messages"
+)
+
+var (
+	defaultCEURL = "http://localhost:9004" // Fallback CE URL for testing
 )
 
 // Valid subkinds per L9 kind specification
