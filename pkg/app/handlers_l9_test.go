@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 )
 
@@ -197,19 +196,13 @@ func TestL9Handler(t *testing.T) {
 				t.Fatalf("failed to marshal L9 message: %v", err)
 			}
 
-			// Create request (note: no ceId in path)
+			// Create request - workspace/MAS extracted from L9 message
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/l9",
+				"/api/l9/messages",
 				bytes.NewReader(body),
 			)
 			req.Header.Set("Content-Type", "application/json")
-
-			// Set path parameters using easyhttp context
-			req = eh.WithPathParams(req, map[string]string{
-				"workspaceId": tt.workspaceID,
-				"masId":       tt.masID,
-			})
 
 			// Create response recorder
 			w := httptest.NewRecorder()
@@ -252,14 +245,10 @@ func TestL9Handler_InvalidJSON(t *testing.T) {
 
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/workspaces/test-ws/multi-agentic-systems/test-mas/l9",
+		"/api/l9/messages",
 		bytes.NewReader([]byte("invalid json")),
 	)
 	req.Header.Set("Content-Type", "application/json")
-	req = eh.WithPathParams(req, map[string]string{
-		"workspaceId": "test-ws",
-		"masId":       "test-mas",
-	})
 
 	w := httptest.NewRecorder()
 
@@ -319,13 +308,9 @@ func TestL9Handler_NoMatchingCE(t *testing.T) {
 	body, _ := json.Marshal(l9Msg)
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/workspaces/test-workspace/multi-agentic-systems/test-mas/l9",
+		"/api/l9/messages",
 		bytes.NewReader(body),
 	)
-	req = eh.WithPathParams(req, map[string]string{
-		"workspaceId": "test-workspace",
-		"masId":       "test-mas",
-	})
 
 	w := httptest.NewRecorder()
 	status, _ := app.l9Handler(w, req)
@@ -383,13 +368,9 @@ func TestL9Handler_MultipleCEs(t *testing.T) {
 	body, _ := json.Marshal(l9Msg)
 	req := httptest.NewRequest(
 		http.MethodPost,
-		"/api/workspaces/test-workspace/multi-agentic-systems/test-mas/l9",
+		"/api/l9/messages",
 		bytes.NewReader(body),
 	)
-	req = eh.WithPathParams(req, map[string]string{
-		"workspaceId": "test-workspace",
-		"masId":       "test-mas",
-	})
 
 	w := httptest.NewRecorder()
 	status, _ := app.l9Handler(w, req)
