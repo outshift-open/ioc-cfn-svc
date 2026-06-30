@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	eh "github.com/cisco-eti/ioc-cfn-svc/pkg/tools/easyhttp"
+	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 )
 
