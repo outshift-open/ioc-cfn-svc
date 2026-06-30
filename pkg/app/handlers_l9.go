@@ -18,11 +18,11 @@ const (
 
 // Valid subkinds per L9 kind specification
 var validSubkinds = map[l9.Kind][]string{
-	l9.KindKnowledge:    {"query", "distillation", "extraction", "feedback"},
-	l9.KindCommit:       {"converged", "resolved", "abort"},
-	l9.KindIntent:       {"coordinator-assignment", "mission"},
-	l9.KindExchange:     {"team-formation"},
-	l9.KindContingency:  {"negotiation"},
+	l9.KindKnowledge:   {"query", "distillation", "extraction", "feedback"},
+	l9.KindCommit:      {"converged", "resolved", "abort"},
+	l9.KindIntent:      {"coordinator-assignment", "mission"},
+	l9.KindExchange:    {"team-formation"},
+	l9.KindContingency: {"negotiation"},
 }
 
 // l9Handler handles L9 protocol messages with content-based routing.
@@ -149,7 +149,7 @@ func (a *App) resolveTargetCEURL(info *routingInfo, msg *l9.L9) (string, *Engine
 	targetCE, l9err := a.findTargetCE(info, msg)
 
 	if l9err != nil {
-		// Use fallback for CE-not-found errors
+		// TODO: Use fallback URL for CE-not-found errors for testing now, remove this in production
 		if l9err.statusCode == http.StatusNotFound {
 			log.Errorf("CRITICAL: No CE found for workspace=%s, mas=%s, kind=%s, subkind=%v - using fallback URL %s",
 				info.workspaceID, info.masID, msg.Header.Kind, msg.Header.Subkind, defaultCEURL)
