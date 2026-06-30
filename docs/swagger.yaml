@@ -1330,10 +1330,10 @@ definitions:
     type: object
 info:
   contact: {}
-  description: IoC Cognition Fabric Node service — shared memory routing and memory
-    operations proxy.
+  description: IoC Cognition Fabric Node service — shared memory routing, memory operations
+    proxy, and L9 message routing.
   title: CFN Service API
-  version: "1.0"
+  version: "1.2"
 paths:
   /api/cognition-engines:
     get:

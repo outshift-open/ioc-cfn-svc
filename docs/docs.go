@@ -3890,12 +3890,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "1.2",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "CFN Service API",
-	Description:      "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.",
+	Description:      "IoC Cognition Fabric Node service — shared memory routing, memory operations proxy, and L9 message routing.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
