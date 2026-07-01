@@ -13,10 +13,11 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/cognitionengine"
 	httpclient "github.com/outshift-open/ioc-cfn-svc/pkg/client/http"
+	iocmemoryprovider "github.com/outshift-open/ioc-cfn-svc/pkg/providers/memory/ioc"
 	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
-	"github.com/google/uuid"
 )
 
 // registerCognitionEngineHandler godoc
@@ -202,6 +203,25 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 			log.Infof("config refreshed after CE registration: ce_id=%s", mgmtResp.CEID)
 		}
 	}()
+
+	// onboard knowledge kvp store for the CE
+	// Create KVP store onboard request for CE scope
+	kvpRequest := iocmemoryprovider.NewKnowledgeKVPStoreOnboardRequest(iocmemoryprovider.ScopeTypeCE, &mgmtResp.CEID)
+
+	// Call the KVP store onboard method
+	kvpCtx, kvpCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer kvpCancel()
+
+	if a.knowledgeMemSvcClient != nil {
+		kvpResponse, err := a.knowledgeMemSvcClient.OnboardKnowledgeKVPStore(kvpCtx, kvpRequest)
+		if err != nil {
+			log.Errorf("failed to onboard KeyValue store for CE %s: %v", mgmtResp.CEID, err)
+		} else {
+			log.Infof("KeyValue store onboarded successfully for CE %s, status: %s", mgmtResp.CEID, kvpResponse.Status)
+		}
+	} else {
+		log.Warnf("knowledge memory service client not available for KVP store onboarding")
+	}
 
 	// Return the successful response to the CE
 	return eh.RespondWithJSON(w, http.StatusOK, mgmtResp)
@@ -775,4 +795,3 @@ func (a *App) patchCognitionEngineHandler(w http.ResponseWriter, r *http.Request
 	// Return the successful response
 	return eh.RespondWithJSON(w, http.StatusOK, detailResp)
 }
-

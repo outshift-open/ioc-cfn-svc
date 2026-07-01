@@ -785,6 +785,328 @@ func (c *Client) FetchKnowledgeGraph(ctx context.Context, masID string) ([]byte,
 	return body, resp.StatusCode, nil
 }
 
+// OnboardKnowledgeKVPStore sends a POST request to onboard knowledge KVP store using schema types
+func (c *Client) OnboardKnowledgeKVPStore(ctx context.Context, request *KnowledgeKVPStoreOnboardRequest) (*KnowledgeKVPStoreOnboardResponse, error) {
+	log := getLogger()
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	if request.StoreID == nil {
+		return nil, fmt.Errorf("store ID is required")
+	}
+	url := c.baseURL + "/api/knowledge/kvps/stores/" + *request.StoreID
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeKVPStoreOnboardResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
+	return &response, nil
+}
+
+// UpsertKnowledgeKVPs sends a POST request to upsert knowledge KVP data using schema types
+func (c *Client) UpsertKnowledgeKVPs(ctx context.Context, request *KnowledgeKVPStoreRequest) (*KnowledgeKVPStoreResponse, error) {
+	log := getLogger()
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := c.baseURL + "/api/knowledge/kvps"
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeKVPStoreResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
+	return &response, nil
+}
+
+// QueryKnowledgeKVPs sends a POST request to query knowledge KVP data using schema types
+func (c *Client) QueryKnowledgeKVPs(ctx context.Context, request *KnowledgeKVPQueryRequest) (*KnowledgeKVPQueryResponse, error) {
+	log := getLogger()
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make POST request
+	url := c.baseURL + "/api/knowledge/kvps/query"
+	resp, err := c.httpClient.Post(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("POST request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeKVPQueryResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
+	return &response, nil
+}
+
+// DeleteKnowledgeKVPs sends a DELETE request to delete knowledge KVP data using schema types
+func (c *Client) DeleteKnowledgeKVPs(ctx context.Context, request *KnowledgeKVPDeleteRequest) (*KnowledgeKVPDeleteResponse, error) {
+	log := getLogger()
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	url := c.baseURL + "/api/knowledge/kvps"
+	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("DELETE request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode == http.StatusNotFound {
+		var parsed struct {
+			Message string `json:"message"`
+		}
+		if jsonErr := json.Unmarshal(body, &parsed); jsonErr == nil && parsed.Message != "" {
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, parsed.Message)
+		}
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, string(body))
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeKVPDeleteResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status == ResponseStatusNotFound {
+		return &response, ErrNotFound
+	}
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
+	return &response, nil
+}
+
+// DeleteKnowledgeKVPStore sends a DELETE request to delete knowledge KVP store using schema types
+func (c *Client) DeleteKnowledgeKVPStore(ctx context.Context, request *KnowledgeKVPStoreOnboardDeleteRequest) (*KnowledgeKVPStoreOnboardResponse, error) {
+	log := getLogger()
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Prepare headers
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	// Make DELETE request
+	// Validate StoreID is provided
+	if request.StoreID == nil {
+		return nil, fmt.Errorf("store ID is required")
+	}
+	// Use StoreID directly from request
+
+	url := c.baseURL + "/api/internal/knowledge/kvps/stores/" + *request.StoreID
+	resp, err := c.httpClient.Delete(ctx, url, jsonData, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DELETE request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log response details
+	log.Infof("DELETE request to %s completed", url)
+	log.Infof("Response status: %s", resp.Status)
+	log.Debugf("Response headers: %v", resp.Header)
+	log.Debugf("Response body: %s", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf(
+			"knowledge memory service error (%d): %s",
+			resp.StatusCode,
+			string(body),
+		)
+	}
+
+	// Pretty print JSON response
+	c.prettyPrintJSON(body)
+
+	// Parse response
+	var response KnowledgeKVPStoreOnboardResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check response status
+	if response.Status != ResponseStatusSuccess {
+		return &response, fmt.Errorf("operation failed with status: %s", response.Status)
+	}
+
+	return &response, nil
+}
+
 // stringPtr is a helper function to get a pointer to a string
 func stringPtr(s string) *string {
 	return &s
