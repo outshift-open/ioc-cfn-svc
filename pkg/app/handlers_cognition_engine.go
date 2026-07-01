@@ -776,3 +776,138 @@ func (a *App) patchCognitionEngineHandler(w http.ResponseWriter, r *http.Request
 	return eh.RespondWithJSON(w, http.StatusOK, detailResp)
 }
 
+// getCEMASConfigHandler godoc
+// @Summary		Get per-MAS config for a Cognition Engine
+// @Description	Returns the per-MAS mas_config override for this CE associated with a specific MAS.
+// @Description	This is the resolved config from mas_cognition_engines.mas_config, not the CE-wide
+// @Description	factory defaults from cognition_engines.mas_config.
+// @Description
+// @Description	The endpoint is CE-centric: a CE presents its identifier and requests its config
+// @Description	for a specific workspace/MAS combination.
+// @Tags			cognition-engine
+// @Accept		json
+// @Produce		json
+// @Param		ceId		path		string	true	"Cognition Engine ID"
+// @Param		workspaceId	path		string	true	"Workspace ID"
+// @Param		masId		path		string	true	"Multi-Agentic System ID"
+// @Success		200		{object}	cognitionengine.MASCEConfigResponse	"Per-MAS CE config"
+// @Failure		400		{object}	map[string]string	"Invalid ID format"
+// @Failure		404		{object}	map[string]string	"MAS or CE not found, or CE not associated with MAS"
+// @Failure		502		{object}	map[string]string	"Failed to forward request to management plane"
+// @Failure		503		{object}	map[string]string	"CFN not registered with management plane"
+// @Router		/api/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config [get]
+func (a *App) getCEMASConfigHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	log := getLogger()
+
+	ceID := eh.PathParam(r, "ceId")
+	workspaceID := eh.PathParam(r, "workspaceId")
+	masID := eh.PathParam(r, "masId")
+
+	// Validate all IDs are valid UUIDs (ceID first since it's the primary resource)
+	if _, err := uuid.Parse(ceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid ce_id format: must be a valid UUID",
+		})
+	}
+	if _, err := uuid.Parse(workspaceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid workspace_id format: must be a valid UUID",
+		})
+	}
+	if _, err := uuid.Parse(masID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid mas_id format: must be a valid UUID",
+		})
+	}
+
+	// Check if this CFN is registered with the management plane
+	if CfnID == "" {
+		return eh.RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "CFN not registered with management plane yet",
+		})
+	}
+
+	// Build the MAS detail URL for management plane
+	mgmtURL := getEnvOrDefault("MGMT_URL", "http://localhost:9000")
+	masDetailURL := fmt.Sprintf("%s/api/workspaces/%s/multi-agentic-systems/%s",
+		mgmtURL, workspaceID, masID)
+
+	log.Debugf("fetching MAS detail from management plane: %s (ce_id=%s)", masDetailURL, ceID)
+
+	// Forward the request to the management plane
+	client := httpclient.New(30 * time.Second)
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
+	ctx := context.Background()
+	resp, err := client.Get(ctx, masDetailURL, headers)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to forward request to management plane: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	// Read management plane response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to read management plane response: %v", err),
+		})
+	}
+
+	// If management plane returned 404, forward it
+	if resp.StatusCode == http.StatusNotFound {
+		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("MAS %s not found in workspace %s", masID, workspaceID),
+		})
+	}
+
+	// If management plane returned another error status, forward it
+	if resp.StatusCode != http.StatusOK {
+		var errorResp map[string]any
+		if err := json.Unmarshal(respBody, &errorResp); err != nil {
+			errorResp = map[string]any{"raw": string(respBody)}
+		}
+		log.Errorf("management plane MAS detail failed: status=%d, body=%v", resp.StatusCode, errorResp)
+		return eh.RespondWithJSON(w, resp.StatusCode, errorResp)
+	}
+
+	// Parse the MAS response to extract cognition_engines
+	var masResp struct {
+		CognitionEngines []struct {
+			CEID      string                 `json:"ce_id"`
+			MASConfig map[string]interface{} `json:"mas_config"`
+		} `json:"cognition_engines"`
+	}
+	if err := json.Unmarshal(respBody, &masResp); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to parse management plane response: %v", err),
+		})
+	}
+
+	// Find the CE in the cognition_engines list
+	for _, ce := range masResp.CognitionEngines {
+		if ce.CEID == ceID {
+			masConfig := ce.MASConfig
+			if masConfig == nil {
+				masConfig = map[string]interface{}{}
+			}
+			log.Debugf("found mas_config for ce_id=%s in mas_id=%s: %d keys",
+				ceID, masID, len(masConfig))
+			return eh.RespondWithJSON(w, http.StatusOK, cognitionengine.MASCEConfigResponse{
+				CEID:        ceID,
+				MASID:       masID,
+				WorkspaceID: workspaceID,
+				MASConfig:   masConfig,
+			})
+		}
+	}
+
+	// CE not found in this MAS
+	return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+		"error": fmt.Sprintf("cognition engine %s not associated with MAS %s", ceID, masID),
+	})
+}
+
