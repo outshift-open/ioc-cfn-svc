@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
 	eh "github.com/outshift-open/ioc-cfn-svc/pkg/tools/easyhttp"
 	l9 "github.com/outshift-open/ioc-protocols-models/SSTP/language_bindings/golang"
 )
@@ -71,12 +72,15 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	ceURL, targetCE, err := a.resolveTargetCEURL(routingInfo, msg)
 	if err != nil {
-		return respondError(w, err.(*l9Error).statusCode, err.Error())
+		l9e := err.(*l9Error)
+		a.recordL9AuditWithStatus(msg, routingInfo, "failed", l9e.message)
+		return respondError(w, l9e.statusCode, l9e.Error())
 	}
 
 	response, l9err := forwardToCE(ceURL, msg)
 	if l9err != nil {
 		log.Errorf("l9Handler: CE forwarding failed: %v", l9err)
+		a.recordL9AuditWithStatus(msg, routingInfo, "failed", l9err.message)
 		return respondError(w, l9err.statusCode, l9err.message)
 	}
 
@@ -85,6 +89,10 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 	} else {
 		log.Infof("l9Handler: successfully routed to fallback CE at %s", ceURL)
 	}
+
+	// Record L9 audit event for the request message
+	a.recordL9AuditWithStatus(msg, routingInfo, "success", "")
+
 	return eh.RespondWithJSON(w, http.StatusOK, response)
 }
 
@@ -353,4 +361,28 @@ func getSubkindString(subkind interface{}) string {
 // respondError is a helper to return error responses
 func respondError(w http.ResponseWriter, statusCode int, message string) (int, error) {
 	return eh.RespondWithJSON(w, statusCode, map[string]string{"error": message})
+}
+
+// recordL9AuditWithStatus creates an L9 audit event with status and optional error message.
+// Skips audit if message lacks required fields (message.id, message.episode).
+// Errors are logged but do not fail the request.
+func (a *App) recordL9AuditWithStatus(msg *l9.L9, info *routingInfo, status, errMsg string) {
+	if a.db == nil {
+		return
+	}
+
+	event := audit.NewL9AuditEventFromMessage(msg, info.workspaceID, info.masID)
+	if event == nil {
+		// Message lacks required audit fields (message.id or message.episode)
+		return
+	}
+
+	event.Status = status
+	if errMsg != "" {
+		event.ErrorMsg = &errMsg
+	}
+
+	if err := a.db.CreateL9AuditEvent(event); err != nil {
+		getLogger().Errorf("l9Handler: failed to record audit event: %v", err)
+	}
 }

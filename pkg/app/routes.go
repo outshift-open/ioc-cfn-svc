@@ -82,11 +82,14 @@ func (a *App) initializeRoutes() http.Handler {
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
 
-
 	// L9 protocol endpoint (MAS <-> CFN <-> CE communication)
 	// Content-based routing: CE is selected based on message kind/subkind/subprotocol
 	// Workspace/MAS extracted from L9 message participants.groups
 	rtr.Post(apiPrefix+"/l9/messages", a.l9Handler)
+
+	// L9 audit events (internal APIs)
+	rtr.Get(internalPrefix+"/l9/audit", a.listL9AuditEventsHandler)
+	rtr.Get(internalPrefix+"/l9/audit/{eventId}", a.getL9AuditEventHandler)
 
 	// OTLP trace ingestion (canonical route follows API guidelines)
 	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)

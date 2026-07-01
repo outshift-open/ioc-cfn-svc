@@ -267,6 +267,77 @@ definitions:
       updated_at:
         type: integer
     type: object
+  audit.L9AuditEvent:
+    properties:
+      actors:
+        description: Participants (stored as JSONB array of {id, role} objects)
+        items:
+          type: integer
+        type: array
+      context:
+        description: Context (full header.context as JSONB)
+        items:
+          type: integer
+        type: array
+      created_on:
+        description: Timestamps
+        type: string
+      episode_id:
+        description: Episode identity
+        type: string
+      error_msg:
+        type: string
+      id:
+        type: string
+      kind:
+        description: L9 Header fields
+        type: string
+      mas_id:
+        type: string
+      message_id:
+        description: Message identity
+        type: string
+      parent_ids:
+        description: Parents identity
+        items:
+          type: integer
+        type: array
+      payload_type:
+        description: Payload type
+        type: string
+      protocol:
+        type: string
+      status:
+        description: Processing status
+        type: string
+      subkind:
+        type: string
+      subprotocol:
+        type: string
+      workspace_id:
+        description: Tenant scoping
+        type: string
+    type: object
+  audit.L9AuditListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/audit.L9AuditEvent'
+        type: array
+      pageInfo:
+        $ref: '#/definitions/audit.PageInfo'
+    type: object
+  audit.PageInfo:
+    properties:
+      page:
+        type: integer
+      pageCount:
+        type: integer
+      pageSize:
+        type: integer
+      totalElements:
+        type: integer
+    type: object
   cognitionagentclient.ExtractionPayload:
     properties:
       data:
@@ -1742,6 +1813,82 @@ paths:
       summary: Ingest metrics batch (CE or MAS)
       tags:
       - internal
+  /api/internal/l9/audit:
+    get:
+      description: Lists L9 protocol audit events with optional kind and episode_id
+        filters
+      parameters:
+      - description: Filter by L9 kind (intent, exchange, contingency, commit, knowledge)
+        in: query
+        name: kind
+        type: string
+      - description: Filter by episode ID
+        in: query
+        name: episode_id
+        type: string
+      - default: 0
+        description: Page number (0-based)
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated list of L9 audit events
+          schema:
+            $ref: '#/definitions/audit.L9AuditListResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List L9 audit events
+      tags:
+      - l9-audit
+  /api/internal/l9/audit/{eventId}:
+    get:
+      description: Retrieves a single L9 protocol audit event by its UUID
+      parameters:
+      - description: Event UUID
+        in: path
+        name: eventId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: L9 audit event
+          schema:
+            $ref: '#/definitions/audit.L9AuditEvent'
+        "400":
+          description: Invalid event ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get L9 audit event by ID
+      tags:
+      - l9-audit
   /api/internal/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph:
     get:
       description: Returns all nodes and edges in the knowledge graph for the given
