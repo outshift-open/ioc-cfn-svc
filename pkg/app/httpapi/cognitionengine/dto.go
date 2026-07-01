@@ -182,3 +182,25 @@ type PatchRequest struct {
 	Version *string `json:"version,omitempty"`
 	Name    *string `json:"name,omitempty"`
 }
+
+// MASCEConfigResponse returns the per-MAS config override for a specific CE.
+// This is the resolved mas_config from the mas_cognition_engines join table,
+// not the CE-wide factory defaults from the cognition_engines table.
+//
+// Example JSON:
+//
+//	{
+//	  "ce_id": "7c8650d9-...",
+//	  "mas_id": "550e8400-...",
+//	  "workspace_id": "660e8400-...",
+//	  "mas_config": {
+//	    "retry_max_attempts": 3,
+//	    "validation_score_intervention": 0.6
+//	  }
+//	}
+type MASCEConfigResponse struct {
+	CEID        string                 `json:"ce_id"`
+	MASID       string                 `json:"mas_id"`
+	WorkspaceID string                 `json:"workspace_id"`
+	MASConfig   map[string]interface{} `json:"mas_config"`
+}

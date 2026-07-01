@@ -1353,6 +1353,24 @@
                 }
             }
         },
+        "cognitionengine.MASCEConfigResponse": {
+            "type": "object",
+            "properties": {
+                "ce_id": {
+                    "type": "string"
+                },
+                "mas_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "mas_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "cognitionengine.PatchRequest": {
             "type": "object",
             "properties": {
