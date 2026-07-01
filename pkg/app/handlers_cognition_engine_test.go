@@ -892,3 +892,369 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 	// Should return 204 No Content - delete succeeds when CE is disabled and has no MAS association
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
+
+func TestGetMASCEConfigHandler(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Setup mock management plane server
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID, r.URL.Path)
+
+		// Return MAS detail with cognition_engines
+		resp := map[string]interface{}{
+			"id":           testMASID,
+			"workspace_id": testWorkspaceID,
+			"name":         "Test MAS",
+			"cognition_engines": []map[string]interface{}{
+				{
+					"ce_id":   testCEID,
+					"name":    "Semantic Alignment CE",
+					"kind":    "semantic",
+					"subkind": "alignment",
+					"url":     "http://ce-host:9004",
+					"enabled": true,
+					"status":  "online",
+					"mas_config": map[string]interface{}{
+						"retry_max_attempts":            3,
+						"validation_score_intervention": 0.6,
+					},
+				},
+				{
+					"ce_id":      "another-ce-id",
+					"name":       "Another CE",
+					"mas_config": map[string]interface{}{},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp cognitionengine.MASCEConfigResponse
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, testCEID, resp.CEID)
+	assert.Equal(t, testMASID, resp.MASID)
+	assert.Equal(t, testWorkspaceID, resp.WorkspaceID)
+	assert.Equal(t, float64(3), resp.MASConfig["retry_max_attempts"])
+	assert.Equal(t, 0.6, resp.MASConfig["validation_score_intervention"])
+}
+
+func TestGetMASCEConfigHandler_CENotAssociated(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Setup mock management plane server that returns MAS without the requested CE
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]interface{}{
+			"id":           testMASID,
+			"workspace_id": testWorkspaceID,
+			"name":         "Test MAS",
+			"cognition_engines": []map[string]interface{}{
+				{
+					"ce_id":      "different-ce-id",
+					"name":       "Different CE",
+					"mas_config": map[string]interface{}{},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var resp map[string]string
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.Contains(t, resp["error"], "not associated with MAS")
+}
+
+func TestGetMASCEConfigHandler_MASNotFound(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Setup mock management plane server that returns 404
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "MAS not found",
+		})
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var resp map[string]string
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.Contains(t, resp["error"], "not found")
+}
+
+func TestGetMASCEConfigHandler_MissingCFNID(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Clear CFN ID to simulate unregistered CFN
+	originalCfnID := CfnID
+	CfnID = ""
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	var resp map[string]string
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.Contains(t, resp["error"], "CFN not registered")
+}
+
+func TestGetMASCEConfigHandler_InvalidUUIDs(t *testing.T) {
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	tests := []struct {
+		name        string
+		workspaceID string
+		masID       string
+		ceID        string
+		expectedErr string
+	}{
+		{
+			name:        "invalid workspace_id",
+			workspaceID: "not-a-uuid",
+			masID:       "550e8400-e29b-41d4-a716-446655440000",
+			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
+			expectedErr: "invalid workspace_id format",
+		},
+		{
+			name:        "invalid mas_id",
+			workspaceID: "660e8400-e29b-41d4-a716-446655440000",
+			masID:       "not-a-uuid",
+			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
+			expectedErr: "invalid mas_id format",
+		},
+		{
+			name:        "invalid ce_id",
+			workspaceID: "660e8400-e29b-41d4-a716-446655440000",
+			masID:       "550e8400-e29b-41d4-a716-446655440000",
+			ceID:        "not-a-uuid",
+			expectedErr: "invalid ce_id format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet,
+				"/api/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/cognition-engines/"+tt.ceID+"/mas-config",
+				nil)
+			req.SetPathValue("workspaceId", tt.workspaceID)
+			req.SetPathValue("masId", tt.masID)
+			req.SetPathValue("ceId", tt.ceID)
+			w := httptest.NewRecorder()
+
+			_, err := app.getMASCEConfigHandler(w, req)
+			require.NoError(t, err)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+
+			var resp map[string]string
+			err = json.NewDecoder(w.Body).Decode(&resp)
+			require.NoError(t, err)
+			assert.Contains(t, resp["error"], tt.expectedErr)
+		})
+	}
+}
+
+func TestGetMASCEConfigHandler_NullMASConfig(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Setup mock management plane server that returns CE with null mas_config
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]interface{}{
+			"id":           testMASID,
+			"workspace_id": testWorkspaceID,
+			"name":         "Test MAS",
+			"cognition_engines": []map[string]interface{}{
+				{
+					"ce_id":      testCEID,
+					"name":       "Semantic Alignment CE",
+					"mas_config": nil, // null mas_config
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp cognitionengine.MASCEConfigResponse
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+
+	// Should return empty map when mas_config is null
+	assert.Equal(t, testCEID, resp.CEID)
+	assert.NotNil(t, resp.MASConfig)
+	assert.Empty(t, resp.MASConfig)
+}
+
+func TestGetMASCEConfigHandler_EmptyCognitionEngines(t *testing.T) {
+	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
+	testMASID := "550e8400-e29b-41d4-a716-446655440000"
+	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
+
+	// Setup mock management plane server that returns MAS with no CEs
+	mgmtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]interface{}{
+			"id":                testMASID,
+			"workspace_id":      testWorkspaceID,
+			"name":              "Test MAS",
+			"cognition_engines": []map[string]interface{}{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mgmtServer.Close()
+
+	os.Setenv("MGMT_URL", mgmtServer.URL)
+	defer os.Unsetenv("MGMT_URL")
+
+	originalCfnID := CfnID
+	CfnID = "test-cfn-id"
+	defer func() { CfnID = originalCfnID }()
+
+	app := &App{}
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		nil)
+	req.SetPathValue("workspaceId", testWorkspaceID)
+	req.SetPathValue("masId", testMASID)
+	req.SetPathValue("ceId", testCEID)
+	w := httptest.NewRecorder()
+
+	_, err := app.getMASCEConfigHandler(w, req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var resp map[string]string
+	err = json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.Contains(t, resp["error"], "not associated with MAS")
+}

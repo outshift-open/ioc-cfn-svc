@@ -69,6 +69,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Delete(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/vectors", withWorkspaceAndMasValidation(a.agentVectorDeleteHandler))
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/similarity-search", withWorkspaceAndMasValidation(a.agentVectorSimilaritySearchHandler))
 
+	// per-MAS CE config (consumed by Cognition Engines to fetch their runtime config overrides)
+	rtr.Get(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/mas-config", withWorkspaceAndMasValidation(a.getMASCEConfigHandler))
+
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
