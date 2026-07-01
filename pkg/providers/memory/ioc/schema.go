@@ -922,3 +922,234 @@ type KnowledgeGraphSimilaritySearchResponse struct {
 	Message   *string                                `json:"message,omitempty"`
 	Results   []KnowledgeGraphSimilaritySearchResult `json:"results,omitempty"`
 }
+
+///////////////////////// KEYVALUE PAIR SCHEMA /////////////////////////
+
+// ScopeType represents the type of scope for KVP operations
+type ScopeType string
+
+const (
+	ScopeTypeMAS ScopeType = "mas"
+	ScopeTypeCE  ScopeType = "ce"
+)
+
+// KVP query type constants
+const (
+	QueryTypeGetByKey = "get_by_key"
+)
+
+// KnowledgeKVPRecord represents a knowledge KVP record in the KVP knowledge store
+type KnowledgeKVPRecord struct {
+	Key       map[string]interface{} `json:"key" description:"Key as a JSON object"`
+	Value     map[string]interface{} `json:"value" description:"Value as a JSON object"`
+	CreatedAt *int64                 `json:"created_at,omitempty" description:"Timestamp of record creation in epoch time"`
+	UpdatedAt *int64                 `json:"updated_at,omitempty" description:"Timestamp of record last update in epoch time"`
+}
+
+// KnowledgeKVPStoreOnboardRequest represents a request to setup the KVP store
+type KnowledgeKVPStoreOnboardRequest struct {
+	RequestID string    `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Scope     ScopeType `json:"scope" description:"Type of scope (MAS or CE)"`
+	StoreID   *string   `json:"store_id,omitempty" description:"ID for the Store (mas_id for MAS scope, ce_id for CE scope)"`
+}
+
+// NewKnowledgeKVPStoreOnboardRequest creates a new KVP store onboard request with auto-generated UUID
+func NewKnowledgeKVPStoreOnboardRequest(scope ScopeType, store_id *string) *KnowledgeKVPStoreOnboardRequest {
+	return &KnowledgeKVPStoreOnboardRequest{
+		RequestID: uuid.New().String(),
+		Scope:     scope,
+		StoreID:   store_id,
+	}
+}
+
+// KnowledgeKVPStoreOnboardResponse represents a response from the create KVP store request
+type KnowledgeKVPStoreOnboardResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeKVPStoreOnboardResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeKVPStoreOnboardResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeKVPStoreOnboardDeleteRequest represents a request to delete the KVP store
+type KnowledgeKVPStoreOnboardDeleteRequest struct {
+	RequestID string    `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Scope     ScopeType `json:"scope" description:"Type of scope (MAS or CE)"`
+	StoreID   *string   `json:"store_id,omitempty" description:"ID for the Store (mas_id for MAS scope, ce_id for CE scope)"`
+}
+
+// NewKnowledgeKVPStoreOnboardDeleteRequest creates a new KVP store onboard delete request with auto-generated UUID
+func NewKnowledgeKVPStoreOnboardDeleteRequest(scope ScopeType, store_id string) *KnowledgeKVPStoreOnboardDeleteRequest {
+	return &KnowledgeKVPStoreOnboardDeleteRequest{
+		RequestID: uuid.New().String(),
+		Scope:     scope,
+		StoreID:   &store_id,
+	}
+}
+
+// KnowledgeKVPStoreRequest represents a request to the Store for storing and managing knowledge KVP data
+type KnowledgeKVPStoreRequest struct {
+	RequestID string               `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Scope     ScopeType            `json:"scope" description:"Type of scope (MAS or CE)"`
+	WkspID    *string              `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace (required for MAS scope)"`
+	MasID     *string              `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (required for MAS scope)"`
+	AgentID   *string              `json:"agent_id,omitempty" description:"ID for the specific Agent within the MAS (optional)"`
+	CeID      *string              `json:"ce_id,omitempty" description:"ID for the Cognition Engine (required for CE scope)"`
+	Records   []KnowledgeKVPRecord `json:"records" description:"List of KVP records"`
+}
+
+// NewKnowledgeKVPStoreRequest creates a new KVP store request with auto-generated UUID
+func NewKnowledgeKVPStoreRequest(scope ScopeType, records []KnowledgeKVPRecord) *KnowledgeKVPStoreRequest {
+	return &KnowledgeKVPStoreRequest{
+		RequestID: uuid.New().String(),
+		Scope:     scope,
+		Records:   records,
+	}
+}
+
+// KnowledgeKVPStoreResponse represents a response from the Store after storing and managing knowledge KVP data
+type KnowledgeKVPStoreResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeKVPStoreResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeKVPStoreResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeKVPDeleteRequest represents a request to delete a KVP from the store
+type KnowledgeKVPDeleteRequest struct {
+	RequestID  string                 `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Scope      ScopeType              `json:"scope" description:"Type of scope (MAS or CE)"`
+	WkspID     *string                `json:"wksp_id,omitempty" description:"The workspace ID for the request (required for MAS scope)"`
+	MasID      *string                `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (required for MAS scope)"`
+	AgentID    *string                `json:"agent_id,omitempty" description:"ID for the specific Agent within the MAS (optional)"`
+	CeID       *string                `json:"ce_id,omitempty" description:"ID for the Cognition Engine (required for CE scope)"`
+	Key        map[string]interface{} `json:"key" description:"Key of KVP to delete (as JSON object)"`
+	SoftDelete bool                   `json:"soft_delete" description:"Soft delete the KVP"`
+}
+
+// NewKnowledgeKVPDeleteRequest creates a new KVP delete request with auto-generated UUID
+func NewKnowledgeKVPDeleteRequest(scope ScopeType, key map[string]interface{}, softDelete bool) *KnowledgeKVPDeleteRequest {
+	return &KnowledgeKVPDeleteRequest{
+		RequestID:  uuid.New().String(),
+		Scope:      scope,
+		Key:        key,
+		SoftDelete: softDelete,
+	}
+}
+
+// KnowledgeKVPDeleteResponse represents a response from the Store after deleting knowledge KVP data
+type KnowledgeKVPDeleteResponse struct {
+	RequestID *string        `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus `json:"status" description:"Status of the request"`
+	Message   *string        `json:"message,omitempty" description:"Optional message providing additional information"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeKVPDeleteResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeKVPDeleteResponse
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	return json.Marshal(aux)
+}
+
+// KnowledgeKVPQueryCriteria represents query criteria for KVP search operations
+type KnowledgeKVPQueryCriteria struct {
+	QueryType string                 `json:"query_type" description:"Type of query to execute"`
+	Key       map[string]interface{} `json:"key,omitempty" description:"Key to query for (required for get_by_key)"`
+	Limit     *int                   `json:"limit,omitempty" description:"Limit used by queries"`
+}
+
+// NewKnowledgeKVPQueryCriteria creates new KVP query criteria
+func NewKnowledgeKVPQueryCriteria(queryType string, key map[string]interface{}, limit *int) *KnowledgeKVPQueryCriteria {
+	return &KnowledgeKVPQueryCriteria{
+		QueryType: queryType,
+		Key:       key,
+		Limit:     limit,
+	}
+}
+
+// KnowledgeKVPQueryRequest represents a request to query the KVP store
+type KnowledgeKVPQueryRequest struct {
+	RequestID     string                    `json:"request_id" description:"Auto-generated UUID for request tracking"`
+	Scope         ScopeType                 `json:"scope" description:"Type of scope (MAS or CE)"`
+	WkspID        *string                   `json:"wksp_id,omitempty" description:"ID for the Workspace (required for MAS scope)"`
+	MasID         *string                   `json:"mas_id,omitempty" description:"ID for the Multi-Agent System (required for MAS scope)"`
+	AgentID       *string                   `json:"agent_id,omitempty" description:"ID for the specific Agent within the MAS (optional)"`
+	CeID          *string                   `json:"ce_id,omitempty" description:"ID for the Cognition Engine (required for CE scope)"`
+	QueryCriteria KnowledgeKVPQueryCriteria `json:"query_criteria" description:"Query criteria for the search"`
+}
+
+// NewKnowledgeKVPQueryRequest creates a new KVP query request with auto-generated UUID
+func NewKnowledgeKVPQueryRequest(scope ScopeType, queryCriteria KnowledgeKVPQueryCriteria) *KnowledgeKVPQueryRequest {
+	return &KnowledgeKVPQueryRequest{
+		RequestID:     uuid.New().String(),
+		Scope:         scope,
+		QueryCriteria: queryCriteria,
+	}
+}
+
+// KnowledgeKVPQueryResponse represents a response from the Store after querying knowledge KVP data
+type KnowledgeKVPQueryResponse struct {
+	RequestID *string              `json:"request_id,omitempty" description:"UUID for request tracking"`
+	Status    ResponseStatus       `json:"status" description:"Status of the request"`
+	Message   *string              `json:"message,omitempty" description:"Optional message providing additional information"`
+	Records   []KnowledgeKVPRecord `json:"records,omitempty" description:"Query response records (only included for success status)"`
+}
+
+// MarshalJSON custom marshaling
+func (k *KnowledgeKVPQueryResponse) MarshalJSON() ([]byte, error) {
+	type Alias KnowledgeKVPQueryResponse
+	aux := &struct {
+		*Alias
+		Records []KnowledgeKVPRecord `json:"records,omitempty"`
+	}{
+		Alias: (*Alias)(k),
+	}
+
+	if k.RequestID != nil && *k.RequestID == "" {
+		aux.RequestID = nil
+	}
+
+	if len(k.Records) > 0 {
+		aux.Records = k.Records
+	}
+
+	return json.Marshal(aux)
+}

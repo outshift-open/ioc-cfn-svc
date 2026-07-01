@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -19,15 +20,50 @@ import (
 // Sample client using the IOC Memory Provider
 // This sample shows how to use the IOC Memory Provider to perform knowledge graph operations
 // using schema types.
+//
+// Usage:
+//   go build -o testclient .
+//   ./testclient                 - Run all tests (default)
+//   ./testclient -all            - Run all tests (explicit)
+//   ./testclient -graph          - Run only Knowledge Graph tests
+//   ./testclient -vector         - Run only Knowledge Vector tests
+//   ./testclient -kvpmas         - Run only KVP MAS scope tests
+//   ./testclient -kvpce          - Run only KVP CE scope tests
 
 var log *zap.SugaredLogger
 
 func main() {
+	// Define command-line flags
+	var all = flag.Bool("all", false, "Run all tests (explicit)")
+	var graph = flag.Bool("graph", false, "Run only Knowledge Graph tests")
+	var vector = flag.Bool("vector", false, "Run only Knowledge Vector tests")
+	var kvpMAS = flag.Bool("kvpmas", false, "Run only KVP MAS scope tests")
+	var kvpCE = flag.Bool("kvpce", false, "Run only KVP CE scope tests")
+	flag.Parse()
+
+	// Default to all tests if no flags are set
+	if !*all && !*graph && !*vector && !*kvpMAS && !*kvpCE {
+		*all = true
+	}
+
 	// Initialize logger first
 	logger.Init()
 	log = logger.Default()
 
 	log.Info("Starting IOC Memory Provider Client Sample...")
+
+	// Log which tests will be run
+	if *all {
+		log.Info("Running all tests")
+	} else if *graph {
+		log.Info("Running only Knowledge Graph tests")
+	} else if *vector {
+		log.Info("Running only Knowledge Vector tests")
+	} else if *kvpMAS {
+		log.Info("Running only Knowledge KeyValue MAS scope tests")
+	} else if *kvpCE {
+		log.Info("Running only Knowledge KeyValue CE scope tests")
+	}
 
 	// Load environment variables from .env file
 	if err := godotenv.Load(); err != nil {
@@ -53,160 +89,264 @@ func main() {
 	log.Info("Client established successfully")
 	ctx := context.Background()
 
-	// Test UpsertKnowledgeGraph method
-	printTestSeparator()
-	log.Info("Testing UpsertKnowledgeGraph...")
-	if err := testUpsertKnowledgeGraph(ctx, client); err != nil {
-		log.Errorf("Error in UpsertKnowledgeGraph: %v", err)
-		os.Exit(1)
+	// Run Knowledge Graph tests when -all or -graph flag is set
+	if *all || *graph {
+		// Test UpsertKnowledgeGraph method
+		printTestSeparator()
+		log.Info("Testing UpsertKnowledgeGraph...")
+		if err := testUpsertKnowledgeGraph(ctx, client); err != nil {
+			log.Errorf("Error in UpsertKnowledgeGraph: %v", err)
+			os.Exit(1)
+		}
+
+		// Test UpsertKnowledgeGraph with InternalAttributes
+		printTestSeparator()
+		log.Info("Testing UpsertKnowledgeGraph with InternalAttributes...")
+		if err := testUpsertKnowledgeGraphWithInternalAttributes(ctx, client); err != nil {
+			log.Errorf("Error in UpsertKnowledgeGraph with InternalAttributes: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Relations with InternalAttributes filter
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Relations for InternalAttributes...")
+		if err := testQueryKnowledgeGraphRelationsWithInternalAttributes(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Relations for InternalAttributes: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Concepts with InternalAttributes filter
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Concepts for InternalAttributes...")
+		if err := testQueryKnowledgeGraphConceptsWithInternalAttributes(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Concepts for InternalAttributes: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Concepts with regular filters
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Concepts with Filters...")
+		if err := testQueryKnowledgeGraphConceptsWithDynamicFilters(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Concepts with Filters: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Concepts with custom filters
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Concepts with Custom Filters...")
+		if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Relations with regular filters
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Relations with Filters...")
+		if err := testQueryKnowledgeGraphRelationsWithDynamicFilters(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Relations with Filters: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraph Relations with custom filters
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraph Relations with Custom Filters...")
+		if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraphPath method
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraphPath...")
+		if err := testQueryKnowledgeGraphPath(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraphPath: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraphNeighbor method
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraphNeighbor...")
+		if err := testQueryKnowledgeGraphNeighbor(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraphNeighbor: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeGraphConcept method
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeGraphConcept...")
+		if err := testQueryKnowledgeGraphConcept(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeGraphConcept: %v", err)
+			os.Exit(1)
+		}
+
+		// Test DeleteKnowledgeGraph method
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeGraph...")
+		if err := testDeleteKnowledgeGraph(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeGraph: %v", err)
+			os.Exit(1)
+		}
 	}
 
-	// Test UpsertKnowledgeGraph with InternalAttributes
-	printTestSeparator()
-	log.Info("Testing UpsertKnowledgeGraph with InternalAttributes...")
-	if err := testUpsertKnowledgeGraphWithInternalAttributes(ctx, client); err != nil {
-		log.Errorf("Error in UpsertKnowledgeGraph with InternalAttributes: %v", err)
-		os.Exit(1)
+	// Run Knowledge Vector tests when -all or -vector flag is set
+	if *all || *vector {
+		// Test vector operations
+		printTestSeparator()
+		log.Info("\n=== Testing Vector Operations ===")
+
+		// Test OnboardKnowledgeVectorStore method
+		printTestSeparator()
+		log.Info("Testing OnboardKnowledgeVectorStore...")
+		if err := testOnboardKnowledgeVectorStore(ctx, client); err != nil {
+			log.Errorf("Error in OnboardKnowledgeVectorStore: %v", err)
+			os.Exit(1)
+		}
+
+		// Test UpsertKnowledgeVectors method
+		printTestSeparator()
+		log.Info("Testing UpsertKnowledgeVectors...")
+		if err := testUpsertKnowledgeVectors(ctx, client); err != nil {
+			log.Errorf("Error in UpsertKnowledgeVectors: %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeVectors method (Cosine)
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeVectors (Cosine Distance)...")
+		if err := testQueryKnowledgeVectorsCosine(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeVectors (Cosine): %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeVectors method (L2)
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeVectors (L2 Distance)...")
+		if err := testQueryKnowledgeVectorsL2(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeVectors (L2): %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeVectors method (Get By ID)
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeVectors (Get By ID)...")
+		if err := testQueryKnowledgeVectorsGetByID(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeVectors (Get By ID): %v", err)
+			os.Exit(1)
+		}
+
+		// Test DeleteKnowledgeVectors method
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeVectors...")
+		if err := testDeleteKnowledgeVectors(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeVectors: %v", err)
+			os.Exit(1)
+		}
+
+		// Test DeleteKnowledgeVectorStore method
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeVectorStore...")
+		if err := testDeleteKnowledgeVectorStore(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeVectorStore: %v", err)
+			os.Exit(1)
+		}
 	}
 
-	// Test QueryKnowledgeGraph Relations with InternalAttributes filter
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Relations for InternalAttributes...")
-	if err := testQueryKnowledgeGraphRelationsWithInternalAttributes(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Relations for InternalAttributes: %v", err)
-		os.Exit(1)
+	// Test KVP operations based on flags
+	if *all || *kvpMAS || *kvpCE {
+		printTestSeparator()
+		log.Info("\n=== Testing KVP Operations ===")
 	}
 
-	// Test QueryKnowledgeGraph Concepts with InternalAttributes filter
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Concepts for InternalAttributes...")
-	if err := testQueryKnowledgeGraphConceptsWithInternalAttributes(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Concepts for InternalAttributes: %v", err)
-		os.Exit(1)
+	// Test MAS Scope KVP Operations (run if -all or -kvpmas flag is set)
+	if *all || *kvpMAS {
+		printTestSeparator()
+		log.Info("Testing MAS Scope KVP Operations...")
+
+		// Test OnboardKnowledgeKVPStore method (MAS)
+		printTestSeparator()
+		log.Info("Testing OnboardKnowledgeKVPStore (MAS)...")
+		if err := testOnboardKnowledgeKVPStoreMAS(ctx, client); err != nil {
+			log.Errorf("Error in OnboardKnowledgeKVPStore (MAS): %v", err)
+			os.Exit(1)
+		}
+
+		// Test UpsertKnowledgeKVPs method (MAS)
+		printTestSeparator()
+		log.Info("Testing UpsertKnowledgeKVPs (MAS)...")
+		if err := testUpsertKnowledgeKVPsMAS(ctx, client); err != nil {
+			log.Errorf("Error in UpsertKnowledgeKVPs (MAS): %v", err)
+			os.Exit(1)
+		}
+
+		// Test QueryKnowledgeKVPs method (MAS)
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeKVPs (MAS)...")
+		if err := testQueryKnowledgeKVPsMAS(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeKVPs (MAS): %v", err)
+			os.Exit(1)
+		}
+
+		// Test DeleteKnowledgeKVPs method (MAS)
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeKVPs (MAS)...")
+		if err := testDeleteKnowledgeKVPsMAS(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeKVPs (MAS): %v", err)
+			os.Exit(1)
+		}
+
+		// Test DeleteKnowledgeKVPStore method (MAS)
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeKVPStore (MAS)...")
+		if err := testDeleteKnowledgeKVPStoreMAS(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeKVPStore (MAS): %v", err)
+			os.Exit(1)
+		}
 	}
 
-	// Test QueryKnowledgeGraph Concepts with regular filters
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Concepts with Filters...")
-	if err := testQueryKnowledgeGraphConceptsWithDynamicFilters(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Concepts with Filters: %v", err)
-		os.Exit(1)
-	}
+	// Test CE Scope KVP Operations (run if -all or -kvpce flag is set)
+	if *all || *kvpCE {
+		printTestSeparator()
+		log.Info("Testing CE Scope KVP Operations...")
 
-	// Test QueryKnowledgeGraph Concepts with custom filters
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Concepts with Custom Filters...")
-	if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
-		os.Exit(1)
-	}
+		// Test OnboardKnowledgeKVPStore method (CE)
+		printTestSeparator()
+		log.Info("Testing OnboardKnowledgeKVPStore (CE)...")
+		if err := testOnboardKnowledgeKVPStoreCE(ctx, client); err != nil {
+			log.Errorf("Error in OnboardKnowledgeKVPStore (CE): %v", err)
+			os.Exit(1)
+		}
 
-	// Test QueryKnowledgeGraph Relations with regular filters
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Relations with Filters...")
-	if err := testQueryKnowledgeGraphRelationsWithDynamicFilters(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Relations with Filters: %v", err)
-		os.Exit(1)
-	}
+		// Test UpsertKnowledgeKVPs method (CE)
+		printTestSeparator()
+		log.Info("Testing UpsertKnowledgeKVPs (CE)...")
+		if err := testUpsertKnowledgeKVPsCE(ctx, client); err != nil {
+			log.Errorf("Error in UpsertKnowledgeKVPs (CE): %v", err)
+			os.Exit(1)
+		}
 
-	// Test QueryKnowledgeGraph Relations with custom filters
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraph Relations with Custom Filters...")
-	if err := testQueryKnowledgeGraphConceptsWithCustomFilters(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraph Concepts with Custom Filters: %v", err)
-		os.Exit(1)
-	}
+		// Test QueryKnowledgeKVPs method (CE)
+		printTestSeparator()
+		log.Info("Testing QueryKnowledgeKVPs (CE)...")
+		if err := testQueryKnowledgeKVPsCE(ctx, client); err != nil {
+			log.Errorf("Error in QueryKnowledgeKVPs (CE): %v", err)
+			os.Exit(1)
+		}
 
-	// Test QueryKnowledgeGraphPath method
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraphPath...")
-	if err := testQueryKnowledgeGraphPath(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraphPath: %v", err)
-		os.Exit(1)
-	}
+		// Test DeleteKnowledgeKVPs method (CE)
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeKVPs (CE)...")
+		if err := testDeleteKnowledgeKVPsCE(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeKVPs (CE): %v", err)
+			os.Exit(1)
+		}
 
-	// Test QueryKnowledgeGraphNeighbor method
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraphNeighbor...")
-	if err := testQueryKnowledgeGraphNeighbor(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraphNeighbor: %v", err)
-		os.Exit(1)
-	}
-
-	// Test QueryKnowledgeGraphConcept method
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeGraphConcept...")
-	if err := testQueryKnowledgeGraphConcept(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeGraphConcept: %v", err)
-		os.Exit(1)
-	}
-
-	// Test DeleteKnowledgeGraph method
-	printTestSeparator()
-	log.Info("Testing DeleteKnowledgeGraph...")
-	if err := testDeleteKnowledgeGraph(ctx, client); err != nil {
-		log.Errorf("Error in DeleteKnowledgeGraph: %v", err)
-		os.Exit(1)
-	}
-
-	// Test vector operations
-	printTestSeparator()
-	log.Info("\n=== Testing Vector Operations ===")
-
-	// Test OnboardKnowledgeVectorStore method
-	printTestSeparator()
-	log.Info("Testing OnboardKnowledgeVectorStore...")
-	if err := testOnboardKnowledgeVectorStore(ctx, client); err != nil {
-		log.Errorf("Error in OnboardKnowledgeVectorStore: %v", err)
-		os.Exit(1)
-	}
-
-	// Test UpsertKnowledgeVectors method
-	printTestSeparator()
-	log.Info("Testing UpsertKnowledgeVectors...")
-	if err := testUpsertKnowledgeVectors(ctx, client); err != nil {
-		log.Errorf("Error in UpsertKnowledgeVectors: %v", err)
-		os.Exit(1)
-	}
-
-	// Test QueryKnowledgeVectors method (Cosine)
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeVectors (Cosine Distance)...")
-	if err := testQueryKnowledgeVectorsCosine(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeVectors (Cosine): %v", err)
-		os.Exit(1)
-	}
-
-	// Test QueryKnowledgeVectors method (L2)
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeVectors (L2 Distance)...")
-	if err := testQueryKnowledgeVectorsL2(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeVectors (L2): %v", err)
-		os.Exit(1)
-	}
-
-	// Test QueryKnowledgeVectors method (Get By ID)
-	printTestSeparator()
-	log.Info("Testing QueryKnowledgeVectors (Get By ID)...")
-	if err := testQueryKnowledgeVectorsGetByID(ctx, client); err != nil {
-		log.Errorf("Error in QueryKnowledgeVectors (Get By ID): %v", err)
-		os.Exit(1)
-	}
-
-	// Test DeleteKnowledgeVectors method
-	printTestSeparator()
-	log.Info("Testing DeleteKnowledgeVectors...")
-	if err := testDeleteKnowledgeVectors(ctx, client); err != nil {
-		log.Errorf("Error in DeleteKnowledgeVectors: %v", err)
-		os.Exit(1)
-	}
-
-	// Test DeleteKnowledgeVectorStore method
-	printTestSeparator()
-	log.Info("Testing DeleteKnowledgeVectorStore...")
-	if err := testDeleteKnowledgeVectorStore(ctx, client); err != nil {
-		log.Errorf("Error in DeleteKnowledgeVectorStore: %v", err)
-		os.Exit(1)
+		// Test DeleteKnowledgeKVPStore method (CE)
+		printTestSeparator()
+		log.Info("Testing DeleteKnowledgeKVPStore (CE)...")
+		if err := testDeleteKnowledgeKVPStoreCE(ctx, client); err != nil {
+			log.Errorf("Error in DeleteKnowledgeKVPStore (CE): %v", err)
+			os.Exit(1)
+		}
 	}
 
 	log.Info("Sample completed successfully!")
@@ -968,6 +1108,306 @@ func testDeleteKnowledgeVectorStore(ctx context.Context, client *iocmemoryprovid
 	log.Infof("Delete vector store response status: %s", response.Status)
 	if response.Message != nil {
 		log.Infof("Delete vector store response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testOnboardKnowledgeKVPStoreMAS(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	storeID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeKVPStoreOnboardRequest(iocmemoryprovider.ScopeTypeMAS, &storeID)
+
+	// Call the client method
+	response, err := client.OnboardKnowledgeKVPStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Onboard KVP store response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Onboard KVP store response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testUpsertKnowledgeKVPsMAS(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create sample KVP records
+	records := []iocmemoryprovider.KnowledgeKVPRecord{
+		{
+			Key: map[string]interface{}{
+				"episode_id": "12345",
+			},
+			Value: map[string]interface{}{
+				"name": "John Doe",
+				"preferences": map[string]interface{}{
+					"theme":    "dark",
+					"language": "en",
+				},
+				"last_login": 1640995200,
+			},
+		},
+		{
+			Key: map[string]interface{}{
+				"episode_id": "67890",
+			},
+			Value: map[string]interface{}{
+				"name": "Jane Smith",
+				"preferences": map[string]interface{}{
+					"theme":    "light",
+					"language": "es",
+				},
+				"last_login": 1640995300,
+			},
+		},
+	}
+
+	// Create request using schema types
+	request := iocmemoryprovider.NewKnowledgeKVPStoreRequest(iocmemoryprovider.ScopeTypeMAS, records)
+
+	// Set required fields for MAS scope
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	wkspID := "9f136aa0-143c-46a6-82f2-249eac489e52"
+	agentID := "agent-001"
+	request.MasID = &masID
+	request.WkspID = &wkspID
+	request.AgentID = &agentID
+
+	// Call the client method
+	response, err := client.UpsertKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Upsert KVPs response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Upsert KVPs response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testQueryKnowledgeKVPsMAS(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria
+	queryCriteria := iocmemoryprovider.NewKnowledgeKVPQueryCriteria(
+		iocmemoryprovider.QueryTypeGetByKey,
+		map[string]interface{}{
+			"episode_id": "12345",
+		},
+		nil,
+	)
+
+	// Create request using schema types
+	request := iocmemoryprovider.NewKnowledgeKVPQueryRequest(iocmemoryprovider.ScopeTypeMAS, *queryCriteria)
+
+	// Set required fields for MAS scope
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	wkspID := "9f136aa0-143c-46a6-82f2-249eac489e52"
+	agentID := "agent-001"
+	request.MasID = &masID
+	request.WkspID = &wkspID
+	request.AgentID = &agentID
+
+	// Call the client method
+	response, err := client.QueryKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Query KVPs response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Query KVPs response message: %s", *response.Message)
+	}
+	log.Infof("Query KVPs response records count: %d", len(response.Records))
+
+	return nil
+}
+
+func testDeleteKnowledgeKVPsMAS(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create delete key - use the same key that was successfully queried
+	key := map[string]interface{}{
+		"episode_id": "12345",
+	}
+
+	// Create request using schema types - use soft delete (false) to avoid permanent deletion
+	request := iocmemoryprovider.NewKnowledgeKVPDeleteRequest(iocmemoryprovider.ScopeTypeMAS, key, false)
+
+	// Set required fields for MAS scope - use same IDs as upsert operation
+	masID := "223e4567-e89b-12d3-a456-426614174001"
+	wkspID := "9f136aa0-143c-46a6-82f2-249eac489e52"
+	agentID := "agent-001"
+	request.MasID = &masID
+	request.WkspID = &wkspID
+	request.AgentID = &agentID
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete KVPs response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete KVPs response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testDeleteKnowledgeKVPStoreMAS(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types
+	storeID := "223e4567-e89b-12d3-a456-426614174001"
+	request := iocmemoryprovider.NewKnowledgeKVPStoreOnboardDeleteRequest(iocmemoryprovider.ScopeTypeMAS, storeID)
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeKVPStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete KVP store response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete KVP store response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+// CE Scope Tests
+
+func testOnboardKnowledgeKVPStoreCE(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types for CE scope
+	storeID := "12345678-1234-1234-1234-123456789abc"
+	request := iocmemoryprovider.NewKnowledgeKVPStoreOnboardRequest(iocmemoryprovider.ScopeTypeCE, &storeID)
+
+	// Call the client method
+	response, err := client.OnboardKnowledgeKVPStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Onboard KVP store (CE) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Onboard KVP store (CE) response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testUpsertKnowledgeKVPsCE(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create sample KVP records for CE scope
+	records := []iocmemoryprovider.KnowledgeKVPRecord{
+		{
+			Key: map[string]interface{}{
+				"ce_config_key": "model_settings",
+			},
+			Value: map[string]interface{}{
+				"temperature":   0.7,
+				"max_tokens":    2048,
+				"model_version": "v2.1",
+			},
+		},
+		{
+			Key: map[string]interface{}{
+				"ce_config_key": "system_prompt",
+			},
+			Value: map[string]interface{}{
+				"prompt": "You are a helpful AI assistant for cognitive engine operations.",
+			},
+		},
+	}
+
+	// Create request using schema types for CE scope
+	request := iocmemoryprovider.NewKnowledgeKVPStoreRequest(iocmemoryprovider.ScopeTypeCE, records)
+	ceID := "12345678-1234-1234-1234-123456789abc"
+	request.CeID = &ceID
+
+	// Call the client method
+	response, err := client.UpsertKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Upsert KVPs (CE) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Upsert KVPs (CE) response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testQueryKnowledgeKVPsCE(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create query criteria for CE scope
+	queryCriteria := iocmemoryprovider.NewKnowledgeKVPQueryCriteria(
+		iocmemoryprovider.QueryTypeGetByKey,
+		map[string]interface{}{
+			"ce_config_key": "model_settings",
+		},
+		nil,
+	)
+
+	// Create request using schema types for CE scope
+	request := iocmemoryprovider.NewKnowledgeKVPQueryRequest(iocmemoryprovider.ScopeTypeCE, *queryCriteria)
+	ceID := "12345678-1234-1234-1234-123456789abc"
+	request.CeID = &ceID
+
+	// Call the client method
+	response, err := client.QueryKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Query KVPs (CE) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Query KVPs (CE) response message: %s", *response.Message)
+	}
+	if len(response.Records) > 0 {
+		log.Infof("Query KVPs (CE) returned %d records", len(response.Records))
+	}
+
+	return nil
+}
+
+func testDeleteKnowledgeKVPsCE(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create delete key for CE scope
+	key := map[string]interface{}{
+		"ce_config_key": "system_prompt",
+	}
+
+	// Create request using schema types for CE scope
+	request := iocmemoryprovider.NewKnowledgeKVPDeleteRequest(iocmemoryprovider.ScopeTypeCE, key, false)
+	ceID := "12345678-1234-1234-1234-123456789abc"
+	request.CeID = &ceID
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeKVPs(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete KVPs (CE) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete KVPs (CE) response message: %s", *response.Message)
+	}
+
+	return nil
+}
+
+func testDeleteKnowledgeKVPStoreCE(ctx context.Context, client *iocmemoryprovider.Client) error {
+	// Create request using schema types for CE scope
+	storeID := "12345678-1234-1234-1234-123456789abc"
+	request := iocmemoryprovider.NewKnowledgeKVPStoreOnboardDeleteRequest(iocmemoryprovider.ScopeTypeCE, storeID)
+
+	// Call the client method
+	response, err := client.DeleteKnowledgeKVPStore(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Delete KVP store (CE) response status: %s", response.Status)
+	if response.Message != nil {
+		log.Infof("Delete KVP store (CE) response message: %s", *response.Message)
 	}
 
 	return nil
