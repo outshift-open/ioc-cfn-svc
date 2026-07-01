@@ -587,6 +587,170 @@ definitions:
       recorded_at_to:
         type: string
     type: object
+  l9.Actor:
+    properties:
+      attestation:
+        description: Attestation corresponds to the JSON schema field "attestation".
+      id:
+        description: ID corresponds to the JSON schema field "id".
+        type: string
+      role:
+        description: Role corresponds to the JSON schema field "role".
+        type: string
+    type: object
+  l9.Kind:
+    enum:
+    - commit
+    - contingency
+    - exchange
+    - intent
+    - knowledge
+    type: string
+    x-enum-varnames:
+    - KindCommit
+    - KindContingency
+    - KindExchange
+    - KindIntent
+    - KindKnowledge
+  l9.L9:
+    properties:
+      header:
+        allOf:
+        - $ref: '#/definitions/l9.L9Header'
+        description: Header corresponds to the JSON schema field "header".
+      payload:
+        allOf:
+        - $ref: '#/definitions/l9.L9Payload'
+        description: Payload corresponds to the JSON schema field "payload".
+    type: object
+  l9.L9Header:
+    properties:
+      attributes:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderAttributes'
+        description: Attributes corresponds to the JSON schema field "attributes".
+      context:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderContext'
+        description: Context corresponds to the JSON schema field "context".
+      kind:
+        allOf:
+        - $ref: '#/definitions/l9.Kind'
+        description: Kind corresponds to the JSON schema field "kind".
+      message:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderMessage'
+        description: Message corresponds to the JSON schema field "message".
+      participants:
+        allOf:
+        - $ref: '#/definitions/l9.ParticipantSet'
+        description: Participants corresponds to the JSON schema field "participants".
+      policy:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderPolicy'
+        description: Policy corresponds to the JSON schema field "policy".
+      protocol:
+        description: Protocol corresponds to the JSON schema field "protocol".
+        type: string
+      subkind:
+        description: Subkind corresponds to the JSON schema field "subkind".
+      subprotocol:
+        description: Subprotocol corresponds to the JSON schema field "subprotocol".
+        type: string
+      version:
+        description: Version corresponds to the JSON schema field "version".
+        type: string
+    type: object
+  l9.L9HeaderAttributes:
+    additionalProperties: true
+    type: object
+  l9.L9HeaderContext:
+    properties:
+      epistemic:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderContextEpistemic'
+        description: Epistemic corresponds to the JSON schema field "epistemic".
+      semantic:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderContextSemantic'
+        description: Semantic corresponds to the JSON schema field "semantic".
+      topic:
+        description: Topic corresponds to the JSON schema field "topic".
+        type: string
+    type: object
+  l9.L9HeaderContextEpistemic:
+    additionalProperties: true
+    type: object
+  l9.L9HeaderContextSemantic:
+    properties:
+      ontology_ref:
+        description: OntologyRef corresponds to the JSON schema field "ontology_ref".
+        type: string
+      provenance:
+        allOf:
+        - $ref: '#/definitions/l9.L9HeaderContextSemanticProvenance'
+        description: Provenance corresponds to the JSON schema field "provenance".
+      schema_id:
+        description: SchemaID corresponds to the JSON schema field "schema_id".
+        type: string
+    type: object
+  l9.L9HeaderContextSemanticProvenance:
+    additionalProperties: true
+    type: object
+  l9.L9HeaderMessage:
+    properties:
+      episode:
+        description: Episode corresponds to the JSON schema field "episode".
+        type: string
+      id:
+        description: ID corresponds to the JSON schema field "id".
+        type: string
+      parents:
+        description: Ordered list of parent message IDs. Empty list for root messages.
+        items:
+          type: string
+        type: array
+    type: object
+  l9.L9HeaderPolicy:
+    properties:
+      propagation:
+        description: Propagation corresponds to the JSON schema field "propagation".
+        type: string
+      retention_policy:
+        description: RetentionPolicy corresponds to the JSON schema field "retention_policy".
+        type: string
+      sensitivity:
+        description: Sensitivity corresponds to the JSON schema field "sensitivity".
+        type: string
+    type: object
+  l9.L9Payload:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/l9.L9PayloadData'
+        description: Data corresponds to the JSON schema field "data".
+      type:
+        description: Type corresponds to the JSON schema field "type".
+        type: string
+    type: object
+  l9.L9PayloadData:
+    additionalProperties: true
+    type: object
+  l9.ParticipantSet:
+    properties:
+      actors:
+        description: Actors corresponds to the JSON schema field "actors".
+        items:
+          $ref: '#/definitions/l9.Actor'
+        type: array
+      groups:
+        allOf:
+        - $ref: '#/definitions/l9.ParticipantSetGroups'
+        description: Groups corresponds to the JSON schema field "groups".
+    type: object
+  l9.ParticipantSetGroups:
+    additionalProperties: true
+    type: object
   memoryoperations.MemoryOperationHeader:
     type: object
   memoryoperations.MemoryOperationPayload:
@@ -1166,10 +1330,10 @@ definitions:
     type: object
 info:
   contact: {}
-  description: IoC Cognition Fabric Node service — shared memory routing and memory
-    operations proxy.
+  description: IoC Cognition Fabric Node service — shared memory routing, memory operations
+    proxy, and L9 message routing.
   title: CFN Service API
-  version: "1.0"
+  version: "1.2"
 paths:
   /api/cognition-engines:
     get:
@@ -2052,6 +2216,61 @@ paths:
       summary: Deletes the shared memory vector store.
       tags:
       - Vector Store
+  /api/l9/messages:
+    post:
+      consumes:
+      - application/json
+      description: 'Content-based routing: extracts workspace/MAS from L9 message
+        participants.groups, selects CE by kind/subkind, forwards to CE''s /api/l9/messages
+        endpoint'
+      parameters:
+      - description: L9 protocol message with header (kind, subkind, participants)
+          and payload
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/l9.L9'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: L9 response from Cognition Engine
+          schema:
+            $ref: '#/definitions/l9.L9'
+        "400":
+          description: Invalid L9 message format or missing required fields
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Workspace/MAS not found or no CE handles this kind/subkind
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error or CE forwarding failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: CE unreachable or returned error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Target CE is disabled
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Process and route L9 message to Cognition Engine
+      tags:
+      - l9
   /api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations:
     post:
       consumes:

@@ -1271,6 +1271,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/l9/messages": {
+            "post": {
+                "description": "Content-based routing: extracts workspace/MAS from L9 message participants.groups, selects CE by kind/subkind, forwards to CE's /api/l9/messages endpoint",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "l9"
+                ],
+                "summary": "Process and route L9 message to Cognition Engine",
+                "parameters": [
+                    {
+                        "description": "L9 protocol message with header (kind, subkind, participants) and payload",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/l9.L9"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "L9 response from Cognition Engine",
+                        "schema": {
+                            "$ref": "#/definitions/l9.L9"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid L9 message format or missing required fields",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Workspace/MAS not found or no CE handles this kind/subkind",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error or CE forwarding failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "CE unreachable or returned error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Target CE is disabled",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/memory-operations": {
             "post": {
                 "description": "Forwards REST API requests to a remote memory provider (Mem0, Graphiti, etc.) for agent-specific memory operations.\nThe memory provider base URL and auth credentials are auto-resolved from management plane config based on workspace/MAS/agent IDs.\nThe ` + "`" + `http-url` + "`" + ` field should contain the relative path and query parameters to append to the provider base URL.\n\n**GET example** — retrieve memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"GET\",\n\"http-url\": \"v1/memories/?user_id=curl-test-user\",\n\"http-request-body\": {},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**POST example** — add memories:\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"header\": {},\n\"payload\": {\n\"http-request-type\": \"POST\",\n\"http-url\": \"/v1/memories/\",\n\"http-request-body\": {\n\"messages\": [{\"role\": \"user\", \"content\": \"I prefer dark mode in all my apps\"}],\n\"user_id\": \"curl-test-user\"\n},\n\"http-headers\": {}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `",
@@ -2725,6 +2804,268 @@ const docTemplate = `{
                 }
             }
         },
+        "l9.Actor": {
+            "type": "object",
+            "properties": {
+                "attestation": {
+                    "description": "Attestation corresponds to the JSON schema field \"attestation\"."
+                },
+                "id": {
+                    "description": "ID corresponds to the JSON schema field \"id\".",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "Role corresponds to the JSON schema field \"role\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.Kind": {
+            "type": "string",
+            "enum": [
+                "commit",
+                "contingency",
+                "exchange",
+                "intent",
+                "knowledge"
+            ],
+            "x-enum-varnames": [
+                "KindCommit",
+                "KindContingency",
+                "KindExchange",
+                "KindIntent",
+                "KindKnowledge"
+            ]
+        },
+        "l9.L9": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "description": "Header corresponds to the JSON schema field \"header\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9Header"
+                        }
+                    ]
+                },
+                "payload": {
+                    "description": "Payload corresponds to the JSON schema field \"payload\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9Payload"
+                        }
+                    ]
+                }
+            }
+        },
+        "l9.L9Header": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "description": "Attributes corresponds to the JSON schema field \"attributes\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderAttributes"
+                        }
+                    ]
+                },
+                "context": {
+                    "description": "Context corresponds to the JSON schema field \"context\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderContext"
+                        }
+                    ]
+                },
+                "kind": {
+                    "description": "Kind corresponds to the JSON schema field \"kind\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.Kind"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Message corresponds to the JSON schema field \"message\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderMessage"
+                        }
+                    ]
+                },
+                "participants": {
+                    "description": "Participants corresponds to the JSON schema field \"participants\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.ParticipantSet"
+                        }
+                    ]
+                },
+                "policy": {
+                    "description": "Policy corresponds to the JSON schema field \"policy\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderPolicy"
+                        }
+                    ]
+                },
+                "protocol": {
+                    "description": "Protocol corresponds to the JSON schema field \"protocol\".",
+                    "type": "string"
+                },
+                "subkind": {
+                    "description": "Subkind corresponds to the JSON schema field \"subkind\"."
+                },
+                "subprotocol": {
+                    "description": "Subprotocol corresponds to the JSON schema field \"subprotocol\".",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Version corresponds to the JSON schema field \"version\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.L9HeaderAttributes": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "l9.L9HeaderContext": {
+            "type": "object",
+            "properties": {
+                "epistemic": {
+                    "description": "Epistemic corresponds to the JSON schema field \"epistemic\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderContextEpistemic"
+                        }
+                    ]
+                },
+                "semantic": {
+                    "description": "Semantic corresponds to the JSON schema field \"semantic\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderContextSemantic"
+                        }
+                    ]
+                },
+                "topic": {
+                    "description": "Topic corresponds to the JSON schema field \"topic\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.L9HeaderContextEpistemic": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "l9.L9HeaderContextSemantic": {
+            "type": "object",
+            "properties": {
+                "ontology_ref": {
+                    "description": "OntologyRef corresponds to the JSON schema field \"ontology_ref\".",
+                    "type": "string"
+                },
+                "provenance": {
+                    "description": "Provenance corresponds to the JSON schema field \"provenance\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9HeaderContextSemanticProvenance"
+                        }
+                    ]
+                },
+                "schema_id": {
+                    "description": "SchemaID corresponds to the JSON schema field \"schema_id\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.L9HeaderContextSemanticProvenance": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "l9.L9HeaderMessage": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "description": "Episode corresponds to the JSON schema field \"episode\".",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID corresponds to the JSON schema field \"id\".",
+                    "type": "string"
+                },
+                "parents": {
+                    "description": "Ordered list of parent message IDs. Empty list for root messages.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "l9.L9HeaderPolicy": {
+            "type": "object",
+            "properties": {
+                "propagation": {
+                    "description": "Propagation corresponds to the JSON schema field \"propagation\".",
+                    "type": "string"
+                },
+                "retention_policy": {
+                    "description": "RetentionPolicy corresponds to the JSON schema field \"retention_policy\".",
+                    "type": "string"
+                },
+                "sensitivity": {
+                    "description": "Sensitivity corresponds to the JSON schema field \"sensitivity\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.L9Payload": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Data corresponds to the JSON schema field \"data\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.L9PayloadData"
+                        }
+                    ]
+                },
+                "type": {
+                    "description": "Type corresponds to the JSON schema field \"type\".",
+                    "type": "string"
+                }
+            }
+        },
+        "l9.L9PayloadData": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "l9.ParticipantSet": {
+            "type": "object",
+            "properties": {
+                "actors": {
+                    "description": "Actors corresponds to the JSON schema field \"actors\".",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/l9.Actor"
+                    }
+                },
+                "groups": {
+                    "description": "Groups corresponds to the JSON schema field \"groups\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/l9.ParticipantSetGroups"
+                        }
+                    ]
+                }
+            }
+        },
+        "l9.ParticipantSetGroups": {
+            "type": "object",
+            "additionalProperties": true
+        },
         "memoryoperations.MemoryOperationHeader": {
             "type": "object"
         },
@@ -3549,12 +3890,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "1.2",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "CFN Service API",
-	Description:      "IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.",
+	Description:      "IoC Cognition Fabric Node service — shared memory routing, memory operations proxy, and L9 message routing.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
