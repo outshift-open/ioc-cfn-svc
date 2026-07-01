@@ -893,7 +893,7 @@ func TestDeleteCognitionEngineHandler_DisabledCE_NoMASAssociation(t *testing.T) 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-func TestGetMASCEConfigHandler(t *testing.T) {
+func TestGetCEMASConfigHandler(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -945,14 +945,14 @@ func TestGetMASCEConfigHandler(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -968,7 +968,7 @@ func TestGetMASCEConfigHandler(t *testing.T) {
 	assert.Equal(t, 0.6, resp.MASConfig["validation_score_intervention"])
 }
 
-func TestGetMASCEConfigHandler_CENotAssociated(t *testing.T) {
+func TestGetCEMASConfigHandler_CENotAssociated(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -1003,14 +1003,14 @@ func TestGetMASCEConfigHandler_CENotAssociated(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -1021,7 +1021,7 @@ func TestGetMASCEConfigHandler_CENotAssociated(t *testing.T) {
 	assert.Contains(t, resp["error"], "not associated with MAS")
 }
 
-func TestGetMASCEConfigHandler_MASNotFound(t *testing.T) {
+func TestGetCEMASConfigHandler_MASNotFound(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -1046,14 +1046,14 @@ func TestGetMASCEConfigHandler_MASNotFound(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -1064,7 +1064,7 @@ func TestGetMASCEConfigHandler_MASNotFound(t *testing.T) {
 	assert.Contains(t, resp["error"], "not found")
 }
 
-func TestGetMASCEConfigHandler_MissingCFNID(t *testing.T) {
+func TestGetCEMASConfigHandler_MissingCFNID(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -1077,14 +1077,14 @@ func TestGetMASCEConfigHandler_MissingCFNID(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
@@ -1095,7 +1095,7 @@ func TestGetMASCEConfigHandler_MissingCFNID(t *testing.T) {
 	assert.Contains(t, resp["error"], "CFN not registered")
 }
 
-func TestGetMASCEConfigHandler_InvalidUUIDs(t *testing.T) {
+func TestGetCEMASConfigHandler_InvalidUUIDs(t *testing.T) {
 	originalCfnID := CfnID
 	CfnID = "test-cfn-id"
 	defer func() { CfnID = originalCfnID }()
@@ -1104,45 +1104,45 @@ func TestGetMASCEConfigHandler_InvalidUUIDs(t *testing.T) {
 
 	tests := []struct {
 		name        string
+		ceID        string
 		workspaceID string
 		masID       string
-		ceID        string
 		expectedErr string
 	}{
 		{
+			name:        "invalid ce_id",
+			ceID:        "not-a-uuid",
+			workspaceID: "660e8400-e29b-41d4-a716-446655440000",
+			masID:       "550e8400-e29b-41d4-a716-446655440000",
+			expectedErr: "invalid ce_id format",
+		},
+		{
 			name:        "invalid workspace_id",
+			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
 			workspaceID: "not-a-uuid",
 			masID:       "550e8400-e29b-41d4-a716-446655440000",
-			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
 			expectedErr: "invalid workspace_id format",
 		},
 		{
 			name:        "invalid mas_id",
+			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
 			workspaceID: "660e8400-e29b-41d4-a716-446655440000",
 			masID:       "not-a-uuid",
-			ceID:        "7c8650d9-1234-5678-9abc-def012345678",
 			expectedErr: "invalid mas_id format",
-		},
-		{
-			name:        "invalid ce_id",
-			workspaceID: "660e8400-e29b-41d4-a716-446655440000",
-			masID:       "550e8400-e29b-41d4-a716-446655440000",
-			ceID:        "not-a-uuid",
-			expectedErr: "invalid ce_id format",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet,
-				"/api/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/cognition-engines/"+tt.ceID+"/mas-config",
+				"/api/cognition-engines/"+tt.ceID+"/workspaces/"+tt.workspaceID+"/multi-agentic-systems/"+tt.masID+"/config",
 				nil)
+			req.SetPathValue("ceId", tt.ceID)
 			req.SetPathValue("workspaceId", tt.workspaceID)
 			req.SetPathValue("masId", tt.masID)
-			req.SetPathValue("ceId", tt.ceID)
 			w := httptest.NewRecorder()
 
-			_, err := app.getMASCEConfigHandler(w, req)
+			_, err := app.getCEMASConfigHandler(w, req)
 			require.NoError(t, err)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -1155,7 +1155,7 @@ func TestGetMASCEConfigHandler_InvalidUUIDs(t *testing.T) {
 	}
 }
 
-func TestGetMASCEConfigHandler_NullMASConfig(t *testing.T) {
+func TestGetCEMASConfigHandler_NullMASConfig(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -1190,14 +1190,14 @@ func TestGetMASCEConfigHandler_NullMASConfig(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -1212,7 +1212,7 @@ func TestGetMASCEConfigHandler_NullMASConfig(t *testing.T) {
 	assert.Empty(t, resp.MASConfig)
 }
 
-func TestGetMASCEConfigHandler_EmptyCognitionEngines(t *testing.T) {
+func TestGetCEMASConfigHandler_EmptyCognitionEngines(t *testing.T) {
 	testWorkspaceID := "660e8400-e29b-41d4-a716-446655440000"
 	testMASID := "550e8400-e29b-41d4-a716-446655440000"
 	testCEID := "7c8650d9-1234-5678-9abc-def012345678"
@@ -1241,14 +1241,14 @@ func TestGetMASCEConfigHandler_EmptyCognitionEngines(t *testing.T) {
 	app := &App{}
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/cognition-engines/"+testCEID+"/mas-config",
+		"/api/cognition-engines/"+testCEID+"/workspaces/"+testWorkspaceID+"/multi-agentic-systems/"+testMASID+"/config",
 		nil)
+	req.SetPathValue("ceId", testCEID)
 	req.SetPathValue("workspaceId", testWorkspaceID)
 	req.SetPathValue("masId", testMASID)
-	req.SetPathValue("ceId", testCEID)
 	w := httptest.NewRecorder()
 
-	_, err := app.getMASCEConfigHandler(w, req)
+	_, err := app.getCEMASConfigHandler(w, req)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)

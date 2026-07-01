@@ -70,7 +70,8 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/similarity-search", withWorkspaceAndMasValidation(a.agentVectorSimilaritySearchHandler))
 
 	// per-MAS CE config (consumed by Cognition Engines to fetch their runtime config overrides)
-	rtr.Get(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/mas-config", withWorkspaceAndMasValidation(a.getMASCEConfigHandler))
+	// CE-centric: CE presents its ID and requests config for a specific workspace/MAS
+	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config", a.getCEMASConfigHandler)
 
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)

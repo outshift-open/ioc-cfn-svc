@@ -776,31 +776,39 @@ func (a *App) patchCognitionEngineHandler(w http.ResponseWriter, r *http.Request
 	return eh.RespondWithJSON(w, http.StatusOK, detailResp)
 }
 
-// getMASCEConfigHandler godoc
+// getCEMASConfigHandler godoc
 // @Summary		Get per-MAS config for a Cognition Engine
-// @Description	Returns the per-MAS mas_config override for a specific CE associated with a MAS.
+// @Description	Returns the per-MAS mas_config override for this CE associated with a specific MAS.
 // @Description	This is the resolved config from mas_cognition_engines.mas_config, not the CE-wide
 // @Description	factory defaults from cognition_engines.mas_config.
+// @Description
+// @Description	The endpoint is CE-centric: a CE presents its identifier and requests its config
+// @Description	for a specific workspace/MAS combination.
 // @Tags			cognition-engine
 // @Accept		json
 // @Produce		json
+// @Param		ceId		path		string	true	"Cognition Engine ID"
 // @Param		workspaceId	path		string	true	"Workspace ID"
 // @Param		masId		path		string	true	"Multi-Agentic System ID"
-// @Param		ceId		path		string	true	"Cognition Engine ID"
 // @Success		200		{object}	cognitionengine.MASCEConfigResponse	"Per-MAS CE config"
 // @Failure		400		{object}	map[string]string	"Invalid ID format"
 // @Failure		404		{object}	map[string]string	"MAS or CE not found, or CE not associated with MAS"
 // @Failure		502		{object}	map[string]string	"Failed to forward request to management plane"
 // @Failure		503		{object}	map[string]string	"CFN not registered with management plane"
-// @Router		/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/mas-config [get]
-func (a *App) getMASCEConfigHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+// @Router		/api/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config [get]
+func (a *App) getCEMASConfigHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	log := getLogger()
 
+	ceID := eh.PathParam(r, "ceId")
 	workspaceID := eh.PathParam(r, "workspaceId")
 	masID := eh.PathParam(r, "masId")
-	ceID := eh.PathParam(r, "ceId")
 
-	// Validate all IDs are valid UUIDs
+	// Validate all IDs are valid UUIDs (ceID first since it's the primary resource)
+	if _, err := uuid.Parse(ceID); err != nil {
+		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid ce_id format: must be a valid UUID",
+		})
+	}
 	if _, err := uuid.Parse(workspaceID); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "invalid workspace_id format: must be a valid UUID",
@@ -809,11 +817,6 @@ func (a *App) getMASCEConfigHandler(w http.ResponseWriter, r *http.Request) (int
 	if _, err := uuid.Parse(masID); err != nil {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "invalid mas_id format: must be a valid UUID",
-		})
-	}
-	if _, err := uuid.Parse(ceID); err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid ce_id format: must be a valid UUID",
 		})
 	}
 

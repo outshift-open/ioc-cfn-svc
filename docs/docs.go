@@ -533,6 +533,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config": {
+            "get": {
+                "description": "Returns the per-MAS mas_config override for this CE associated with a specific MAS.\nThis is the resolved config from mas_cognition_engines.mas_config, not the CE-wide\nfactory defaults from cognition_engines.mas_config.\n\nThe endpoint is CE-centric: a CE presents its identifier and requests its config\nfor a specific workspace/MAS combination.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cognition-engine"
+                ],
+                "summary": "Get per-MAS config for a Cognition Engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "workspaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Per-MAS CE config",
+                        "schema": {
+                            "$ref": "#/definitions/cognitionengine.MASCEConfigResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID format",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "MAS or CE not found, or CE not associated with MAS",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Failed to forward request to management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CFN not registered with management plane",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/internal/cognition-engine/metrics": {
             "post": {
                 "description": "Accepts batch of metrics from CE and stores in TimescaleDB asynchronously.\nAuto-detects CE metrics (ce_id) vs MAS metrics (workspace_id/mas_id/agent_id).",
@@ -1685,88 +1767,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/workspaces/{workspaceId}/multi-agentic-systems/{masId}/cognition-engines/{ceId}/mas-config": {
-            "get": {
-                "description": "Returns the per-MAS mas_config override for a specific CE associated with a MAS.\nThis is the resolved config from mas_cognition_engines.mas_config, not the CE-wide\nfactory defaults from cognition_engines.mas_config.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "cognition-engine"
-                ],
-                "summary": "Get per-MAS config for a Cognition Engine",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "workspaceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Multi-Agentic System ID",
-                        "name": "masId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Cognition Engine ID",
-                        "name": "ceId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Per-MAS CE config",
-                        "schema": {
-                            "$ref": "#/definitions/cognitionengine.MASCEConfigResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "MAS or CE not found, or CE not associated with MAS",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "502": {
-                        "description": "Failed to forward request to management plane",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "CFN not registered with management plane",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
