@@ -16,15 +16,14 @@ const (
 // GetEndpointForCE returns the endpoint path for a given CE name.
 // Returns empty string if no endpoint mapping exists.
 //
-// TODO: This is a temporary hack using pattern matching on CE names.
+// TODO: This is a hack using pattern matching on CE names.
 // Replace with proper CE type/capability-based routing once CE metadata is standardized.
 // Current patterns:
-//   - Name contains "distillation" → /api/knowledge-mgmt/distillation (Implemented)
-//   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction (Implemented)
+//   - Name contains "distillation" → /api/knowledge-mgmt/distillation
+//   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction
 func GetEndpointForCE(ceName string) string {
 	nameLower := strings.ToLower(ceName)
 
-	// Implemented: Handles cognition distillation tasks
 	if strings.Contains(nameLower, "distillation") {
 		return EndpointDistillation
 	}
