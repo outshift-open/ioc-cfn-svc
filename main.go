@@ -26,8 +26,8 @@ var gitCommitTime = "unknown"
 var gitBranch = "unknown"
 
 // @title		CFN Service API
-// @version		1.0
-// @description	IoC Cognition Fabric Node service — shared memory routing and memory operations proxy.
+// @version		1.2
+// @description	IoC Cognition Fabric Node service — shared memory routing, memory operations proxy, and L9 message routing.
 // @BasePath	/
 func main() {
 	// Load .env file if it exists (ignore error if not found)
