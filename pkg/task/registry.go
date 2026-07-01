@@ -19,17 +19,17 @@ const (
 // TODO: This is a temporary hack using pattern matching on CE names.
 // Replace with proper CE type/capability-based routing once CE metadata is standardized.
 // Current patterns:
-//   - Name contains "distillation" → /api/knowledge-mgmt/distillation (✅ Implemented)
-//   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction (✅ Implemented)
+//   - Name contains "distillation" → /api/knowledge-mgmt/distillation (Implemented)
+//   - Name contains "extraction" or "knowledge" → /api/knowledge-mgmt/extraction (Implemented)
 func GetEndpointForCE(ceName string) string {
 	nameLower := strings.ToLower(ceName)
 
-	// ✅ Implemented: Handles cognition distillation tasks
+	// Implemented: Handles cognition distillation tasks
 	if strings.Contains(nameLower, "distillation") {
 		return EndpointDistillation
 	}
 
-	// ✅ Implemented: Handles OTEL span extraction and knowledge ingestion
+	// Implemented: Handles OTEL span extraction and knowledge ingestion
 	if strings.Contains(nameLower, "extraction") || strings.Contains(nameLower, "knowledge") {
 		return EndpointExtraction
 	}
