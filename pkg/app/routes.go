@@ -69,10 +69,6 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Delete(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/vectors", withWorkspaceAndMasValidation(a.agentVectorDeleteHandler))
 	rtr.Post(apiPrefix+"/workspaces/{workspaceId}/multi-agentic-systems/{masId}/agents/{agentId}/rag/similarity-search", withWorkspaceAndMasValidation(a.agentVectorSimilaritySearchHandler))
 
-	// per-MAS CE config (consumed by Cognition Engines to fetch their runtime config overrides)
-	// CE-centric: CE presents its ID and requests config for a specific workspace/MAS
-	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config", a.getCEMASConfigHandler)
-
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors", a.cognitionAgentsSharedMemoriesVectorsUpsertHandler)
 	rtr.Post(apiPrefix+"/internal/cognition-fabric-node/{cfnId}/shared-memories/vectors/search", a.cognitionAgentsSharedMemoriesVectorsSearchHandler)
 
@@ -85,7 +81,6 @@ func (a *App) initializeRoutes() http.Handler {
 
 	// knowledge graph (internal API)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/knowledge-graph", a.fetchKnowledgeGraphHandler)
-
 
 	// L9 protocol endpoint (MAS <-> CFN <-> CE communication)
 	// Content-based routing: CE is selected based on message kind/subkind/subprotocol
@@ -116,6 +111,9 @@ func (a *App) initializeRoutes() http.Handler {
 	rtr.Patch(apiPrefix+"/cognition-engines/{ceId}", a.patchCognitionEngineHandler)
 	rtr.Put(apiPrefix+"/cognition-engines/{ceId}/heartbeat", a.cognitionEngineHeartbeatHandler)
 	rtr.Delete(apiPrefix+"/cognition-engines/{ceId}", a.deleteCognitionEngineHandler)
+	// per-MAS CE config (consumed by Cognition Engines to fetch their runtime config overrides)
+	// CE-centric: CE presents its ID and requests config for a specific workspace/MAS
+	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/workspaces/{workspaceId}/multi-agentic-systems/{masId}/config", a.getCEMASConfigHandler)
 
 	// Public Swagger UI — points to post-split swagger.json (public endpoints only)
 	rtr.HandleHTTP("/docs/swagger.json", http.StripPrefix("/docs/", docsFS))
