@@ -114,6 +114,7 @@ func ValidateAuditType(at string) error {
 const (
 	FallbackDefaultPageSize = 20
 	FallbackMaxPageSize     = 100
+	FallbackMaxPage         = 1000000
 )
 
 var (
@@ -144,6 +145,11 @@ func DefaultPageSize() int {
 // MaxPageSize returns the configured maximum page size.
 func MaxPageSize() int {
 	return maxPageSize
+}
+
+// MaxPage returns the maximum allowed page number to prevent overflow.
+func MaxPage() int {
+	return FallbackMaxPage
 }
 
 // PageInfo contains database-agnostic pagination metadata.
@@ -229,6 +235,9 @@ func ListAuditEvents(db *gorm.DB, resourceType, auditType string, page, pageSize
 	}
 	if page < 0 {
 		page = 0
+	}
+	if page > MaxPage() {
+		page = MaxPage()
 	}
 
 	query := db.Model(&Audit{})

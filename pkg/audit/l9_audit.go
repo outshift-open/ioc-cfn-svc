@@ -166,6 +166,9 @@ func ListL9AuditEvents(db *gorm.DB, kind, episodeID string, page, pageSize int) 
 	if page < 0 {
 		page = 0
 	}
+	if page > MaxPage() {
+		page = MaxPage()
+	}
 
 	query := db.Model(&L9AuditEvent{})
 	if kind != "" {
