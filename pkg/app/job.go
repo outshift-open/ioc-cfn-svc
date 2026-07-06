@@ -227,6 +227,17 @@ func (a *App) completeTaskExecution(t model.Task, historyID, status string, resu
 		return
 	}
 
+	if t.Schedule != nil {
+		nextRun, err := task.NextRunTime(*t.Schedule, now)
+		if err != nil {
+			log.Errorf("failed to compute next run time for failed task %s: %s", t.ID, err)
+		} else {
+			taskFields["next_run_time"] = nextRun
+			_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
+			return
+		}
+	}
+
 	_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
 }
 
