@@ -160,7 +160,7 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 func (a *App) sendAsyncTaskExecution(t model.Task, endpointPath string, historyID string) {
 	log := getLogger()
 
-	callbackURL := a.Cfg.ExternalServiceURL + "/api/internal/tasks/callback"
+	callbackURL := a.Cfg.CallbackURL + "/api/internal/tasks/callback"
 
 	req := cognitionagentclient.TaskExecutionRequest{
 		WorkspaceID: t.WorkspaceID,
