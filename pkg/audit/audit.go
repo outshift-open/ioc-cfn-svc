@@ -23,11 +23,6 @@ const (
 	ResourceTypeMASAgent        = "MAS-AGENT"
 	ResourceTypeWorkflow        = "WORKFLOW"
 	ResourceTypeTask            = "TASK"
-
-	// L9 protocol resource types (mapped from header.subprotocol)
-	ResourceTypeL9SNP = "L9_SNP" // Semantic Negotiation Protocol
-	ResourceTypeL9TFP = "L9_TFP" // Team Formation Protocol
-	ResourceTypeL9IOC = "L9_IOC" // Generic IOC protocol
 )
 
 // AuditType enum values
@@ -61,9 +56,6 @@ var validResourceTypes = map[string]bool{
 	ResourceTypeMASAgent:        true,
 	ResourceTypeWorkflow:        true,
 	ResourceTypeTask:            true,
-	ResourceTypeL9SNP:           true,
-	ResourceTypeL9TFP:           true,
-	ResourceTypeL9IOC:           true,
 }
 
 var validAuditTypes = map[string]bool{
