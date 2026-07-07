@@ -27,11 +27,13 @@ const (
 
 // AuditType enum values
 const (
-	AuditTypeResourceCreated         = "RESOURCE_CREATED"
-	AuditTypeResourceUpdated         = "RESOURCE_UPDATED"
-	AuditTypeResourceDeleted         = "RESOURCE_DELETED"
-	AuditTypeResourcePurged          = "RESOURCE_PURGED"
-	AuditTypeResourcePruned          = "RESOURCE_PRUNED"
+	AuditTypeResourceCreated = "RESOURCE_CREATED"
+	AuditTypeResourceUpdated = "RESOURCE_UPDATED"
+	AuditTypeResourceDeleted = "RESOURCE_DELETED"
+	AuditTypeResourcePurged  = "RESOURCE_PURGED"
+	AuditTypeResourcePruned  = "RESOURCE_PRUNED"
+
+	// Following non-L9 audit types will be removed when CFN is L9-native
 	AuditTypeKnowledgeIngestion      = "KNOWLEDGE_INGESTION"
 	AuditTypeKnowledgeQuery          = "KNOWLEDGE_QUERY"
 	AuditTypeMemoryOperation         = "MEMORY_OPERATION"

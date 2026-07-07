@@ -168,4 +168,3 @@ func parsePagination(r *http.Request) (int, int, error) {
 
 	return page, pageSize, nil
 }
-
