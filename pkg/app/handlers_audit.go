@@ -49,9 +49,8 @@ func (a *App) getAuditEventHandler(w http.ResponseWriter, r *http.Request) (int,
 
 // listAuditEventsHandler lists audit events with optional filters.
 // Internal API - not exposed in public Swagger documentation.
-// L9 protocol events are stored in a dedicated table but exposed via this API.
-// When audit_type is an L9 type (L9_INTENT, L9_COMMIT, etc.), queries only the L9 table.
-// When no audit_type filter is specified, merges results from both tables sorted by created_on.
+// L9 protocol events are stored in a dedicated table but merged into this API's response.
+// When no filters are specified, merges results from both tables sorted by created_on.
 func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	resourceType := r.URL.Query().Get("resource_type")
 	auditType := r.URL.Query().Get("audit_type")
@@ -61,11 +60,6 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
-	}
-
-	// Check if this is an L9 audit type query
-	if audit.IsL9AuditType(auditType) {
-		return a.listL9AuditEventsAsAudit(w, auditType, page, pageSize)
 	}
 
 	// If no audit_type filter, merge results from both tables
@@ -144,32 +138,6 @@ func (a *App) listMergedAuditEvents(w http.ResponseWriter, resourceType string, 
 			PageCount:     len(paged),
 			TotalElements: totalElements,
 		},
-	}
-
-	return eh.RespondWithJSON(w, http.StatusOK, result)
-}
-
-// listL9AuditEventsAsAudit queries the L9 audit table and converts results to Audit format.
-func (a *App) listL9AuditEventsAsAudit(w http.ResponseWriter, auditType string, page, pageSize int) (int, error) {
-	// Convert L9 audit type to L9 kind for querying
-	l9Kind := audit.AuditTypeToL9Kind(auditType)
-
-	l9Result, err := a.db.ListL9AuditEvents(l9Kind, "", page, pageSize)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to list L9 audit events",
-		})
-	}
-
-	// Convert L9AuditEvents to Audit format
-	audits := make([]audit.Audit, 0, len(l9Result.Data))
-	for _, l9Event := range l9Result.Data {
-		audits = append(audits, l9Event.ToAudit())
-	}
-
-	result := &audit.AuditListResponse{
-		Data:     audits,
-		PageInfo: l9Result.PageInfo,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, result)
