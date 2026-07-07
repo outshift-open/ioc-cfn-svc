@@ -247,15 +247,16 @@ func L9SubprotocolToResourceType(subprotocol string) string {
 
 // L9AuditInformation contains structured L9 metadata stored in audit_information JSONB.
 type L9AuditInformation struct {
-	Protocol    string     `json:"protocol"`
-	Subprotocol string     `json:"subprotocol"`
-	Subkind     string     `json:"subkind,omitempty"`
-	ParentIDs   []string   `json:"parent_ids,omitempty"`
-	Actors      []L9Actor  `json:"actors"`
+	Kind        string              `json:"kind"`
+	Protocol    string              `json:"protocol"`
+	Subprotocol string              `json:"subprotocol"`
+	Subkind     string              `json:"subkind,omitempty"`
+	ParentIDs   []string            `json:"parent_ids,omitempty"`
+	Actors      []L9Actor           `json:"actors"`
 	Context     *l9.L9HeaderContext `json:"context,omitempty"`
-	PayloadType string     `json:"payload_type,omitempty"`
-	Status      string     `json:"status"`
-	ErrorMsg    string     `json:"error_msg,omitempty"`
+	PayloadType string              `json:"payload_type,omitempty"`
+	Status      string              `json:"status"`
+	ErrorMsg    string              `json:"error_msg,omitempty"`
 }
 
 // NewAuditFromL9Message creates an Audit event from an L9 message.
@@ -282,6 +283,7 @@ func NewAuditFromL9Message(msg *l9.L9, workspaceID, masID, status, errMsg string
 
 	// Build audit_information with L9 metadata
 	info := L9AuditInformation{
+		Kind:        string(msg.Header.Kind),
 		Protocol:    msg.Header.Protocol,
 		Subprotocol: msg.Header.Subprotocol,
 		Status:      status,
@@ -374,6 +376,7 @@ func (e *L9AuditEvent) ToAudit() Audit {
 	}
 
 	info := L9AuditInformation{
+		Kind:        e.Kind,
 		Protocol:    e.Protocol,
 		Subprotocol: e.Subprotocol,
 		ParentIDs:   parentIDs,
