@@ -6,7 +6,6 @@ package audit
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,8 +18,13 @@ import (
 type L9AuditEvent struct {
 	ID uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 
+	// Audit fields (matching the standard Audit table for unified querying)
+	AuditType          string `gorm:"size:64;not null;index" json:"audit_type"`
+	ResourceType       string `gorm:"size:64;not null;index" json:"resource_type"`
+	ResourceIdentifier string `gorm:"size:128;not null;index" json:"resource_identifier"`
+
 	// L9 Header fields
-	Kind        string  `gorm:"size:32;not null" json:"kind"`
+	Kind        string  `gorm:"size:32;not null;index" json:"kind"`
 	Subkind     *string `gorm:"size:32" json:"subkind,omitempty"`
 	Protocol    string  `gorm:"size:16" json:"protocol"`
 	Subprotocol string  `gorm:"size:16" json:"subprotocol"`
@@ -46,11 +50,11 @@ type L9AuditEvent struct {
 	ErrorMsg *string `gorm:"size:512" json:"error_msg,omitempty"`
 
 	// Tenant scoping
-	WorkspaceID string `gorm:"size:128;not null" json:"workspace_id"`
-	MASID       string `gorm:"size:128;not null" json:"mas_id"`
+	WorkspaceID string `gorm:"size:128;not null;index" json:"workspace_id"`
+	MASID       string `gorm:"size:128;not null;index" json:"mas_id"`
 
 	// Timestamps
-	CreatedOn time.Time `gorm:"not null" json:"created_on"`
+	CreatedOn time.Time `gorm:"not null;index" json:"created_on"`
 }
 
 // TableName overrides the default table name.
@@ -84,15 +88,18 @@ func NewL9AuditEventFromMessage(msg *l9.L9, workspaceID, masID string) *L9AuditE
 	}
 
 	event := &L9AuditEvent{
-		ID:          uuid.New(),
-		Kind:        string(msg.Header.Kind),
-		Protocol:    msg.Header.Protocol,
-		Subprotocol: msg.Header.Subprotocol,
-		MessageID:   msg.Header.Message.ID,
-		EpisodeID:   msg.Header.Message.Episode,
-		WorkspaceID: workspaceID,
-		MASID:       masID,
-		CreatedOn:   time.Now(),
+		ID:                 uuid.New(),
+		AuditType:          L9KindToAuditType(msg.Header.Kind),
+		ResourceType:       L9ResourceType(),
+		ResourceIdentifier: masID,
+		Kind:               string(msg.Header.Kind),
+		Protocol:           msg.Header.Protocol,
+		Subprotocol:        msg.Header.Subprotocol,
+		MessageID:          msg.Header.Message.ID,
+		EpisodeID:          msg.Header.Message.Episode,
+		WorkspaceID:        workspaceID,
+		MASID:              masID,
+		CreatedOn:          time.Now(),
 	}
 
 	// Subkind (interface{} in L9, convert to string pointer)
@@ -351,9 +358,6 @@ func NewAuditFromL9Message(msg *l9.L9, workspaceID, masID, agentID, status, errM
 //   - audit_information <- L9 metadata (protocol, subprotocol, episode, actors, context, parents, status, error)
 //   - audit_extra_information <- subkind
 func (e *L9AuditEvent) ToAudit() Audit {
-	// Map kind string to audit type
-	auditType := "L9_" + strings.ToUpper(e.Kind)
-
 	// Build operation_id as composite tenant key
 	operationID := e.WorkspaceID + "|" + e.MASID
 
@@ -367,11 +371,6 @@ func (e *L9AuditEvent) ToAudit() Audit {
 	if len(e.Actors) > 0 {
 		_ = json.Unmarshal(e.Actors, &actors)
 	}
-
-	// Resource type is always MAS, identifier is the MAS ID.
-	// TODO: This will be refined as the L9 protocol evolves.
-	resourceType := L9ResourceType()
-	resourceIdentifier := e.MASID
 
 	info := L9AuditInformation{
 		Kind:        e.Kind,
@@ -409,9 +408,9 @@ func (e *L9AuditEvent) ToAudit() Audit {
 	return Audit{
 		ID:                      e.ID,
 		OperationID:             &operationID,
-		ResourceType:            resourceType,
-		ResourceIdentifier:      resourceIdentifier,
-		AuditType:               auditType,
+		ResourceType:            e.ResourceType,
+		ResourceIdentifier:      e.ResourceIdentifier,
+		AuditType:               e.AuditType,
 		AuditResourceIdentifier: e.MessageID,
 		AuditInformation:        auditInfoJSON,
 		AuditExtraInformation:   e.Subkind,

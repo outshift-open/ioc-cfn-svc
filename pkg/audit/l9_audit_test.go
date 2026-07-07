@@ -39,19 +39,22 @@ func TestCreateL9AuditEvent(t *testing.T) {
 	payloadType := "request"
 
 	e := &L9AuditEvent{
-		Kind:        "knowledge",
-		Subkind:     &subkind,
-		Protocol:    "sstp",
-		Subprotocol: "snp",
-		MessageID:   "msg-123",
-		EpisodeID:   "ep-456",
-		ParentIDs:   []byte(`["msg-100"]`),
-		Actors:      []byte(`[{"id":"agent-1","role":"sender"}]`),
-		Context:     []byte(`{"topic":"semantic-alignment"}`),
-		PayloadType: &payloadType,
-		Status:      "success",
-		WorkspaceID: "ws-1",
-		MASID:       "mas-1",
+		AuditType:          AuditTypeL9Knowledge,
+		ResourceType:       ResourceTypeMAS,
+		ResourceIdentifier: "mas-1",
+		Kind:               "knowledge",
+		Subkind:            &subkind,
+		Protocol:           "sstp",
+		Subprotocol:        "snp",
+		MessageID:          "msg-123",
+		EpisodeID:          "ep-456",
+		ParentIDs:          []byte(`["msg-100"]`),
+		Actors:             []byte(`[{"id":"agent-1","role":"sender"}]`),
+		Context:            []byte(`{"topic":"semantic-alignment"}`),
+		PayloadType:        &payloadType,
+		Status:             "success",
+		WorkspaceID:        "ws-1",
+		MASID:              "mas-1",
 	}
 
 	err := CreateL9AuditEvent(db, e)
@@ -64,15 +67,18 @@ func TestGetL9AuditEventByID(t *testing.T) {
 	db := setupL9TestDB(t)
 
 	e := &L9AuditEvent{
-		Kind:        "intent",
-		Protocol:    "sstp",
-		Subprotocol: "ioc",
-		MessageID:   "msg-001",
-		EpisodeID:   "ep-001",
-		Actors:      []byte(`[]`),
-		Status:      "success",
-		WorkspaceID: "ws-1",
-		MASID:       "mas-1",
+		AuditType:          AuditTypeL9Intent,
+		ResourceType:       ResourceTypeMAS,
+		ResourceIdentifier: "mas-1",
+		Kind:               "intent",
+		Protocol:           "sstp",
+		Subprotocol:        "ioc",
+		MessageID:          "msg-001",
+		EpisodeID:          "ep-001",
+		Actors:             []byte(`[]`),
+		Status:             "success",
+		WorkspaceID:        "ws-1",
+		MASID:              "mas-1",
 	}
 	err := CreateL9AuditEvent(db, e)
 	assert.NoError(t, err)
