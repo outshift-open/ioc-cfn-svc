@@ -26,7 +26,6 @@ const (
 
 	// L9 protocol resource types (mapped from header.subprotocol)
 	ResourceTypeL9SNP = "L9_SNP" // Semantic Negotiation Protocol
-	ResourceTypeL9IE  = "L9_IE"  // Ingestion/Extraction
 	ResourceTypeL9TFP = "L9_TFP" // Team Formation Protocol
 	ResourceTypeL9IOC = "L9_IOC" // Generic IOC protocol
 )
@@ -63,7 +62,6 @@ var validResourceTypes = map[string]bool{
 	ResourceTypeWorkflow:        true,
 	ResourceTypeTask:            true,
 	ResourceTypeL9SNP:           true,
-	ResourceTypeL9IE:            true,
 	ResourceTypeL9TFP:           true,
 	ResourceTypeL9IOC:           true,
 }

@@ -233,8 +233,6 @@ func L9SubprotocolToResourceType(subprotocol string) string {
 	switch subprotocol {
 	case "SNP", "snp":
 		return ResourceTypeL9SNP
-	case "IE", "ie":
-		return ResourceTypeL9IE
 	case "TFP", "tfp":
 		return ResourceTypeL9TFP
 	case "IOC", "ioc":
