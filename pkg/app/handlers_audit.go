@@ -7,6 +7,7 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,7 @@ import (
 
 // getAuditEventHandler retrieves a single audit event by ID.
 // Internal API - not exposed in public Swagger documentation.
+// Searches both the standard audit table and L9 audit table.
 func (a *App) getAuditEventHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	idStr := eh.PathParam(r, "eventId")
 	id, err := uuid.Parse(idStr)
@@ -27,18 +29,29 @@ func (a *App) getAuditEventHandler(w http.ResponseWriter, r *http.Request) (int,
 		})
 	}
 
+	// Try standard audit table first
 	event, err := a.db.GetAuditEventByID(id)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
-			"error": "audit event not found",
-		})
+	if err == nil {
+		return eh.RespondWithJSON(w, http.StatusOK, event)
 	}
 
-	return eh.RespondWithJSON(w, http.StatusOK, event)
+	// Try L9 audit table and convert to Audit format
+	l9Event, err := a.db.GetL9AuditEventByID(id)
+	if err == nil {
+		auditEvent := l9Event.ToAudit()
+		return eh.RespondWithJSON(w, http.StatusOK, &auditEvent)
+	}
+
+	return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
+		"error": "audit event not found",
+	})
 }
 
 // listAuditEventsHandler lists audit events with optional filters.
 // Internal API - not exposed in public Swagger documentation.
+// L9 protocol events are stored in a dedicated table but exposed via this API.
+// When audit_type is an L9 type (L9_INTENT, L9_COMMIT, etc.), queries only the L9 table.
+// When no audit_type filter is specified, merges results from both tables sorted by created_on.
 func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	resourceType := r.URL.Query().Get("resource_type")
 	auditType := r.URL.Query().Get("audit_type")
@@ -48,6 +61,16 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
+	}
+
+	// Check if this is an L9 audit type query
+	if audit.IsL9AuditType(auditType) {
+		return a.listL9AuditEventsAsAudit(w, auditType, page, pageSize)
+	}
+
+	// If no audit_type filter, merge results from both tables
+	if auditType == "" {
+		return a.listMergedAuditEvents(w, resourceType, page, pageSize)
 	}
 
 	result, err := a.db.ListAuditEvents(resourceType, auditType, page, pageSize)
@@ -60,6 +83,93 @@ func (a *App) listAuditEventsHandler(w http.ResponseWriter, r *http.Request) (in
 		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "failed to list audit events",
 		})
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, result)
+}
+
+// listMergedAuditEvents fetches from both audit tables and merges results sorted by created_on DESC.
+// This provides a unified view when no audit_type filter is specified.
+func (a *App) listMergedAuditEvents(w http.ResponseWriter, resourceType string, page, pageSize int) (int, error) {
+	// Fetch from standard audit table
+	standardResult, err := a.db.ListAuditEvents(resourceType, "", page, pageSize)
+	if err != nil {
+		if strings.Contains(err.Error(), "invalid") {
+			return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
+				"error": err.Error(),
+			})
+		}
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to list audit events",
+		})
+	}
+
+	// Fetch from L9 audit table (no kind filter = all L9 events)
+	l9Result, err := a.db.ListL9AuditEvents("", "", page, pageSize)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to list L9 audit events",
+		})
+	}
+
+	// Convert L9 events to Audit format
+	l9Audits := make([]audit.Audit, 0, len(l9Result.Data))
+	for _, l9Event := range l9Result.Data {
+		l9Audits = append(l9Audits, l9Event.ToAudit())
+	}
+
+	// Merge and sort by CreatedOn DESC
+	merged := append(standardResult.Data, l9Audits...)
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].CreatedOn.After(merged[j].CreatedOn)
+	})
+
+	// Apply pagination to merged results
+	totalElements := standardResult.PageInfo.TotalElements + l9Result.PageInfo.TotalElements
+	start := page * pageSize
+	end := start + pageSize
+	if start > len(merged) {
+		start = len(merged)
+	}
+	if end > len(merged) {
+		end = len(merged)
+	}
+	paged := merged[start:end]
+
+	result := &audit.AuditListResponse{
+		Data: paged,
+		PageInfo: audit.PageInfo{
+			Page:          page,
+			PageSize:      pageSize,
+			PageCount:     len(paged),
+			TotalElements: totalElements,
+		},
+	}
+
+	return eh.RespondWithJSON(w, http.StatusOK, result)
+}
+
+// listL9AuditEventsAsAudit queries the L9 audit table and converts results to Audit format.
+func (a *App) listL9AuditEventsAsAudit(w http.ResponseWriter, auditType string, page, pageSize int) (int, error) {
+	// Convert L9 audit type to L9 kind for querying
+	l9Kind := audit.AuditTypeToL9Kind(auditType)
+
+	l9Result, err := a.db.ListL9AuditEvents(l9Kind, "", page, pageSize)
+	if err != nil {
+		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to list L9 audit events",
+		})
+	}
+
+	// Convert L9AuditEvents to Audit format
+	audits := make([]audit.Audit, 0, len(l9Result.Data))
+	for _, l9Event := range l9Result.Data {
+		audits = append(audits, l9Event.ToAudit())
+	}
+
+	result := &audit.AuditListResponse{
+		Data:     audits,
+		PageInfo: l9Result.PageInfo,
 	}
 
 	return eh.RespondWithJSON(w, http.StatusOK, result)
@@ -91,65 +201,3 @@ func parsePagination(r *http.Request) (int, int, error) {
 	return page, pageSize, nil
 }
 
-// getL9AuditEventHandler retrieves a single L9 audit event by ID.
-// @Summary Get L9 audit event by ID
-// @Description Retrieves a single L9 protocol audit event by its UUID
-// @Tags l9-audit
-// @Produce json
-// @Param eventId path string true "Event UUID"
-// @Success 200 {object} audit.L9AuditEvent "L9 audit event"
-// @Failure 400 {object} map[string]string "Invalid event ID"
-// @Failure 404 {object} map[string]string "Event not found"
-// @Router /api/internal/l9/audit/{eventId} [get]
-func (a *App) getL9AuditEventHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	idStr := eh.PathParam(r, "eventId")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid event ID: must be a valid UUID",
-		})
-	}
-
-	event, err := a.db.GetL9AuditEventByID(id)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusNotFound, map[string]string{
-			"error": "L9 audit event not found",
-		})
-	}
-
-	return eh.RespondWithJSON(w, http.StatusOK, event)
-}
-
-// listL9AuditEventsHandler lists L9 audit events with optional filters.
-// @Summary List L9 audit events
-// @Description Lists L9 protocol audit events with optional kind and episode_id filters
-// @Tags l9-audit
-// @Produce json
-// @Param kind query string false "Filter by L9 kind (intent, exchange, contingency, commit, knowledge)"
-// @Param episode_id query string false "Filter by episode ID"
-// @Param page query int false "Page number (0-based)" default(0)
-// @Param pageSize query int false "Page size" default(20)
-// @Success 200 {object} audit.L9AuditListResponse "Paginated list of L9 audit events"
-// @Failure 400 {object} map[string]string "Invalid parameters"
-// @Failure 500 {object} map[string]string "Internal error"
-// @Router /api/internal/l9/audit [get]
-func (a *App) listL9AuditEventsHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	kind := r.URL.Query().Get("kind")
-	episodeID := r.URL.Query().Get("episode_id")
-
-	page, pageSize, err := parsePagination(r)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
-		})
-	}
-
-	result, err := a.db.ListL9AuditEvents(kind, episodeID, page, pageSize)
-	if err != nil {
-		return eh.RespondWithJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to list L9 audit events",
-		})
-	}
-
-	return eh.RespondWithJSON(w, http.StatusOK, result)
-}

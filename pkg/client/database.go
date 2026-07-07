@@ -45,7 +45,7 @@ type Database interface {
 	ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error)
 	DeleteAuditEventByID(uuid.UUID) error
 
-	// L9 audit
+	// L9 audit (stored in dedicated table, exposed via existing audit API)
 	CreateL9AuditEvent(*audit.L9AuditEvent) error
 	GetL9AuditEventByID(uuid.UUID) (*audit.L9AuditEvent, error)
 	ListL9AuditEvents(kind, episodeID string, page, pageSize int) (*audit.L9AuditListResponse, error)

@@ -23,22 +23,35 @@ const (
 	ResourceTypeMASAgent        = "MAS-AGENT"
 	ResourceTypeWorkflow        = "WORKFLOW"
 	ResourceTypeTask            = "TASK"
+
+	// L9 protocol resource types (mapped from header.subprotocol)
+	ResourceTypeL9SNP = "L9_SNP" // Semantic Negotiation Protocol
+	ResourceTypeL9IE  = "L9_IE"  // Ingestion/Extraction
+	ResourceTypeL9TFP = "L9_TFP" // Team Formation Protocol
+	ResourceTypeL9IOC = "L9_IOC" // Generic IOC protocol
 )
 
 // AuditType enum values
 const (
-	AuditTypeResourceCreated           = "RESOURCE_CREATED"
-	AuditTypeResourceUpdated           = "RESOURCE_UPDATED"
-	AuditTypeResourceDeleted           = "RESOURCE_DELETED"
-	AuditTypeResourcePurged            = "RESOURCE_PURGED"
-	AuditTypeResourcePruned            = "RESOURCE_PRUNED"
-	AuditTypeKnowledgeIngestion        = "KNOWLEDGE_INGESTION"
-	AuditTypeKnowledgeQuery            = "KNOWLEDGE_QUERY"
-	AuditTypeMemoryOperation           = "MEMORY_OPERATION"
-	AuditTypeSharedMemoryOperation     = "SHARED_MEMORY_OPERATION"
-	AuditTypeAgentMemoryOperation      = "AGENT_MEMORY_OPERATION"
+	AuditTypeResourceCreated         = "RESOURCE_CREATED"
+	AuditTypeResourceUpdated         = "RESOURCE_UPDATED"
+	AuditTypeResourceDeleted         = "RESOURCE_DELETED"
+	AuditTypeResourcePurged          = "RESOURCE_PURGED"
+	AuditTypeResourcePruned          = "RESOURCE_PRUNED"
+	AuditTypeKnowledgeIngestion      = "KNOWLEDGE_INGESTION"
+	AuditTypeKnowledgeQuery          = "KNOWLEDGE_QUERY"
+	AuditTypeMemoryOperation         = "MEMORY_OPERATION"
+	AuditTypeSharedMemoryOperation   = "SHARED_MEMORY_OPERATION"
+	AuditTypeAgentMemoryOperation    = "AGENT_MEMORY_OPERATION"
 	AuditTypeSemanticAlignmentStart  = "SEMANTIC_ALIGNMENT_START"
 	AuditTypeSemanticAlignmentDecide = "SEMANTIC_ALIGNMENT_DECIDE"
+
+	// L9 protocol audit types (mapped from header.kind)
+	AuditTypeL9Intent      = "L9_INTENT"
+	AuditTypeL9Exchange    = "L9_EXCHANGE"
+	AuditTypeL9Contingency = "L9_CONTINGENCY"
+	AuditTypeL9Commit      = "L9_COMMIT"
+	AuditTypeL9Knowledge   = "L9_KNOWLEDGE"
 )
 
 var validResourceTypes = map[string]bool{
@@ -49,21 +62,30 @@ var validResourceTypes = map[string]bool{
 	ResourceTypeMASAgent:        true,
 	ResourceTypeWorkflow:        true,
 	ResourceTypeTask:            true,
+	ResourceTypeL9SNP:           true,
+	ResourceTypeL9IE:            true,
+	ResourceTypeL9TFP:           true,
+	ResourceTypeL9IOC:           true,
 }
 
 var validAuditTypes = map[string]bool{
-	AuditTypeResourceCreated:           true,
-	AuditTypeResourceUpdated:           true,
-	AuditTypeResourceDeleted:           true,
-	AuditTypeResourcePurged:            true,
-	AuditTypeResourcePruned:            true,
-	AuditTypeKnowledgeIngestion:        true,
-	AuditTypeKnowledgeQuery:            true,
-	AuditTypeMemoryOperation:           true,
-	AuditTypeSharedMemoryOperation:     true,
-	AuditTypeAgentMemoryOperation:      true,
+	AuditTypeResourceCreated:         true,
+	AuditTypeResourceUpdated:         true,
+	AuditTypeResourceDeleted:         true,
+	AuditTypeResourcePurged:          true,
+	AuditTypeResourcePruned:          true,
+	AuditTypeKnowledgeIngestion:      true,
+	AuditTypeKnowledgeQuery:          true,
+	AuditTypeMemoryOperation:         true,
+	AuditTypeSharedMemoryOperation:   true,
+	AuditTypeAgentMemoryOperation:    true,
 	AuditTypeSemanticAlignmentStart:  true,
 	AuditTypeSemanticAlignmentDecide: true,
+	AuditTypeL9Intent:                true,
+	AuditTypeL9Exchange:              true,
+	AuditTypeL9Contingency:           true,
+	AuditTypeL9Commit:                true,
+	AuditTypeL9Knowledge:             true,
 }
 
 // IsValidResourceType returns true if the given resource type is a known valid value.

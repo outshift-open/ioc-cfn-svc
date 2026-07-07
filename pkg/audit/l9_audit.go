@@ -6,6 +6,7 @@ package audit
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -207,4 +208,240 @@ func GetL9AuditEventsByEpisode(db *gorm.DB, episodeID string) ([]L9AuditEvent, e
 		return nil, err
 	}
 	return events, nil
+}
+
+// L9KindToAuditType maps L9 header.kind to the corresponding AuditType constant.
+func L9KindToAuditType(kind l9.Kind) string {
+	switch kind {
+	case l9.KindIntent:
+		return AuditTypeL9Intent
+	case l9.KindExchange:
+		return AuditTypeL9Exchange
+	case l9.KindContingency:
+		return AuditTypeL9Contingency
+	case l9.KindCommit:
+		return AuditTypeL9Commit
+	case l9.KindKnowledge:
+		return AuditTypeL9Knowledge
+	default:
+		return "L9_" + string(kind)
+	}
+}
+
+// L9SubprotocolToResourceType maps L9 header.subprotocol to the corresponding ResourceType constant.
+func L9SubprotocolToResourceType(subprotocol string) string {
+	switch subprotocol {
+	case "SNP", "snp":
+		return ResourceTypeL9SNP
+	case "IE", "ie":
+		return ResourceTypeL9IE
+	case "TFP", "tfp":
+		return ResourceTypeL9TFP
+	case "IOC", "ioc":
+		return ResourceTypeL9IOC
+	default:
+		if subprotocol == "" {
+			return ResourceTypeL9IOC
+		}
+		return "L9_" + subprotocol
+	}
+}
+
+// L9AuditInformation contains structured L9 metadata stored in audit_information JSONB.
+type L9AuditInformation struct {
+	Protocol    string     `json:"protocol"`
+	Subprotocol string     `json:"subprotocol"`
+	Subkind     string     `json:"subkind,omitempty"`
+	ParentIDs   []string   `json:"parent_ids,omitempty"`
+	Actors      []L9Actor  `json:"actors"`
+	Context     *l9.L9HeaderContext `json:"context,omitempty"`
+	PayloadType string     `json:"payload_type,omitempty"`
+	Status      string     `json:"status"`
+	ErrorMsg    string     `json:"error_msg,omitempty"`
+}
+
+// NewAuditFromL9Message creates an Audit event from an L9 message.
+// Returns nil if the message lacks required fields (message.id or message.episode).
+// The mapping is:
+//   - audit_type <- L9 header.kind (prefixed with L9_)
+//   - resource_type <- L9 header.subprotocol (prefixed with L9_)
+//   - resource_identifier <- episode_id (groups related events)
+//   - audit_resource_identifier <- message_id (unique message ID)
+//   - operation_id <- workspace_id|mas_id (tenant scope)
+//   - audit_information <- L9 metadata (actors, context, parents, etc.)
+//   - audit_extra_information <- subkind (converged, rejected, etc.)
+func NewAuditFromL9Message(msg *l9.L9, workspaceID, masID, status, errMsg string) *Audit {
+	// message_id and episode_id are required
+	if msg.Header.Message == nil || msg.Header.Message.ID == "" || msg.Header.Message.Episode == "" {
+		return nil
+	}
+
+	auditType := L9KindToAuditType(msg.Header.Kind)
+	resourceType := L9SubprotocolToResourceType(msg.Header.Subprotocol)
+
+	// Build operation_id as composite tenant key
+	operationID := workspaceID + "|" + masID
+
+	// Build audit_information with L9 metadata
+	info := L9AuditInformation{
+		Protocol:    msg.Header.Protocol,
+		Subprotocol: msg.Header.Subprotocol,
+		Status:      status,
+		ErrorMsg:    errMsg,
+	}
+
+	// Subkind
+	if msg.Header.Subkind != nil {
+		if s, ok := msg.Header.Subkind.(string); ok && s != "" {
+			info.Subkind = s
+		}
+	}
+
+	// Parent IDs
+	if len(msg.Header.Message.Parents) > 0 {
+		info.ParentIDs = msg.Header.Message.Parents
+	}
+
+	// Actors
+	for _, actor := range msg.Header.Participants.Actors {
+		info.Actors = append(info.Actors, L9Actor{
+			ID:   actor.ID,
+			Role: actor.Role,
+		})
+	}
+
+	// Context
+	if msg.Header.Context != nil {
+		info.Context = msg.Header.Context
+	}
+
+	// Payload type
+	if msg.Payload.Type != "" {
+		info.PayloadType = msg.Payload.Type
+	}
+
+	auditInfoJSON, _ := json.Marshal(info)
+
+	// Build audit_extra_information with subkind if present
+	var extraInfo *string
+	if info.Subkind != "" {
+		extraInfo = &info.Subkind
+	}
+
+	// Use a system UUID for L9 automated events
+	systemUUID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+
+	return &Audit{
+		OperationID:             &operationID,
+		ResourceType:            resourceType,
+		ResourceIdentifier:      msg.Header.Message.Episode,
+		AuditType:               auditType,
+		AuditResourceIdentifier: msg.Header.Message.ID,
+		AuditInformation:        auditInfoJSON,
+		AuditExtraInformation:   extraInfo,
+		CreatedBy:               systemUUID,
+		LastModifiedBy:          systemUUID,
+	}
+}
+
+// L9AuditEventToAudit converts an L9AuditEvent (from DB) to an Audit struct for API responses.
+// This allows L9 events stored in the dedicated audit_l9 table to be returned via the existing audit API.
+// The mapping is:
+//   - audit_type <- L9 kind (prefixed with L9_)
+//   - resource_type <- L9 subprotocol (prefixed with L9_)
+//   - resource_identifier <- episode_id
+//   - audit_resource_identifier <- message_id
+//   - operation_id <- workspace_id|mas_id
+//   - audit_information <- L9 metadata (protocol, subprotocol, actors, context, parents, status, error)
+//   - audit_extra_information <- subkind
+func (e *L9AuditEvent) ToAudit() Audit {
+	// Map kind string to audit type
+	auditType := "L9_" + strings.ToUpper(e.Kind)
+
+	// Map subprotocol to resource type
+	resourceType := L9SubprotocolToResourceType(e.Subprotocol)
+
+	// Build operation_id as composite tenant key
+	operationID := e.WorkspaceID + "|" + e.MASID
+
+	// Build audit_information from L9 fields
+	var parentIDs []string
+	if len(e.ParentIDs) > 0 {
+		_ = json.Unmarshal(e.ParentIDs, &parentIDs)
+	}
+
+	var actors []L9Actor
+	if len(e.Actors) > 0 {
+		_ = json.Unmarshal(e.Actors, &actors)
+	}
+
+	info := L9AuditInformation{
+		Protocol:    e.Protocol,
+		Subprotocol: e.Subprotocol,
+		ParentIDs:   parentIDs,
+		Actors:      actors,
+		Status:      e.Status,
+	}
+
+	if e.Subkind != nil {
+		info.Subkind = *e.Subkind
+	}
+	if e.PayloadType != nil {
+		info.PayloadType = *e.PayloadType
+	}
+	if e.ErrorMsg != nil {
+		info.ErrorMsg = *e.ErrorMsg
+	}
+
+	// Context is already JSONB, include it in audit_information
+	if len(e.Context) > 0 {
+		var ctx l9.L9HeaderContext
+		if err := json.Unmarshal(e.Context, &ctx); err == nil {
+			info.Context = &ctx
+		}
+	}
+
+	auditInfoJSON, _ := json.Marshal(info)
+
+	// Use a system UUID for L9 automated events
+	systemUUID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+
+	return Audit{
+		ID:                      e.ID,
+		OperationID:             &operationID,
+		ResourceType:            resourceType,
+		ResourceIdentifier:      e.EpisodeID,
+		AuditType:               auditType,
+		AuditResourceIdentifier: e.MessageID,
+		AuditInformation:        auditInfoJSON,
+		AuditExtraInformation:   e.Subkind,
+		CreatedBy:               systemUUID,
+		CreatedOn:               e.CreatedOn,
+		LastModifiedBy:          systemUUID,
+		LastModifiedOn:          e.CreatedOn,
+	}
+}
+
+// AuditTypeToL9Kind converts an L9 audit type (e.g., "L9_COMMIT") to L9 kind (e.g., "commit").
+// Returns empty string if not an L9 audit type.
+func AuditTypeToL9Kind(auditType string) string {
+	switch auditType {
+	case AuditTypeL9Intent:
+		return "intent"
+	case AuditTypeL9Exchange:
+		return "exchange"
+	case AuditTypeL9Contingency:
+		return "contingency"
+	case AuditTypeL9Commit:
+		return "commit"
+	case AuditTypeL9Knowledge:
+		return "knowledge"
+	default:
+		return ""
+	}
+}
+
+// IsL9AuditType returns true if the audit type is an L9 protocol type.
+func IsL9AuditType(auditType string) bool {
+	return AuditTypeToL9Kind(auditType) != ""
 }

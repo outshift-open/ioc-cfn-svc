@@ -85,11 +85,9 @@ func (a *App) initializeRoutes() http.Handler {
 	// L9 protocol endpoint (MAS <-> CFN <-> CE communication)
 	// Content-based routing: CE is selected based on message kind/subkind/subprotocol
 	// Workspace/MAS extracted from L9 message participants.groups
+	// L9 audit events are recorded to the existing audit table with L9_* types
+	// (use GET /api/internal/mgmt/audit?audit_type=L9_COMMIT to query)
 	rtr.Post(apiPrefix+"/l9/messages", a.l9Handler)
-
-	// L9 audit events (internal APIs)
-	rtr.Get(internalPrefix+"/l9/audit", a.listL9AuditEventsHandler)
-	rtr.Get(internalPrefix+"/l9/audit/{eventId}", a.getL9AuditEventHandler)
 
 	// OTLP trace ingestion (canonical route follows API guidelines)
 	rtr.Post(apiPrefix+"/traces", a.otelReceiver.HandleTraces)

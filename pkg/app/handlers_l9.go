@@ -364,6 +364,8 @@ func respondError(w http.ResponseWriter, statusCode int, message string) (int, e
 }
 
 // recordL9AuditWithStatus creates an L9 audit event with status and optional error message.
+// L9 events are stored in the dedicated audit_l9 table but exposed via the existing audit API
+// using L9_* audit types (e.g., audit_type=L9_COMMIT).
 // Skips audit if message lacks required fields (message.id, message.episode).
 // Errors are logged but do not fail the request.
 func (a *App) recordL9AuditWithStatus(msg *l9.L9, info *routingInfo, status, errMsg string) {
