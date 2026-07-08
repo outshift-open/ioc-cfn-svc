@@ -93,6 +93,17 @@ func (a *App) handleTaskCallback(w http.ResponseWriter, r *http.Request) (int, e
 		}
 		_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
 	} else {
+		if t.Schedule != nil {
+			nextRun, err := task.NextRunTime(*t.Schedule, now)
+			if err != nil {
+				log.Errorf("callback: failed to compute next run time for failed task %s: %s", t.ID, err)
+			} else {
+				taskFields["next_run_time"] = nextRun
+				_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
+				w.WriteHeader(http.StatusOK)
+				return http.StatusOK, nil
+			}
+		}
 		_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)
 	}
 
