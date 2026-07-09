@@ -635,3 +635,120 @@ func TestL9Handler_SubprotocolFiltering(t *testing.T) {
 		})
 	}
 }
+
+// TestL9Handler_EmptySubprotocols verifies that GAT CEs (like CASA) with no
+// subprotocols defined can match any incoming subprotocol, relying only on
+// kind/subkind for routing.
+func TestL9Handler_EmptySubprotocols(t *testing.T) {
+	app := &App{}
+
+	// Create mock GAT CE (like CASA) that handles intent messages
+	mockGATCE := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var msg l9.L9
+		json.NewDecoder(r.Body).Decode(&msg)
+
+		response := l9.L9{
+			Header: l9.L9Header{
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  msg.Header.Subprotocol,
+				Kind:         msg.Header.Kind,
+				Participants: msg.Header.Participants,
+			},
+			Payload: l9.L9Payload{
+				Type: "response",
+				Data: l9.L9PayloadData{
+					"status":  "processed",
+					"ce_name": "GAT CE",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer mockGATCE.Close()
+
+	// Setup config with GAT CE that has empty Subprotocols
+	// This CE should match any subprotocol for intent/mission messages
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "test-workspace",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "test-mas",
+						CognitionEngines: []MASEngineCfg{
+							{ID: "ce-gat"},
+						},
+					},
+				},
+			},
+		},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:            "ce-gat",
+				Name:          "GAT CE",
+				Category:      "GAT",
+				KindsSubkinds: map[string][]string{"intent": {"mission", "coordinator-assignment"}},
+				Subprotocols:  []string{}, // Empty - GAT CE doesn't implement specific L9 subprotocols
+				Enabled:       true,
+				URL:           mockGATCE.URL,
+			},
+		},
+	}
+
+	// Test that GAT CE matches any subprotocol
+	tests := []struct {
+		name        string
+		subprotocol string
+	}{
+		{name: "matches sab subprotocol", subprotocol: "sab"},
+		{name: "matches cip subprotocol", subprotocol: "cip"},
+		{name: "matches tfp subprotocol", subprotocol: "tfp"},
+		{name: "matches custom subprotocol", subprotocol: "custom-protocol"},
+		{name: "matches empty subprotocol", subprotocol: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l9Msg := l9.L9{
+				Header: l9.L9Header{
+					Protocol:    "sstp",
+					Version:     "1.0",
+					Subprotocol: tt.subprotocol,
+					Kind:        l9.KindIntent,
+					Subkind:     "mission",
+					Participants: l9.ParticipantSet{
+						Actors: []l9.Actor{
+							{ID: "agent-1", Role: "sender"},
+						},
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "test-workspace",
+							"mas_id":       "test-mas",
+						},
+					},
+				},
+			}
+
+			body, _ := json.Marshal(l9Msg)
+			req := httptest.NewRequest(http.MethodPost, "/api/l9/messages", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			status, _ := app.l9Handler(w, req)
+
+			if status != http.StatusOK {
+				t.Errorf("expected status 200, got %d", status)
+			}
+
+			var response l9.L9
+			json.NewDecoder(w.Body).Decode(&response)
+
+			ceName := response.Payload.Data["ce_name"]
+			if ceName != "GAT CE" {
+				t.Errorf("expected GAT CE, got %s", ceName)
+			}
+			t.Logf("✓ GAT CE with empty subprotocols matched message with subprotocol '%s'", tt.subprotocol)
+		})
+	}
+}

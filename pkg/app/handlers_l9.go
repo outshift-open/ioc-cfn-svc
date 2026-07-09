@@ -224,8 +224,8 @@ func (a *App) findTargetCE(info *routingInfo, msg *l9.L9) (*EngineCfg, *l9Error)
 // 1. Its KindsSubkinds map contains the requested kind, AND
 // 2. The subkinds list for that kind contains the requested subkind
 //    (empty subkinds list means CE doesn't handle any subkind for this kind), AND
-// 3. The CE's Subprotocols list contains the requested subprotocol
-//    (empty Subprotocols list means CE doesn't handle any subprotocol)
+// 3. Either the CE has no Subprotocols defined (subprotocol check is skipped),
+//    OR the CE's Subprotocols list contains the requested subprotocol
 func findMatchingCEs(mas *MASCfg, kind l9.Kind, subkind interface{}, subprotocol string) []*EngineCfg {
 	log := getLogger()
 	var matches []*EngineCfg
@@ -266,19 +266,19 @@ func findMatchingCEs(mas *MASCfg, kind l9.Kind, subkind interface{}, subprotocol
 		}
 
 		// Check if CE handles this subprotocol
-		// Empty Subprotocols list means CE doesn't handle any subprotocol
-		if len(ce.Subprotocols) == 0 {
-			continue
-		}
-		found := false
-		for _, sp := range ce.Subprotocols {
-			if sp == subprotocol {
-				found = true
-				break
+		// If CE has no Subprotocols defined, skip the subprotocol check (matches any subprotocol)
+		// This allows GAT CEs (like CASA) to register without specifying subprotocols
+		if len(ce.Subprotocols) > 0 {
+			found := false
+			for _, sp := range ce.Subprotocols {
+				if sp == subprotocol {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			continue
+			if !found {
+				continue
+			}
 		}
 
 		log.Debugf("Found matching CE %s (%s) for kind=%s, subkind=%s, subprotocol=%s",
