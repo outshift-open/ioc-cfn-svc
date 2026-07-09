@@ -13,8 +13,8 @@ package cognitionengine
 //
 //	{
 //	  "name": "Knowledge Management CE",
-//	  "kind": "knowledge",
-//	  "subkind": "query",
+//	  "kinds_subkinds": {"knowledge": ["query", "distillation"], "contingency": ["alignment"]},
+//	  "subprotocols": ["http", "grpc"],
 //	  "url": "http://ce-host:9004",
 //	  "version": "1.0.0",
 //	  "mas_auto_associate": true,
@@ -23,8 +23,9 @@ package cognitionengine
 //	}
 type RegisterRequest struct {
 	Name             string                 `json:"name"`
-	Kind             string                 `json:"kind"`                       // CE kind (e.g., "knowledge", "contingency")
-	Subkind          string                 `json:"subkind"`                    // CE subkind (e.g., "distillation", "query", "negotiation")
+	KindsSubkinds    map[string][]string    `json:"kinds_subkinds,omitempty"` // Map of kind -> list of subkinds, e.g. {"knowledge": ["query", "distillation"]}
+	Subprotocols     []string               `json:"subprotocols,omitempty"`   // List of subprotocols supported by this CE
+	Category         string                 `json:"category,omitempty"`       // CE category: UNKNOWN, GAT (Gateway), COG (Cognitive, default)
 	URL              string                 `json:"url"`
 	Version          string                 `json:"version"`
 	MASAutoAssociate bool                   `json:"mas_auto_associate"` // No omitempty - always send (defaults to false)
@@ -45,24 +46,25 @@ type RegisterRequest struct {
 //	  "cfn_id": "cfn-456",
 //	  "name": "Knowledge Management CE",
 //	  "version": "1.0.0",
-//	  "kind": "knowledge",
-//	  "subkind": "query",
+//	  "kinds_subkinds": {"knowledge": ["query", "distillation"]},
+//	  "subprotocols": ["http", "grpc"],
 //	  "enabled": true,
 //	  "mas_auto_associate": false,
 //	  "status": "online",
 //	  "created": true
 //	}
 type RegisterResponse struct {
-	CEID             string `json:"ce_id"`
-	CFNID            string `json:"cfn_id"`
-	Name             string `json:"name"`
-	Version          string `json:"version"`
-	Kind             string `json:"kind"`
-	Subkind          string `json:"subkind"`
-	Enabled          bool   `json:"enabled"`
-	MASAutoAssociate bool   `json:"mas_auto_associate"`
-	Status           string `json:"status"`
-	Created          bool   `json:"created"`
+	CEID             string              `json:"ce_id"`
+	CFNID            string              `json:"cfn_id"`
+	Name             string              `json:"name"`
+	Version          string              `json:"version"`
+	KindsSubkinds    map[string][]string `json:"kinds_subkinds"`
+	Subprotocols     []string            `json:"subprotocols"`
+	Category         string              `json:"category"`
+	Enabled          bool                `json:"enabled"`
+	MASAutoAssociate bool                `json:"mas_auto_associate"`
+	Status           string              `json:"status"`
+	Created          bool                `json:"created"`
 }
 
 // HeartbeatResponse represents the response returned to the CE after a successful heartbeat.
@@ -88,8 +90,8 @@ type HeartbeatResponse struct {
 //	  "cfn_id": "cfn-456",
 //	  "name": "Knowledge Management CE",
 //	  "version": "1.0.0",
-//	  "kind": "knowledge",
-//	  "subkind": "query",
+//	  "kinds_subkinds": {"knowledge": ["query", "distillation"]},
+//	  "subprotocols": ["http", "grpc"],
 //	  "url": "http://ce-host:9004",
 //	  "enabled": true,
 //	  "mas_auto_associate": false,
@@ -107,8 +109,9 @@ type CognitionEngineDetail struct {
 	CFNID            string                 `json:"cfn_id"`
 	Name             string                 `json:"name"`
 	Version          string                 `json:"version"`
-	Kind             string                 `json:"kind"`
-	Subkind          string                 `json:"subkind"`
+	KindsSubkinds    map[string][]string    `json:"kinds_subkinds"`
+	Subprotocols     []string               `json:"subprotocols"`
+	Category         string                 `json:"category"`
 	URL              string                 `json:"url"`
 	Enabled          bool                   `json:"enabled"`
 	MASAutoAssociate bool                   `json:"mas_auto_associate"`
@@ -128,8 +131,9 @@ type CognitionEngineListItem struct {
 	CFNID            string                 `json:"cfn_id"`
 	Name             string                 `json:"name"`
 	Version          string                 `json:"version"`
-	Kind             string                 `json:"kind"`
-	Subkind          string                 `json:"subkind"`
+	KindsSubkinds    map[string][]string    `json:"kinds_subkinds"`
+	Subprotocols     []string               `json:"subprotocols"`
+	Category         string                 `json:"category"`
 	URL              string                 `json:"url"`
 	Enabled          bool                   `json:"enabled"`
 	MASAutoAssociate bool                   `json:"mas_auto_associate"`
@@ -153,8 +157,8 @@ type CognitionEngineList struct {
 }
 
 // PatchRequest represents a partial update request for a CE.
-// Mutable fields: url, enabled, mas_auto_associate, capabilities, metrics, config, mas_config, auth, kind, subkind.
-// Immutable fields: cfn_id, version, name. Attempting to update immutable fields will result in a 400 error.
+// Mutable fields: url, enabled, mas_auto_associate, capabilities, metrics, config, mas_config, auth.
+// Immutable fields: cfn_id, version, name, kinds_subkinds, subprotocols, category. Attempting to update immutable fields will result in a 400 error.
 //
 // Example JSON:
 //
@@ -169,8 +173,6 @@ type PatchRequest struct {
 	URL              *string                `json:"url,omitempty"`
 	Enabled          *bool                  `json:"enabled,omitempty"`
 	MASAutoAssociate *bool                  `json:"mas_auto_associate,omitempty"`
-	Kind             *string                `json:"kind,omitempty"`
-	Subkind          *string                `json:"subkind,omitempty"`
 	Capabilities     []string               `json:"capabilities,omitempty"`
 	Metrics          []string               `json:"metrics,omitempty"`
 	Config           map[string]interface{} `json:"config,omitempty"`
@@ -178,9 +180,12 @@ type PatchRequest struct {
 	Auth             map[string]interface{} `json:"auth,omitempty"`
 
 	// Immutable fields - included to trigger validation error if provided
-	CFNID   *string `json:"cfn_id,omitempty"`
-	Version *string `json:"version,omitempty"`
-	Name    *string `json:"name,omitempty"`
+	CFNID         *string              `json:"cfn_id,omitempty"`
+	Version       *string              `json:"version,omitempty"`
+	Name          *string              `json:"name,omitempty"`
+	KindsSubkinds *map[string][]string `json:"kinds_subkinds,omitempty"`
+	Subprotocols  *[]string            `json:"subprotocols,omitempty"`
+	Category      *string              `json:"category,omitempty"`
 }
 
 // MASCEConfigResponse returns the per-MAS config override for a specific CE.

@@ -35,11 +35,11 @@ func TestL9Handler(t *testing.T) {
 		// Return a mock L9 response
 		response := l9.L9{
 			Header: l9.L9Header{
-				Protocol:    "sstp",
-				Version:     "1.0",
-				Subprotocol: "ioc",
-				Kind:        msg.Header.Kind,
-				Subkind:     msg.Header.Subkind,
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  "ioc",
+				Kind:         msg.Header.Kind,
+				Subkind:      msg.Header.Subkind,
 				Participants: msg.Header.Participants,
 			},
 			Payload: l9.L9Payload{
@@ -65,10 +65,10 @@ func TestL9Handler(t *testing.T) {
 
 		response := l9.L9{
 			Header: l9.L9Header{
-				Protocol:    "sstp",
-				Version:     "1.0",
-				Subprotocol: "ioc",
-				Kind:        msg.Header.Kind,
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  "ioc",
+				Kind:         msg.Header.Kind,
 				Participants: msg.Header.Participants,
 			},
 			Payload: l9.L9Payload{
@@ -106,19 +106,20 @@ func TestL9Handler(t *testing.T) {
 		},
 		CognitionEngines: []EngineCfg{
 			{
-				ID:      "ce-knowledge",
-				Name:    "Knowledge Management CE",
-				Kind:    "knowledge",
-				Subkind: "query",
-				Enabled: true,
-				URL:     mockKnowledgeCE.URL,
+				ID:            "ce-knowledge",
+				Name:          "Knowledge Management CE",
+				KindsSubkinds: map[string][]string{"knowledge": {"query", "distillation"}},
+				Subprotocols:  []string{"sab"},
+				Enabled:       true,
+				URL:           mockKnowledgeCE.URL,
 			},
 			{
-				ID:      "ce-intent",
-				Name:    "Intent Processing CE",
-				Kind:    "intent",
-				Enabled: true,
-				URL:     mockIntentCE.URL,
+				ID:            "ce-intent",
+				Name:          "Intent Processing CE",
+				KindsSubkinds: map[string][]string{"intent": {"mission", "coordinator-assignment"}},
+				Subprotocols:  []string{"cip"},
+				Enabled:       true,
+				URL:           mockIntentCE.URL,
 			},
 		},
 	}
@@ -139,7 +140,7 @@ func TestL9Handler(t *testing.T) {
 				Header: l9.L9Header{
 					Protocol:    "sstp",
 					Version:     "1.0",
-					Subprotocol: "ioc",
+					Subprotocol: "sab",
 					Kind:        l9.KindKnowledge,
 					Subkind:     "query",
 					Participants: l9.ParticipantSet{
@@ -171,8 +172,9 @@ func TestL9Handler(t *testing.T) {
 				Header: l9.L9Header{
 					Protocol:    "sstp",
 					Version:     "1.0",
-					Subprotocol: "ioc",
+					Subprotocol: "cip",
 					Kind:        l9.KindIntent,
+					Subkind:     "mission",
 					Participants: l9.ParticipantSet{
 						Actors: []l9.Actor{
 							{ID: "agent-main", Role: "sender"},
@@ -330,11 +332,11 @@ func TestL9Handler_NoMatchingCE(t *testing.T) {
 
 		response := l9.L9{
 			Header: l9.L9Header{
-				Protocol:    "sstp",
-				Version:     "1.0",
-				Subprotocol: msg.Header.Subprotocol,
-				Kind:        msg.Header.Kind,
-				Subkind:     msg.Header.Subkind,
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  msg.Header.Subprotocol,
+				Kind:         msg.Header.Kind,
+				Subkind:      msg.Header.Subkind,
 				Participants: msg.Header.Participants,
 			},
 			Payload: l9.L9Payload{
@@ -428,8 +430,8 @@ func TestL9Handler_MultipleCEs(t *testing.T) {
 			},
 		},
 		CognitionEngines: []EngineCfg{
-			{ID: "ce-knowledge-1", Kind: "knowledge", Enabled: true},
-			{ID: "ce-knowledge-2", Kind: "knowledge", Enabled: true},
+			{ID: "ce-knowledge-1", KindsSubkinds: map[string][]string{"knowledge": {"query"}}, Subprotocols: []string{"sab"}, Enabled: true},
+			{ID: "ce-knowledge-2", KindsSubkinds: map[string][]string{"knowledge": {"query"}}, Subprotocols: []string{"sab"}, Enabled: true},
 		},
 	}
 
@@ -437,8 +439,9 @@ func TestL9Handler_MultipleCEs(t *testing.T) {
 		Header: l9.L9Header{
 			Protocol:    "sstp",
 			Version:     "1.0",
-			Subprotocol: "ioc",
+			Subprotocol: "sab",
 			Kind:        l9.KindKnowledge,
+			Subkind:     "query",
 			Participants: l9.ParticipantSet{
 				Actors: []l9.Actor{
 					{ID: "agent-1", Role: "sender"},
@@ -473,4 +476,162 @@ func TestL9Handler_MultipleCEs(t *testing.T) {
 	}
 
 	t.Logf("✓ Multiple matching CEs correctly returns 500: %s", response["error"])
+}
+
+func TestL9Handler_SubprotocolFiltering(t *testing.T) {
+	app := &App{}
+
+	// Create mock CE that only handles "tfp" subprotocol
+	mockTFPCE := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var msg l9.L9
+		json.NewDecoder(r.Body).Decode(&msg)
+
+		response := l9.L9{
+			Header: l9.L9Header{
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  msg.Header.Subprotocol,
+				Kind:         msg.Header.Kind,
+				Participants: msg.Header.Participants,
+			},
+			Payload: l9.L9Payload{
+				Type: "response",
+				Data: l9.L9PayloadData{
+					"status":  "processed",
+					"ce_name": "TFP CE",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer mockTFPCE.Close()
+
+	// Setup config with CE that only handles "tfp" subprotocol for exchange kind
+	ParsedConfig = &CfnConfigPayload{
+		Workspaces: []WorkspaceConfig{
+			{
+				ID: "test-workspace",
+				MultiAgenticSystems: []MASCfg{
+					{
+						ID: "test-mas",
+						CognitionEngines: []MASEngineCfg{
+							{ID: "ce-tfp"},
+						},
+					},
+				},
+			},
+		},
+		CognitionEngines: []EngineCfg{
+			{
+				ID:            "ce-tfp",
+				Name:          "TFP Protocol CE",
+				KindsSubkinds: map[string][]string{"exchange": {"team-formation"}},
+				Subprotocols:  []string{"tfp"}, // Only handles "tfp" subprotocol
+				Enabled:       true,
+				URL:           mockTFPCE.URL,
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		subprotocol    string
+		expectedStatus int
+		expectFallback bool
+	}{
+		{
+			name:           "matching subprotocol routes to CE",
+			subprotocol:    "tfp",
+			expectedStatus: http.StatusOK,
+			expectFallback: false,
+		},
+		{
+			name:           "non-matching subprotocol uses fallback",
+			subprotocol:    "ioc",
+			expectedStatus: http.StatusOK,
+			expectFallback: true, // Falls back because no CE handles "ioc" for exchange
+		},
+	}
+
+	// Setup a fallback server
+	mockFallbackCE := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var msg l9.L9
+		json.NewDecoder(r.Body).Decode(&msg)
+
+		response := l9.L9{
+			Header: l9.L9Header{
+				Protocol:     "sstp",
+				Version:      "1.0",
+				Subprotocol:  msg.Header.Subprotocol,
+				Kind:         msg.Header.Kind,
+				Participants: msg.Header.Participants,
+			},
+			Payload: l9.L9Payload{
+				Type: "response",
+				Data: l9.L9PayloadData{
+					"status":  "fallback",
+					"ce_name": "Fallback CE",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer mockFallbackCE.Close()
+
+	originalDefaultCEURL := defaultCEURL
+	defaultCEURL = mockFallbackCE.URL
+	defer func() { defaultCEURL = originalDefaultCEURL }()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l9Msg := l9.L9{
+				Header: l9.L9Header{
+					Protocol:    "sstp",
+					Version:     "1.0",
+					Subprotocol: tt.subprotocol,
+					Kind:        l9.KindExchange,
+					Subkind:     "team-formation",
+					Participants: l9.ParticipantSet{
+						Actors: []l9.Actor{
+							{ID: "agent-1", Role: "sender"},
+						},
+						Groups: &l9.ParticipantSetGroups{
+							"workspace_id": "test-workspace",
+							"mas_id":       "test-mas",
+						},
+					},
+				},
+			}
+
+			body, _ := json.Marshal(l9Msg)
+			req := httptest.NewRequest(http.MethodPost, "/api/l9/messages", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			status, _ := app.l9Handler(w, req)
+
+			if status != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, status)
+			}
+
+			var response l9.L9
+			json.NewDecoder(w.Body).Decode(&response)
+
+			ceName := response.Payload.Data["ce_name"]
+			if tt.expectFallback {
+				if ceName != "Fallback CE" {
+					t.Errorf("expected fallback CE, got %s", ceName)
+				}
+				t.Logf("✓ Non-matching subprotocol '%s' correctly used fallback", tt.subprotocol)
+			} else {
+				if ceName != "TFP CE" {
+					t.Errorf("expected TFP CE, got %s", ceName)
+				}
+				t.Logf("✓ Matching subprotocol '%s' correctly routed to TFP CE", tt.subprotocol)
+			}
+		})
+	}
 }

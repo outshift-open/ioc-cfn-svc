@@ -93,16 +93,17 @@ type EngineCfg struct {
 	ID               string                 `json:"id"`
 	Name             string                 `json:"name"`
 	URL              string                 `json:"url"`
-	Kind             string                 `json:"kind"`    // New: CE kind (e.g., "knowledge", "contingency")
-	Subkind          string                 `json:"subkind"` // New: CE subkind (e.g., "distillation", "query", "negotiation")
+	KindsSubkinds    map[string][]string    `json:"kinds_subkinds"` // Map of kind -> list of subkinds, e.g. {"intent": ["mission"], "exchange": ["team-formation"]}
+	Subprotocols     []string               `json:"subprotocols"`   // List of subprotocols supported by this CE
+	Category         string                 `json:"category"`       // CE category: UNKNOWN, GAT (Gateway), COG (Cognitive)
 	Enabled          bool                   `json:"enabled"`
 	Status           string                 `json:"status,omitempty"`
-	LastSeen         string                 `json:"last_seen,omitempty"` // New: ISO 8601 timestamp
+	LastSeen         string                 `json:"last_seen,omitempty"` // ISO 8601 timestamp
 	Capabilities     []string               `json:"capabilities,omitempty"`
 	Metrics          []string               `json:"metrics,omitempty"`
 	Config           map[string]interface{} `json:"config,omitempty"`
 	MASConfig        map[string]interface{} `json:"mas_config,omitempty"`         // Default MAS config template
-	MASAutoAssociate bool                   `json:"mas_auto_associate,omitempty"` // New: auto-associate with new MAS
+	MASAutoAssociate bool                   `json:"mas_auto_associate,omitempty"` // Auto-associate with new MAS
 	Auth             *AuthConfig            `json:"auth,omitempty"`               // Decrypted auth from mgmt plane
 }
 
