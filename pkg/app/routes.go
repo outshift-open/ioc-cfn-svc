@@ -98,6 +98,11 @@ func (a *App) initializeRoutes() http.Handler {
 	// GET: Query token usage metrics for a MAS across all attached CEs (optional ce_id filter)
 	rtr.Get(internalPrefix+"/mgmt/workspaces/{workspaceId}/multi-agentic-systems/{masId}/metrics", a.getMASMetricsHandler)
 
+	// L9 message cache - workspace+MAS scoped conversation query API (private/internal)
+	// GET: List conversations, get conversation by msgID, or get previous N messages
+	// CE extracts workspace/MAS from L9 header and queries CFN with that context
+	rtr.Get(apiPrefix+"/cognition-engines/{ceId}/l9-cache/workspaces/{wsId}/multi-agentic-systems/{masId}", a.l9CacheHandler)
+
 	// metrics API - Cognition Engine integration
 	// POST: CE pushes infrastructure metrics (queue depth, memory, CPU, etc.)
 	// GET: Query CE infrastructure + MAS operations for a specific CE

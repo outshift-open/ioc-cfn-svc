@@ -50,7 +50,7 @@ var (
 	dbSslModeFlag     = flag.String("db_ssl_mode", "", "")
 	dbSslRootCertFlag = flag.String("db_ssl_root_cert", "", "")
 
-	callbackURLFlag = flag.String("callback_url", "http://localhost:9002", "")
+	externalServiceURLFlag = flag.String("external_service_url", "", "")
 
 	// OTLP receiver configs
 	otelBatchSizeFlag     = flag.Int("otel_batch_size", 100, "maximum number of spans per batch before flushing")
@@ -86,7 +86,7 @@ type Config struct {
 	TagVersion                  string
 	ServiceName                 string
 	OomGracefulExitThreshold    float64
-	CallbackURL                 string
+	ExternalServiceURL          string
 	TaskCallbackDeadlineMinutes int
 	DB                          Database
 	IDP                         IdentityProvider
@@ -124,7 +124,7 @@ func Get() *Config {
 		TagVersion:                  *tagVersionFlag,
 		ServiceName:                 *appNameFlag,
 		OomGracefulExitThreshold:    *oomGracefulExitThresholdFlag,
-		CallbackURL:                 *callbackURLFlag,
+		ExternalServiceURL:          *externalServiceURLFlag,
 		TaskCallbackDeadlineMinutes: *taskCallbackDeadlineMinutesFlag,
 		DB: Database{
 			Host:        *dbHostFlag,

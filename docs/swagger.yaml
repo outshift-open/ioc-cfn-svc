@@ -1628,6 +1628,64 @@ paths:
       summary: Proxy CE heartbeat to management plane
       tags:
       - cognition-engine
+  /api/cognition-engines/{ceId}/l9-cache/workspaces/{wsId}/multi-agentic-systems/{masId}:
+    get:
+      description: List conversations, get conversation by message ID, or get last
+        N messages ending at message ID
+      parameters:
+      - description: Cognition Engine ID
+        in: path
+        name: ceid
+        required: true
+        type: string
+      - description: Workspace ID
+        in: path
+        name: wsId
+        required: true
+        type: string
+      - description: Multi-Agentic System ID
+        in: path
+        name: masId
+        required: true
+        type: string
+      - description: Message ID to query conversation or context
+        in: query
+        name: msgID
+        type: string
+      - description: Number of messages to retrieve ending at msgID (includes target,
+          max 1000)
+        in: query
+        name: "n"
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conversation list, full conversation, or context messages
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid query parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Message or conversation not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query L9 message cache for a workspace+MAS
+      tags:
+      - l9-cache
   /api/cognition-engines/{ceId}/metrics:
     get:
       description: |-
