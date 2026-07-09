@@ -161,9 +161,6 @@ func TestL9CacheHandlers_ResponseConsistency(t *testing.T) {
 		if response["session_id"] != "msg-1" {
 			t.Errorf("expected session_id=msg-1 (root message), got %v", response["session_id"])
 		}
-		if response["message_id"] != "msg-4" {
-			t.Errorf("expected message_id=msg-4, got %v", response["message_id"])
-		}
 
 		// Should return only 2 messages (msg-3, msg-4)
 		messages := response["messages"].([]interface{})

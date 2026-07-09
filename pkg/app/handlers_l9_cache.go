@@ -222,7 +222,6 @@ func (a *App) getPreviousNHandler(w http.ResponseWriter, r *http.Request,
 		"workspace_id": workspaceID,
 		"mas_id":       masID,
 		"session_id":   sessionID,
-		"message_id":   msgID,
 		"participants": participants,
 		"messages":     msgs,
 	})
