@@ -199,15 +199,29 @@ func (a *App) getPreviousNHandler(w http.ResponseWriter, r *http.Request,
 		return respondError(w, http.StatusInternalServerError, "failed to retrieve context")
 	}
 
-	// Extract participants from the returned messages only
-	participants := extractParticipants(msgs)
+	// Get full conversation to extract session ID and all participants
+	fullConv, err := cache.GetConversationByMessageID(msgID)
+	if err != nil {
+		log.Errorf("Failed to get full conversation for session/participants: %v", err)
+		return respondError(w, http.StatusInternalServerError, "failed to retrieve conversation metadata")
+	}
 
-	log.Infof("Retrieved %d messages (up to %d ending at msgID=%s) in %s:%s, participants=%d",
-		len(msgs), n, msgID, workspaceID, masID, len(participants))
+	// Extract session ID from first message in full conversation
+	var sessionID string
+	if len(fullConv) > 0 && fullConv[0].Header.Message != nil {
+		sessionID = fullConv[0].Header.Message.ID
+	}
+
+	// Extract participants from entire conversation, not just the N messages
+	participants := extractParticipants(fullConv)
+
+	log.Infof("Retrieved %d messages (up to %d ending at msgID=%s) in %s:%s, session=%s, participants=%d",
+		len(msgs), n, msgID, workspaceID, masID, sessionID, len(participants))
 
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"workspace_id": workspaceID,
 		"mas_id":       masID,
+		"session_id":   sessionID,
 		"message_id":   msgID,
 		"participants": participants,
 		"messages":     msgs,
