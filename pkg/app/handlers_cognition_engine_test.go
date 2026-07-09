@@ -49,7 +49,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 		assert.Equal(t, "test-cfn-id", payload["cfn_id"])
 		assert.Equal(t, "Knowledge Management CE", payload["name"])
 		assert.Equal(t, map[string]interface{}{"knowledge": []interface{}{"query", "distillation"}}, payload["kinds_subkinds"])
-		assert.Equal(t, []interface{}{"http", "grpc"}, payload["subprotocols"])
+		assert.Equal(t, []interface{}{"sab", "cip"}, payload["subprotocols"])
 		assert.Equal(t, "http://ce-host:9004", payload["url"])
 		assert.Equal(t, "1.0.0", payload["version"])
 
@@ -60,7 +60,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 			Name:             "Knowledge Management CE",
 			Version:          "1.0.0",
 			KindsSubkinds:    map[string][]string{"knowledge": {"query", "distillation"}},
-			Subprotocols:     []string{"http", "grpc"},
+			Subprotocols:     []string{"sab", "cip"},
 			Category:         "COG",
 			Enabled:          true,
 			MASAutoAssociate: false,
@@ -89,7 +89,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	reqBody := cognitionengine.RegisterRequest{
 		Name:         "Knowledge Management CE",
 		KindsSubkinds:        map[string][]string{"knowledge": {"query", "distillation"}},
-		Subprotocols: []string{"http", "grpc"},
+		Subprotocols: []string{"sab", "cip"},
 		URL:          "http://ce-host:9004",
 		Version:      "1.0.0",
 		Capabilities: []string{"ingestion", "retrieval"},
@@ -118,7 +118,7 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	assert.Equal(t, "Knowledge Management CE", resp.Name)
 	assert.Equal(t, "1.0.0", resp.Version)
 	assert.Equal(t, map[string][]string{"knowledge": {"query", "distillation"}}, resp.KindsSubkinds)
-	assert.Equal(t, []string{"http", "grpc"}, resp.Subprotocols)
+	assert.Equal(t, []string{"sab", "cip"}, resp.Subprotocols)
 	assert.True(t, resp.Enabled)
 	assert.False(t, resp.MASAutoAssociate)
 	assert.Equal(t, "online", resp.Status)

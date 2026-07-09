@@ -40,7 +40,7 @@ func TestPatchCognitionEngineHandler(t *testing.T) {
 			Name:             "Test CE",
 			Version:          "1.0.0",
 			KindsSubkinds:    map[string][]string{"knowledge": {"query"}},
-			Subprotocols:     []string{"http"},
+			Subprotocols:     []string{"sab"},
 			Category:         "COG",
 			URL:              "http://ce-host:9004",
 			Enabled:          false, // Updated
