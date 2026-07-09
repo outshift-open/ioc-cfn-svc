@@ -43,11 +43,11 @@ type MessageCache struct {
 	messages map[string]*l9.L9 // message ID -> message
 
 	// Conversation indexing
-	conversations map[string][]string // root ID -> list of message IDs in insertion order
-	msgToRoot     map[string]string   // message ID -> root ID
+	conversations map[string][]string // session ID -> list of message IDs in insertion order
+	msgToRoot     map[string]string   // message ID -> session ID
 
 	// FIFO eviction
-	conversationOrder []string // root IDs in creation order (oldest first)
+	conversationOrder []string // session IDs in creation order (oldest first)
 }
 
 // New creates a new MessageCache instance with FIFO eviction.
@@ -90,7 +90,7 @@ func (c *MessageCache) Add(msg *l9.L9) error {
 	c.messages[msgID] = msg
 
 	// Find the conversation root
-	rootID, err := c.findRootLocked(msgID)
+	sessionID, err := c.findRootLocked(msgID)
 	if err != nil {
 		// Clean up on error
 		delete(c.messages, msgID)
@@ -98,15 +98,15 @@ func (c *MessageCache) Add(msg *l9.L9) error {
 	}
 
 	// Check if this is a new conversation
-	isNewConversation := len(c.conversations[rootID]) == 0
+	isNewConversation := len(c.conversations[sessionID]) == 0
 
 	// Index by conversation
-	c.conversations[rootID] = append(c.conversations[rootID], msgID)
-	c.msgToRoot[msgID] = rootID
+	c.conversations[sessionID] = append(c.conversations[sessionID], msgID)
+	c.msgToRoot[msgID] = sessionID
 
 	// Track conversation order for FIFO eviction
 	if isNewConversation {
-		c.conversationOrder = append(c.conversationOrder, rootID)
+		c.conversationOrder = append(c.conversationOrder, sessionID)
 
 		// Evict oldest conversation if limit exceeded
 		if len(c.conversations) > MaxConversations {
@@ -138,12 +138,12 @@ func (c *MessageCache) GetConversationByMessageID(msgID string) ([]*l9.L9, error
 	defer c.mu.RUnlock()
 
 	// Find which conversation this message belongs to
-	rootID, ok := c.msgToRoot[msgID]
+	sessionID, ok := c.msgToRoot[msgID]
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
 
-	msgIDs, ok := c.conversations[rootID]
+	msgIDs, ok := c.conversations[sessionID]
 	if !ok {
 		// This shouldn't happen if msgToRoot is consistent, but handle gracefully
 		return nil, ErrMessageNotFound
@@ -167,12 +167,12 @@ func (c *MessageCache) GetLastNBeforeMessage(msgID string, n int) ([]*l9.L9, err
 	defer c.mu.RUnlock()
 
 	// Find which conversation this message belongs to
-	rootID, ok := c.msgToRoot[msgID]
+	sessionID, ok := c.msgToRoot[msgID]
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
 
-	msgIDs, ok := c.conversations[rootID]
+	msgIDs, ok := c.conversations[sessionID]
 	if !ok {
 		// This shouldn't happen if msgToRoot is consistent, but handle gracefully
 		return nil, ErrMessageNotFound
@@ -215,14 +215,13 @@ func (c *MessageCache) ListConversations() []ConversationInfo {
 	defer c.mu.RUnlock()
 
 	infos := make([]ConversationInfo, 0, len(c.conversations))
-	for rootID, msgIDs := range c.conversations {
+	for sessionID, msgIDs := range c.conversations {
 		if len(msgIDs) == 0 {
 			continue
 		}
 
 		infos = append(infos, ConversationInfo{
-			RootID:       rootID,
-			MessageCount: len(msgIDs),
+			SessionID: sessionID,
 		})
 	}
 
@@ -237,18 +236,18 @@ func (c *MessageCache) EvictConversation(msgID string) error {
 	defer c.mu.Unlock()
 
 	// Find which conversation this message belongs to
-	rootID, ok := c.msgToRoot[msgID]
+	sessionID, ok := c.msgToRoot[msgID]
 	if !ok {
 		return ErrMessageNotFound
 	}
 
-	return c.evictConversationLocked(rootID)
+	return c.evictConversationLocked(sessionID)
 }
 
 // evictConversationLocked removes all messages in a conversation by root ID.
 // Must be called with lock held.
-func (c *MessageCache) evictConversationLocked(rootID string) error {
-	msgIDs, ok := c.conversations[rootID]
+func (c *MessageCache) evictConversationLocked(sessionID string) error {
+	msgIDs, ok := c.conversations[sessionID]
 	if !ok {
 		return ErrConversationNotFound
 	}
@@ -259,11 +258,11 @@ func (c *MessageCache) evictConversationLocked(rootID string) error {
 	}
 
 	// Remove conversation
-	delete(c.conversations, rootID)
+	delete(c.conversations, sessionID)
 
 	// Remove from conversation order
 	for i, id := range c.conversationOrder {
-		if id == rootID {
+		if id == sessionID {
 			// Remove by slicing around it
 			copy(c.conversationOrder[i:], c.conversationOrder[i+1:])
 			c.conversationOrder = c.conversationOrder[:len(c.conversationOrder)-1]
@@ -327,12 +326,12 @@ func (c *MessageCache) evictMessageLocked(msgID string) {
 	delete(c.messages, msgID)
 
 	// Remove from conversation index
-	rootID, ok := c.msgToRoot[msgID]
+	sessionID, ok := c.msgToRoot[msgID]
 	if !ok {
 		return
 	}
 
-	msgList, ok := c.conversations[rootID]
+	msgList, ok := c.conversations[sessionID]
 	if !ok {
 		delete(c.msgToRoot, msgID)
 		return
@@ -346,9 +345,9 @@ func (c *MessageCache) evictMessageLocked(msgID string) {
 			msgList = msgList[:len(msgList)-1]
 
 			if len(msgList) > 0 {
-				c.conversations[rootID] = msgList
+				c.conversations[sessionID] = msgList
 			} else {
-				delete(c.conversations, rootID)
+				delete(c.conversations, sessionID)
 			}
 			break
 		}

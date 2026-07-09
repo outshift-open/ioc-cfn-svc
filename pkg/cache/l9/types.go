@@ -4,8 +4,9 @@
 
 package l9cache
 
-// ConversationInfo contains metadata about a conversation.
+// ConversationInfo contains metadata about a conversation (session).
 type ConversationInfo struct {
-	RootID       string `json:"root_id"`
-	MessageCount int    `json:"message_count"`
+	// SessionID is the conversation ID (root message ID - the first message with no parents).
+	// This uniquely identifies the entire conversation/session.
+	SessionID string `json:"session_id"`
 }

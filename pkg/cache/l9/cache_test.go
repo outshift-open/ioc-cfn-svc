@@ -129,10 +129,7 @@ func TestAdd_DuplicateMessage(t *testing.T) {
 		t.Errorf("Expected 1 conversation, got %d", len(convs))
 	}
 
-	// Should only have one message in conversation
-	if convs[0].MessageCount != 1 {
-		t.Errorf("Expected 1 message in conversation, got %d", convs[0].MessageCount)
-	}
+	// Conversation list contains the session ID
 
 	// Retrieved message should be the updated version
 	retrieved, err := cache.Get("msg1")
@@ -428,10 +425,7 @@ func TestWholeConversation_LongRunningDialogue(t *testing.T) {
 		t.Errorf("Expected 1 conversation, got %d", len(convs))
 	}
 
-	if convs[0].MessageCount != numMessages {
-		t.Errorf("Expected conversation with %d messages, got %d",
-			numMessages, convs[0].MessageCount)
-	}
+	// Verify conversation exists (message count not exposed in ConversationInfo)
 }
 
 // TestWholeConversation_FilterByEpisode demonstrates client-side episode filtering
@@ -616,17 +610,13 @@ func TestListConversations(t *testing.T) {
 		t.Errorf("Expected 2 conversations, got %d", len(convs))
 	}
 
-	// Check metadata
+	// Verify both sessions are listed
+	sessionIDs := make(map[string]bool)
 	for _, conv := range convs {
-		if conv.RootID == "root1" {
-			if conv.MessageCount != 2 {
-				t.Errorf("Expected root1 to have 2 messages, got %d", conv.MessageCount)
-			}
-		} else if conv.RootID == "root2" {
-			if conv.MessageCount != 1 {
-				t.Errorf("Expected root2 to have 1 message, got %d", conv.MessageCount)
-			}
-		}
+		sessionIDs[conv.SessionID] = true
+	}
+	if !sessionIDs["root1"] || !sessionIDs["root2"] {
+		t.Errorf("Expected both root1 and root2 in conversation list")
 	}
 }
 
@@ -641,8 +631,8 @@ func TestEvictConversation(t *testing.T) {
 	cache.Add(msg2)
 
 	convs := cache.ListConversations()
-	if len(convs) != 1 || convs[0].MessageCount != 2 {
-		t.Errorf("Expected 1 conversation with 2 messages")
+	if len(convs) != 1 {
+		t.Errorf("Expected 1 conversation, got %d", len(convs))
 	}
 
 	// Evict using any message in the conversation

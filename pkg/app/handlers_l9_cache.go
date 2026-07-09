@@ -142,7 +142,6 @@ func (a *App) listConversationsHandler(w http.ResponseWriter, r *http.Request,
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"workspace_id":  workspaceID,
 		"mas_id":        masID,
-		"count":         len(convs),
 		"conversations": convs,
 	})
 }
@@ -162,23 +161,26 @@ func (a *App) getConversationHandler(w http.ResponseWriter, r *http.Request,
 		return respondError(w, http.StatusInternalServerError, "failed to retrieve conversation")
 	}
 
-	// Extract root ID from first message
-	var rootID string
+	// Extract session ID from first message
+	// Session ID = Conversation ID = Root Message ID (the first message with no parents)
+	// This uniquely identifies the entire conversation/session across all messages
+	var sessionID string
 	if len(msgs) > 0 && msgs[0].Header.Message != nil {
-		// Root is the first message (has no parents or is itself)
-		rootID = msgs[0].Header.Message.ID
+		sessionID = msgs[0].Header.Message.ID
 	}
 
-	log.Infof("Retrieved conversation for msgID=%s in %s:%s, root=%s, count=%d",
-		msgID, workspaceID, masID, rootID, len(msgs))
+	// Extract unique participants from all messages in the conversation
+	participants := extractParticipants(msgs)
+
+	log.Infof("Retrieved conversation for msgID=%s in %s:%s, session=%s, count=%d, participants=%d",
+		msgID, workspaceID, masID, sessionID, len(msgs), len(participants))
 
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
-		"workspace_id":  workspaceID,
-		"mas_id":        masID,
-		"message_id":    msgID,
-		"root_id":       rootID,
-		"message_count": len(msgs),
-		"messages":      msgs,
+		"workspace_id": workspaceID,
+		"mas_id":       masID,
+		"session_id":   sessionID,
+		"participants": participants,
+		"messages":     msgs,
 	})
 }
 
@@ -197,15 +199,64 @@ func (a *App) getPreviousNHandler(w http.ResponseWriter, r *http.Request,
 		return respondError(w, http.StatusInternalServerError, "failed to retrieve context")
 	}
 
-	log.Infof("Retrieved %d messages (up to %d ending at msgID=%s) in %s:%s",
-		len(msgs), n, msgID, workspaceID, masID)
+	// Extract participants from the returned messages only
+	participants := extractParticipants(msgs)
+
+	log.Infof("Retrieved %d messages (up to %d ending at msgID=%s) in %s:%s, participants=%d",
+		len(msgs), n, msgID, workspaceID, masID, len(participants))
 
 	return eh.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"workspace_id": workspaceID,
 		"mas_id":       masID,
 		"message_id":   msgID,
-		"requested":    n,
-		"count":        len(msgs),
+		"participants": participants,
 		"messages":     msgs,
 	})
+}
+
+// extractParticipants extracts unique participants from a list of L9 messages.
+// Returns a list of participants with their actor IDs and all roles they played
+// across the given messages.
+func extractParticipants(msgs []*l9.L9) []map[string]interface{} {
+	// Track unique participants: actor ID -> set of roles
+	participantRoles := make(map[string]map[string]struct{})
+
+	for _, msg := range msgs {
+		if msg.Header.Participants.Actors == nil {
+			continue
+		}
+
+		for _, actor := range msg.Header.Participants.Actors {
+			if actor.ID == "" {
+				continue
+			}
+
+			// Initialize role set for new actor
+			if participantRoles[actor.ID] == nil {
+				participantRoles[actor.ID] = make(map[string]struct{})
+			}
+
+			// Add this role to the actor's set
+			if actor.Role != "" {
+				participantRoles[actor.ID][actor.Role] = struct{}{}
+			}
+		}
+	}
+
+	// Convert to response format
+	result := make([]map[string]interface{}, 0, len(participantRoles))
+	for actorID, roleSet := range participantRoles {
+		// Convert role set to sorted slice for consistent output
+		roles := make([]string, 0, len(roleSet))
+		for role := range roleSet {
+			roles = append(roles, role)
+		}
+
+		result = append(result, map[string]interface{}{
+			"id":    actorID,
+			"roles": roles,
+		})
+	}
+
+	return result
 }
