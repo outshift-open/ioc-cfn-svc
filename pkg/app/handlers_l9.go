@@ -65,9 +65,9 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 		return respondError(w, http.StatusBadRequest, err.Error())
 	}
 
-	log.Infof("l9Handler: workspace=%s, mas=%s, kind=%s, subkind=%v",
+	log.Infof("l9Handler: workspace=%s, mas=%s, kind=%s, subkind=%v, subprotocol=%s",
 		routingInfo.workspaceID, routingInfo.masID,
-		msg.Header.Kind, msg.Header.Subkind)
+		msg.Header.Kind, msg.Header.Subkind, msg.Header.Subprotocol)
 
 	ceURL, targetCE, err := a.resolveTargetCEURL(routingInfo, msg)
 	if err != nil {
@@ -154,8 +154,8 @@ func (a *App) resolveTargetCEURL(info *routingInfo, msg *l9.L9) (string, *Engine
 	if l9err != nil {
 		// TODO: Use fallback URL for CE-not-found errors for testing now, remove this in production
 		if l9err.statusCode == http.StatusNotFound {
-			log.Errorf("CRITICAL: No CE found for workspace=%s, mas=%s, kind=%s, subkind=%v - using fallback URL %s",
-				info.workspaceID, info.masID, msg.Header.Kind, msg.Header.Subkind, defaultCEURL)
+			log.Errorf("CRITICAL: No CE found for workspace=%s, mas=%s, kind=%s, subkind=%v, subprotocol=%s - using fallback URL %s",
+				info.workspaceID, info.masID, msg.Header.Kind, msg.Header.Subkind, msg.Header.Subprotocol, defaultCEURL)
 			return defaultCEURL, nil, nil
 		}
 		// Fatal errors (config unavailable, disabled CE, etc.)
@@ -189,10 +189,10 @@ func (a *App) findTargetCE(info *routingInfo, msg *l9.L9) (*EngineCfg, *l9Error)
 		}
 	}
 
-	matchingCEs := findMatchingCEs(mas, msg.Header.Kind, msg.Header.Subkind)
+	matchingCEs := findMatchingCEs(mas, msg.Header.Kind, msg.Header.Subkind, msg.Header.Subprotocol)
 	if len(matchingCEs) == 0 {
 		return nil, &l9Error{
-			message:    fmt.Sprintf("no CE found to handle %s/%v messages", msg.Header.Kind, msg.Header.Subkind),
+			message:    fmt.Sprintf("no CE found to handle %s/%v/%s messages", msg.Header.Kind, msg.Header.Subkind, msg.Header.Subprotocol),
 			statusCode: http.StatusNotFound,
 		}
 	}
@@ -219,11 +219,18 @@ func (a *App) findTargetCE(info *routingInfo, msg *l9.L9) (*EngineCfg, *l9Error)
 	return targetCE, nil
 }
 
-// findMatchingCEs returns CEs that can handle the given kind/subkind
-func findMatchingCEs(mas *MASCfg, kind l9.Kind, subkind interface{}) []*EngineCfg {
+// findMatchingCEs returns CEs that can handle the given kind/subkind/subprotocol.
+// A CE matches if:
+// 1. Its KindsSubkinds map contains the requested kind, AND
+// 2. The subkinds list for that kind contains the requested subkind
+//    (empty subkinds list means CE doesn't handle any subkind for this kind), AND
+// 3. Either the CE has no Subprotocols defined (subprotocol check is skipped),
+//    OR the CE's Subprotocols list contains the requested subprotocol
+func findMatchingCEs(mas *MASCfg, kind l9.Kind, subkind interface{}, subprotocol string) []*EngineCfg {
 	log := getLogger()
 	var matches []*EngineCfg
 
+	kindStr := string(kind)
 	subkindStr := getSubkindString(subkind)
 
 	for _, masEngine := range mas.CognitionEngines {
@@ -237,17 +244,45 @@ func findMatchingCEs(mas *MASCfg, kind l9.Kind, subkind interface{}) []*EngineCf
 			continue
 		}
 
-		if ce.Kind != string(kind) {
+		// Check if CE handles this kind
+		subkinds, hasKind := ce.KindsSubkinds[kindStr]
+		if !hasKind {
 			continue
 		}
 
-		// CE with no subkind handles all subkinds for that kind
-		if ce.Subkind != "" && subkindStr != "" && ce.Subkind != subkindStr {
-			continue
+		// Check if CE handles this subkind
+		// Empty subkinds list means CE doesn't handle any subkind for this kind
+		if subkindStr != "" {
+			found := false
+			for _, sk := range subkinds {
+				if sk == subkindStr {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
-		log.Debugf("Found matching CE %s (%s) for kind=%s, subkind=%s",
-			ce.ID, ce.Name, ce.Kind, ce.Subkind)
+		// Check if CE handles this subprotocol
+		// If CE has no Subprotocols defined, skip the subprotocol check (matches any subprotocol)
+		// This allows GAT CEs (like CASA) to register without specifying subprotocols
+		if len(ce.Subprotocols) > 0 {
+			found := false
+			for _, sp := range ce.Subprotocols {
+				if sp == subprotocol {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		log.Debugf("Found matching CE %s (%s) for kind=%s, subkind=%s, subprotocol=%s",
+			ce.ID, ce.Name, kindStr, subkindStr, subprotocol)
 		matches = append(matches, ce)
 	}
 

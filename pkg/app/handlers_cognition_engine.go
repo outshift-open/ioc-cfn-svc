@@ -64,9 +64,9 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 			"error": "name is required",
 		})
 	}
-	if req.Kind == "" {
+	if req.KindsSubkinds == nil || len(req.KindsSubkinds) == 0 {
 		return eh.RespondWithJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "kind is required",
+			"error": "kinds_subkinds is required (must have at least one kind)",
 		})
 	}
 	if req.URL == "" {
@@ -100,7 +100,7 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 	registerURL := mgmtURL + "/api/cognition-engines"
 
 	// Add cfn_id to the payload
-	// Ensure nil slices become empty arrays in JSON
+	// Ensure nil slices/maps become empty arrays/objects in JSON
 	capabilities := req.Capabilities
 	if capabilities == nil {
 		capabilities = []string{}
@@ -109,11 +109,26 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 	if metrics == nil {
 		metrics = []string{}
 	}
+	kindsSubkinds := req.KindsSubkinds
+	if kindsSubkinds == nil {
+		kindsSubkinds = map[string][]string{}
+	}
+	subprotocols := req.Subprotocols
+	if subprotocols == nil {
+		subprotocols = []string{}
+	}
+
+	// Category defaults to COG if not provided
+	category := req.Category
+	if category == "" {
+		category = "COG"
+	}
 
 	payload := map[string]any{
 		"name":               req.Name,
-		"kind":               req.Kind,
-		"subkind":            req.Subkind,
+		"kinds_subkinds":     kindsSubkinds,
+		"subprotocols":       subprotocols,
+		"category":           category,
 		"url":                req.URL,
 		"version":            req.Version,
 		"cfn_id":             CfnID,
@@ -145,8 +160,8 @@ func (a *App) registerCognitionEngineHandler(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
-	log.Infof("forwarding CE registration to management plane: %s (ce_name=%s, ce_kind=%s, ce_subkind=%s, cfn_id=%s)",
-		registerURL, req.Name, req.Kind, req.Subkind, CfnID)
+	log.Infof("forwarding CE registration to management plane: %s (ce_name=%s, cfn_id=%s)",
+		registerURL, req.Name, CfnID)
 
 	// Forward the request to the management plane
 	client := httpclient.New(30 * time.Second)

@@ -2521,6 +2521,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "category": {
+                    "type": "string"
+                },
                 "cfn_id": {
                     "type": "string"
                 },
@@ -2537,8 +2540,14 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "kind": {
-                    "type": "string"
+                "kinds_subkinds": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "last_seen": {
                     "type": "string"
@@ -2562,8 +2571,11 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
-                "subkind": {
-                    "type": "string"
+                "subprotocols": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "updated_at": {
                     "type": "string"
@@ -2593,6 +2605,9 @@ const docTemplate = `{
         "cognitionengine.CognitionEngineListItem": {
             "type": "object",
             "properties": {
+                "category": {
+                    "type": "string"
+                },
                 "cfn_id": {
                     "type": "string"
                 },
@@ -2606,8 +2621,14 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "kind": {
-                    "type": "string"
+                "kinds_subkinds": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "last_seen": {
                     "type": "string"
@@ -2625,8 +2646,11 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
-                "subkind": {
-                    "type": "string"
+                "subprotocols": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "url": {
                     "type": "string"
@@ -2678,6 +2702,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "category": {
+                    "type": "string"
+                },
                 "cfn_id": {
                     "description": "Immutable fields - included to trigger validation error if provided",
                     "type": "string"
@@ -2689,8 +2716,14 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
-                "kind": {
-                    "type": "string"
+                "kinds_subkinds": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "mas_auto_associate": {
                     "type": "boolean"
@@ -2708,8 +2741,11 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "subkind": {
-                    "type": "string"
+                "subprotocols": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "url": {
                     "description": "Mutable fields",
@@ -2733,13 +2769,23 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "category": {
+                    "description": "CE category: UNKNOWN, GAT (Gateway), COG (Cognitive, default)",
+                    "type": "string"
+                },
                 "config": {
                     "type": "object",
                     "additionalProperties": true
                 },
-                "kind": {
-                    "description": "CE kind (e.g., \"knowledge\", \"contingency\")",
-                    "type": "string"
+                "kinds_subkinds": {
+                    "description": "Map of kind -\u003e list of subkinds, e.g. {\"knowledge\": [\"query\", \"distillation\"]}",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "mas_auto_associate": {
                     "description": "No omitempty - always send (defaults to false)",
@@ -2758,9 +2804,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "subkind": {
-                    "description": "CE subkind (e.g., \"distillation\", \"query\", \"negotiation\")",
-                    "type": "string"
+                "subprotocols": {
+                    "description": "List of subprotocols supported by this CE",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "url": {
                     "type": "string"
@@ -2773,6 +2822,9 @@ const docTemplate = `{
         "cognitionengine.RegisterResponse": {
             "type": "object",
             "properties": {
+                "category": {
+                    "type": "string"
+                },
                 "ce_id": {
                     "type": "string"
                 },
@@ -2785,8 +2837,14 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
-                "kind": {
-                    "type": "string"
+                "kinds_subkinds": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "mas_auto_associate": {
                     "type": "boolean"
@@ -2797,8 +2855,11 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
-                "subkind": {
-                    "type": "string"
+                "subprotocols": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "version": {
                     "type": "string"

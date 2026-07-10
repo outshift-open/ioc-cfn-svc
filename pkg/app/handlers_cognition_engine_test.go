@@ -48,8 +48,8 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 		// Verify CFN context was added
 		assert.Equal(t, "test-cfn-id", payload["cfn_id"])
 		assert.Equal(t, "Knowledge Management CE", payload["name"])
-		assert.Equal(t, "knowledge", payload["kind"])
-		assert.Equal(t, "query", payload["subkind"])
+		assert.Equal(t, map[string]interface{}{"knowledge": []interface{}{"query", "distillation"}}, payload["kinds_subkinds"])
+		assert.Equal(t, []interface{}{"sab", "cip"}, payload["subprotocols"])
 		assert.Equal(t, "http://ce-host:9004", payload["url"])
 		assert.Equal(t, "1.0.0", payload["version"])
 
@@ -59,8 +59,9 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 			CFNID:            "test-cfn-id",
 			Name:             "Knowledge Management CE",
 			Version:          "1.0.0",
-			Kind:             "knowledge",
-			Subkind:          "query",
+			KindsSubkinds:    map[string][]string{"knowledge": {"query", "distillation"}},
+			Subprotocols:     []string{"sab", "cip"},
+			Category:         "COG",
 			Enabled:          true,
 			MASAutoAssociate: false,
 			Status:           "online",
@@ -87,8 +88,8 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	// Create test request
 	reqBody := cognitionengine.RegisterRequest{
 		Name:         "Knowledge Management CE",
-		Kind:         "knowledge",
-		Subkind:      "query",
+		KindsSubkinds:        map[string][]string{"knowledge": {"query", "distillation"}},
+		Subprotocols: []string{"sab", "cip"},
 		URL:          "http://ce-host:9004",
 		Version:      "1.0.0",
 		Capabilities: []string{"ingestion", "retrieval"},
@@ -116,8 +117,8 @@ func TestRegisterCognitionEngineHandler(t *testing.T) {
 	assert.Equal(t, "test-cfn-id", resp.CFNID)
 	assert.Equal(t, "Knowledge Management CE", resp.Name)
 	assert.Equal(t, "1.0.0", resp.Version)
-	assert.Equal(t, "knowledge", resp.Kind)
-	assert.Equal(t, "query", resp.Subkind)
+	assert.Equal(t, map[string][]string{"knowledge": {"query", "distillation"}}, resp.KindsSubkinds)
+	assert.Equal(t, []string{"sab", "cip"}, resp.Subprotocols)
 	assert.True(t, resp.Enabled)
 	assert.False(t, resp.MASAutoAssociate)
 	assert.Equal(t, "online", resp.Status)
@@ -134,8 +135,7 @@ func TestRegisterCognitionEngineHandler_MissingCFNID(t *testing.T) {
 
 	reqBody := cognitionengine.RegisterRequest{
 		Name:    "Knowledge Management CE",
-		Kind:    "knowledge",
-		Subkind: "query",
+		KindsSubkinds:   map[string][]string{"knowledge": {"query"}},
 		URL:     "http://ce-host:9004",
 		Version: "1.0.0",
 	}
@@ -172,27 +172,32 @@ func TestRegisterCognitionEngineHandler_InvalidRequest(t *testing.T) {
 	}{
 		{
 			name:        "missing name",
-			reqBody:     cognitionengine.RegisterRequest{Kind: "knowledge", Subkind: "query", URL: "http://ce-host:9004", Version: "1.0.0"},
+			reqBody:     cognitionengine.RegisterRequest{KindsSubkinds: map[string][]string{"knowledge": {"query"}}, URL: "http://ce-host:9004", Version: "1.0.0"},
 			expectedErr: "name is required",
 		},
 		{
-			name:        "missing kind",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Subkind: "query", URL: "http://ce-host:9004", Version: "1.0.0"},
-			expectedErr: "kind is required",
+			name:        "missing kinds_subkinds",
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", URL: "http://ce-host:9004", Version: "1.0.0"},
+			expectedErr: "kinds_subkinds is required",
+		},
+		{
+			name:        "empty kinds_subkinds",
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", KindsSubkinds: map[string][]string{}, URL: "http://ce-host:9004", Version: "1.0.0"},
+			expectedErr: "kinds_subkinds is required",
 		},
 		{
 			name:        "missing url",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Kind: "knowledge", Subkind: "query", Version: "1.0.0"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", KindsSubkinds: map[string][]string{"knowledge": {"query"}}, Version: "1.0.0"},
 			expectedErr: "url is required",
 		},
 		{
 			name:        "missing version",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Kind: "knowledge", Subkind: "query", URL: "http://ce-host:9004"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", KindsSubkinds: map[string][]string{"knowledge": {"query"}}, URL: "http://ce-host:9004"},
 			expectedErr: "version is required",
 		},
 		{
 			name:        "invalid url format",
-			reqBody:     cognitionengine.RegisterRequest{Name: "CE", Kind: "knowledge", Subkind: "query", URL: "not-a-valid-url:::", Version: "1.0.0"},
+			reqBody:     cognitionengine.RegisterRequest{Name: "CE", KindsSubkinds: map[string][]string{"knowledge": {"query"}}, URL: "not-a-valid-url:::", Version: "1.0.0"},
 			expectedErr: "invalid url format",
 		},
 	}
@@ -241,8 +246,7 @@ func TestRegisterCognitionEngineHandler_ManagementPlaneError(t *testing.T) {
 
 	reqBody := cognitionengine.RegisterRequest{
 		Name:    "Knowledge Management CE",
-		Kind:    "knowledge",
-		Subkind: "query",
+		KindsSubkinds:   map[string][]string{"knowledge": {"query"}},
 		URL:     "http://ce-host:9004",
 		Version: "1.0.0",
 	}
@@ -460,8 +464,9 @@ func TestListCognitionEnginesHandler(t *testing.T) {
 					CFNID:            "test-cfn-id",
 					Name:             "Test CE",
 					Version:          "1.0.0",
-					Kind:             "knowledge",
-					Subkind:          "query",
+					KindsSubkinds:    map[string][]string{"knowledge": {"query"}},
+					Subprotocols:     []string{"http"},
+					Category:         "COG",
 					URL:              "http://ce-host:9004",
 					Enabled:          true,
 					MASAutoAssociate: false,
@@ -516,8 +521,9 @@ func TestGetCognitionEngineHandler(t *testing.T) {
 			CFNID:            "test-cfn-id",
 			Name:             "Test CE",
 			Version:          "1.0.0",
-			Kind:             "knowledge",
-			Subkind:          "query",
+			KindsSubkinds:    map[string][]string{"knowledge": {"query"}},
+			Subprotocols:     []string{"http"},
+			Category:         "COG",
 			URL:              "http://ce-host:9004",
 			Enabled:          true,
 			MASAutoAssociate: false,
