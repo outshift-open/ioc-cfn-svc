@@ -1,19 +1,17 @@
 openapi: 3.0.3
 info:
   title: CFN Service Public API
-  version: "1.2.0"
+  version: "0.2.1"
   description: |-
     Public API contract for IoC Cognition Fabric Node service.
 
     This specification is used for external SDK generation (Python, TypeScript, Go clients).
 
-    **Note:** This is a snapshot of the public API at version 1.2.0.
+    **Note:** This is a snapshot of the public API at version 0.2.1.
     The implementation may include additional internal endpoints not documented here.
 
-    **Changes in v1.2.0:**
+    **Changes in v0.2.1:**
     - Added `POST /api/l9/messages` endpoint for L9 protocol message routing
-
-    **Changes in v1.1.0:**
     - `POST /shared-memories` now returns 202 Accepted (async processing)
   contact: {}
 
