@@ -93,6 +93,7 @@ type KnowledgeGraphStoreRequest struct {
 	WkspID            *string  `json:"wksp_id,omitempty" description:"ID for the Multi-Agent System Workspace"`
 	ForceReplace      bool     `json:"force_replace" description:"Force replace existing nodes and edges"`
 	IncrementalUpdate bool     `json:"incremental_update" description:"Indicates an incremental update where relations may reference nodes already present in the graph"`
+	Upsert            bool     `json:"upsert" description:"Non-destructive upsert: existing nodes/edges are updated in place and new ones created; nothing is deleted, so edges to nodes outside this request are preserved (prevents orphaned nodes on re-ingestion). Takes precedence over force_replace."`
 }
 
 // NewKnowledgeGraphStoreRequest creates a new store request with auto-generated UUID
