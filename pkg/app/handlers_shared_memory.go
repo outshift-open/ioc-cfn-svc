@@ -136,6 +136,12 @@ func transformRelationEmbedding(attrs map[string]interface{}) *iocmemoryprovider
 		}
 		vec = append(vec, f)
 	}
+	// Never emit an EmbeddingConfig with an empty vector: a zero-length embedding
+	// carries no signal and would be stored as a useless embedding_vector on the edge.
+	// Treat it the same as "no embedding present".
+	if len(vec) == 0 {
+		return nil
+	}
 
 	return &iocmemoryprovider.EmbeddingConfig{
 		Name: "ibm-granite/granite-embedding-30m-english", // TODO: hardcoded; have extraction service return the model name
