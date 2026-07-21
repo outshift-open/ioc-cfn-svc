@@ -72,6 +72,11 @@ func (db *Database) MigrateUp() error {
 		return err
 	}
 
+	// Migrate L9 audit table
+	if err := audit.MigrateL9Up(db.DB); err != nil {
+		return err
+	}
+
 	// Migrate MAS metrics table
 	if err := metric.MigrateUp(db.DB); err != nil {
 		return err
@@ -174,6 +179,21 @@ func (db *Database) ListAuditEvents(resourceType, auditType string, page, pageSi
 // DeleteAuditEventByID deletes a single audit event by UUID.
 func (db *Database) DeleteAuditEventByID(id uuid.UUID) error {
 	return audit.DeleteAuditEventByID(db.DB, id)
+}
+
+// CreateL9AuditEvent inserts a new L9 audit event.
+func (db *Database) CreateL9AuditEvent(e *audit.L9AuditEvent) error {
+	return audit.CreateL9AuditEvent(db.DB, e)
+}
+
+// GetL9AuditEventByID retrieves a single L9 audit event by UUID.
+func (db *Database) GetL9AuditEventByID(id uuid.UUID) (*audit.L9AuditEvent, error) {
+	return audit.GetL9AuditEventByID(db.DB, id)
+}
+
+// ListL9AuditEvents returns L9 audit events with optional kind and episode filters.
+func (db *Database) ListL9AuditEvents(kind, episodeID string, page, pageSize int) (*audit.L9AuditListResponse, error) {
+	return audit.ListL9AuditEvents(db.DB, kind, episodeID, page, pageSize)
 }
 
 // FindDueTasks returns tasks in 'scheduled' or 'failed' status whose next_run_time has passed.

@@ -45,6 +45,11 @@ type Database interface {
 	ListAuditEvents(resourceType, auditType string, page, pageSize int) (*audit.AuditListResponse, error)
 	DeleteAuditEventByID(uuid.UUID) error
 
+	// L9 audit (stored in dedicated table, exposed via existing audit API)
+	CreateL9AuditEvent(*audit.L9AuditEvent) error
+	GetL9AuditEventByID(uuid.UUID) (*audit.L9AuditEvent, error)
+	ListL9AuditEvents(kind, episodeID string, page, pageSize int) (*audit.L9AuditListResponse, error)
+
 	BulkInsertOtelSpans([]otelreceiver.OtelSpan) error
 
 	// Task scheduling
@@ -284,4 +289,16 @@ func (m *MockDatabase) UpdateOtelTraceStatus(_, _, _, _ string) error {
 
 func (m *MockDatabase) GetOtelSpansForTrace(_, _, _ string) ([]otelreceiver.OtelSpan, error) {
 	return nil, nil
+}
+
+func (m *MockDatabase) CreateL9AuditEvent(_ *audit.L9AuditEvent) error {
+	return nil
+}
+
+func (m *MockDatabase) GetL9AuditEventByID(_ uuid.UUID) (*audit.L9AuditEvent, error) {
+	return nil, errors.New("not implemented in mock")
+}
+
+func (m *MockDatabase) ListL9AuditEvents(_, _ string, _, _ int) (*audit.L9AuditListResponse, error) {
+	return &audit.L9AuditListResponse{Data: []audit.L9AuditEvent{}}, nil
 }
