@@ -638,3 +638,130 @@ func TestMapVectorSimilarityResults_MultipleResults(t *testing.T) {
 		t.Errorf("second result mismatch: %+v", result[1])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// transformRelationEmbedding
+// ---------------------------------------------------------------------------
+
+func TestTransformRelationEmbedding_ReturnsNilWhenNoUsableEmbedding(t *testing.T) {
+	tests := []struct {
+		name  string
+		attrs map[string]interface{}
+	}{
+		{
+			name:  "nil attrs",
+			attrs: nil,
+		},
+		{
+			name:  "missing embedding key",
+			attrs: map[string]interface{}{"weight": 1.0},
+		},
+		{
+			name:  "embedding key is nil",
+			attrs: map[string]interface{}{"embedding": nil},
+		},
+		{
+			name:  "embedding is not a slice",
+			attrs: map[string]interface{}{"embedding": "not-a-slice"},
+		},
+		{
+			name:  "empty outer slice",
+			attrs: map[string]interface{}{"embedding": []interface{}{}},
+		},
+		{
+			name:  "first element is not a slice",
+			attrs: map[string]interface{}{"embedding": []interface{}{"nope"}},
+		},
+		{
+			// empty inner slice → vec ends up empty; this is the case the
+			// len(vec) == 0 guard defends against end-to-end.
+			name:  "empty inner slice",
+			attrs: map[string]interface{}{"embedding": []interface{}{[]interface{}{}}},
+		},
+		{
+			name:  "inner slice contains non-float element",
+			attrs: map[string]interface{}{"embedding": []interface{}{[]interface{}{0.1, "x", 0.3}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := transformRelationEmbedding(tt.attrs); got != nil {
+				t.Errorf("expected nil embedding config, got %+v", got)
+			}
+		})
+	}
+}
+
+func TestTransformRelationEmbedding_ParsesFirstVector(t *testing.T) {
+	first := []interface{}{0.1, 0.2, 0.3}
+	attrs := map[string]interface{}{
+		"embedding": []interface{}{first, []interface{}{9.0, 8.0, 7.0}},
+	}
+
+	got := transformRelationEmbedding(attrs)
+	if got == nil {
+		t.Fatal("expected non-nil embedding config")
+	}
+	if got.Name == "" {
+		t.Error("expected a non-empty model name")
+	}
+	if len(got.Data) != 3 {
+		t.Fatalf("expected 3 floats, got %d", len(got.Data))
+	}
+	want := []float64{0.1, 0.2, 0.3}
+	for i, v := range want {
+		if got.Data[i] != v {
+			t.Errorf("index %d: want %f got %f", i, v, got.Data[i])
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// withoutKey
+// ---------------------------------------------------------------------------
+
+func TestWithoutKey_NilMap(t *testing.T) {
+	if got := withoutKey(nil, "embedding"); got != nil {
+		t.Errorf("expected nil for nil map, got %v", got)
+	}
+}
+
+func TestWithoutKey_RemovesKeyWithoutMutatingOriginal(t *testing.T) {
+	original := map[string]interface{}{
+		"embedding": []interface{}{[]interface{}{0.1, 0.2}},
+		"weight":    1.0,
+		"label":     "calls",
+	}
+
+	got := withoutKey(original, "embedding")
+
+	if _, exists := got["embedding"]; exists {
+		t.Error("expected 'embedding' to be removed from the copy")
+	}
+	if got["weight"] != 1.0 || got["label"] != "calls" {
+		t.Errorf("expected remaining keys to be preserved, got %v", got)
+	}
+	// Original must be untouched (shallow copy semantics).
+	if _, exists := original["embedding"]; !exists {
+		t.Error("original map should still contain 'embedding'")
+	}
+	if len(original) != 3 {
+		t.Errorf("original map should be unchanged, got %d keys", len(original))
+	}
+}
+
+func TestWithoutKey_MissingKeyReturnsFullCopy(t *testing.T) {
+	original := map[string]interface{}{"a": 1, "b": 2}
+
+	got := withoutKey(original, "does-not-exist")
+
+	if len(got) != len(original) {
+		t.Fatalf("expected copy with %d keys, got %d", len(original), len(got))
+	}
+	for k, v := range original {
+		if got[k] != v {
+			t.Errorf("key %q: want %v got %v", k, v, got[k])
+		}
+	}
+}

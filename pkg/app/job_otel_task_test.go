@@ -234,7 +234,10 @@ func TestSendOtelTaskExecutionUsesExtractionAndPersistsResponse(t *testing.T) {
 	assert.Equal(t, workspaceID, graphReq["wksp_id"])
 	assert.Equal(t, masID, graphReq["mas_id"])
 	assert.Equal(t, false, graphReq["incremental_update"])
-	assert.Equal(t, true, graphReq["force_replace"])
+	// Extraction persistence now uses non-destructive upsert (upsert takes precedence
+	// over force_replace) so re-ingestion updates in place instead of purging + recreating.
+	assert.Equal(t, false, graphReq["force_replace"])
+	assert.Equal(t, true, graphReq["upsert"])
 	records := graphReq["records"].(map[string]interface{})
 	concepts := records["concepts"].([]interface{})
 	require.Len(t, concepts, 1)

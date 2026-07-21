@@ -88,14 +88,80 @@ func transformExtractionRelations(src []cognitionagentclient.Relation) []iocmemo
 	}
 
 	for _, r := range src {
+		// The extraction service embeds each relation's summarized_context and returns it
+		// under attributes.embedding (same shape as concepts). Lift it into the dedicated
+		// Embeddings field so KM stores it as the edge's embedding_vector (used for
+		// semantic edge de-duplication), and drop it from the attributes map so the raw
+		// vector isn't also persisted as an ordinary edge property.
+		embeddings := transformRelationEmbedding(r.Attributes)
+		attributes := r.Attributes
+		if embeddings != nil {
+			attributes = withoutKey(attributes, "embedding")
+		}
+
 		out = append(out, iocmemoryprovider.Relation{
 			ID:         r.ID,
 			Relation:   r.Relationship,
 			NodeIDs:    r.NodeIDs,
-			Attributes: r.Attributes,
+			Attributes: attributes,
+			Embeddings: embeddings,
 		})
 	}
 
+	return out
+}
+
+// transformRelationEmbedding lifts a relation's summarized_context embedding out of the
+// attributes map (attributes.embedding == [[...floats...]]) into an EmbeddingConfig.
+// Returns nil when no usable embedding is present. Mirrors transformConceptEmbedding.
+func transformRelationEmbedding(attrs map[string]interface{}) *iocmemoryprovider.EmbeddingConfig {
+	raw, ok := attrs["embedding"]
+	if !ok || raw == nil {
+		return nil
+	}
+	// JSON unmarshals the nested array as []interface{} of []interface{} of float64.
+	outer, ok := raw.([]interface{})
+	if !ok || len(outer) == 0 {
+		return nil
+	}
+	first, ok := outer[0].([]interface{})
+	if !ok || len(first) == 0 {
+		return nil
+	}
+	vec := make([]float64, 0, len(first))
+	for _, v := range first {
+		f, ok := v.(float64)
+		if !ok {
+			return nil
+		}
+		vec = append(vec, f)
+	}
+	// Never emit an EmbeddingConfig with an empty vector: a zero-length embedding
+	// carries no signal and would be stored as a useless embedding_vector on the edge.
+	// Treat it the same as "no embedding present".
+	if len(vec) == 0 {
+		return nil
+	}
+
+	return &iocmemoryprovider.EmbeddingConfig{
+		Name: "ibm-granite/granite-embedding-30m-english", // TODO: hardcoded; have extraction service return the model name
+		Data: vec,
+	}
+}
+
+// withoutKey returns a shallow copy of m with the given key removed, leaving the
+// original map untouched. Returns nil when m is nil.
+func withoutKey(m map[string]interface{}, key string) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		if k == key {
+			continue
+		}
+		out[k] = v
+	}
 	return out
 }
 
@@ -260,12 +326,16 @@ func (a *App) createOrUpdateSharedMemoriesCore(ctx context.Context, workspaceID,
 			Message:   common.StrToPtr("no concepts or relations extracted, graph upsert skipped"),
 		}
 	} else {
+		// Use a non-destructive upsert instead of force-replace: existing nodes/edges are
+		// updated in place and new ones created, so edges to nodes outside this batch are
+		// preserved (no orphaned nodes on re-ingestion). KM also semantically de-duplicates
+		// parallel edges via the relation embeddings carried in the transform above.
 		memoryProviderReq := &iocmemoryprovider.KnowledgeGraphStoreRequest{
-			RequestID:    *requestId,
-			WkspID:       &workspaceID,
-			MasID:        &masID,
-			ForceReplace: true,
-			Records:      records,
+			RequestID: *requestId,
+			WkspID:    &workspaceID,
+			MasID:     &masID,
+			Upsert:    true,
+			Records:   records,
 		}
 
 		var err error
