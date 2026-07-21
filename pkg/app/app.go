@@ -20,6 +20,7 @@ import (
 
 	"github.com/outshift-open/ioc-cfn-svc/pkg/app/httpapi/sharedmemory"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/audit"
+	l9cache "github.com/outshift-open/ioc-cfn-svc/pkg/cache/l9"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client/cognitionagentclient"
 	"github.com/outshift-open/ioc-cfn-svc/pkg/client/database"
@@ -148,6 +149,10 @@ type App struct {
 	cognitionAgentsClient *cognitionagentclient.Client
 
 	otelReceiver *otelreceiver.OTLPReceiver
+
+	// L9 message caches, one per workspace+MAS pair
+	// Key format: "workspaceID:masID"
+	l9Caches sync.Map // map[string]*l9cache.MessageCache
 }
 
 func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, error) {
@@ -251,6 +256,9 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 	log.Infof("OTLP receiver configured on /v1/traces, batch_size=%d, flush_interval=%s",
 		otelBatchSize, otelFlushInterval)
 
+	// L9 caches initialized on-demand per workspace+MAS
+	log.Infof("L9 cache system initialized (max %d conversations per MAS, FIFO eviction)", l9cache.MaxConversations)
+
 	a := &App{
 		buildVersion:          buildVersion,
 		gitCommitSHA:          gitCommitSHA,
@@ -266,6 +274,7 @@ func New(buildVersion, gitCommitSHA, gitCommitTime, gitBranch string) (*App, err
 		knowledgeMemSvcClient: knowledgeMemClient,
 		cognitionAgentsClient: cognitionAgentsClient,
 		otelReceiver:          otelRcvr,
+		// l9Caches initialized as empty sync.Map (caches created on-demand)
 	}
 
 	rtr := a.initializeRoutes()

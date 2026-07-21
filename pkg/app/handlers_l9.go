@@ -69,6 +69,9 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 		routingInfo.workspaceID, routingInfo.masID,
 		msg.Header.Kind, msg.Header.Subkind, msg.Header.Subprotocol)
 
+	// Cache incoming L9 message
+	a.cacheL9Message(msg)
+
 	ceURL, targetCE, err := a.resolveTargetCEURL(routingInfo, msg)
 	if err != nil {
 		return respondError(w, err.(*l9Error).statusCode, err.Error())
@@ -79,6 +82,9 @@ func (a *App) l9Handler(w http.ResponseWriter, r *http.Request) (int, error) {
 		log.Errorf("l9Handler: CE forwarding failed: %v", l9err)
 		return respondError(w, l9err.statusCode, l9err.message)
 	}
+
+	// Cache outgoing L9 response from CE
+	a.cacheL9Message(response)
 
 	if targetCE != nil {
 		log.Infof("l9Handler: successfully routed to CE %s", targetCE.ID)

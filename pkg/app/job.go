@@ -160,7 +160,7 @@ func (a *App) sendTaskExecution(t model.Task, endpointPath string, historyID str
 func (a *App) sendAsyncTaskExecution(t model.Task, endpointPath string, historyID string) {
 	log := getLogger()
 
-	callbackURL := a.Cfg.CallbackURL + "/api/internal/tasks/callback"
+	callbackURL := a.Cfg.ExternalServiceURL + "/api/internal/tasks/callback"
 
 	req := cognitionagentclient.TaskExecutionRequest{
 		WorkspaceID: t.WorkspaceID,
@@ -225,17 +225,6 @@ func (a *App) completeTaskExecution(t model.Task, historyID, status string, resu
 		}
 		_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
 		return
-	}
-
-	if t.Schedule != nil {
-		nextRun, err := task.NextRunTime(*t.Schedule, now)
-		if err != nil {
-			log.Errorf("failed to compute next run time for failed task %s: %s", t.ID, err)
-		} else {
-			taskFields["next_run_time"] = nextRun
-			_ = a.db.UpdateTaskStatus(t.ID, "scheduled", taskFields)
-			return
-		}
 	}
 
 	_ = a.db.UpdateTaskStatus(t.ID, "failed", taskFields)

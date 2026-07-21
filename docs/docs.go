@@ -399,6 +399,89 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/cognition-engines/{ceId}/l9-cache/workspaces/{wsId}/multi-agentic-systems/{masId}": {
+            "get": {
+                "description": "List conversations, get conversation by message ID, or get last N messages ending at message ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "l9-cache"
+                ],
+                "summary": "Query L9 message cache for a workspace+MAS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cognition Engine ID",
+                        "name": "ceid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "wsId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Multi-Agentic System ID",
+                        "name": "masId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Message ID to query conversation or context",
+                        "name": "msgID",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of messages to retrieve ending at msgID (includes target, max 1000)",
+                        "name": "n",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Conversation list, full conversation, or context messages",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Message or conversation not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/cognition-engines/{ceId}/metrics": {
             "get": {
                 "description": "Returns grouped time-series data filtered by time and entity dimensions.\nReturns both CE infrastructure metrics (queue, memory, CPU) and MAS operation metrics (tokens, latency, cost) processed by this CE.\nResponse format groups datapoints by metric name to reduce verbosity (60-70% size reduction).\nNo pagination - queries return all matching datapoints up to safety limit (100K max).",
